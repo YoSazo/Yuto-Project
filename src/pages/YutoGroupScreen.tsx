@@ -2,9 +2,12 @@ import { useState } from "react";
 import svgPaths from "../imports/svg-haowxjp8c3";
 import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 
-function MapPin() {
+function MapPin({ onClick }: { onClick?: () => void }) {
   return (
-    <div className="absolute left-[97px] size-[31px] top-[787px]">
+    <div 
+      className="absolute left-[97px] size-[31px] top-[787px] cursor-pointer hover:opacity-70 transition-opacity"
+      onClick={onClick}
+    >
       <svg className="block size-full" fill="none" viewBox="0 0 48 48">
         <path d="M42 20C42 34 24 46 24 46C24 46 6 34 6 20C6 15.2261 7.89642 10.6477 11.2721 7.27208C14.6477 3.89642 19.2261 2 24 2C28.7739 2 33.3523 3.89642 36.7279 7.27208C40.1036 10.6477 42 15.2261 42 20Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
         <path d="M24 26C27.3137 26 30 23.3137 30 20C30 16.6863 27.3137 14 24 14C20.6863 14 18 16.6863 18 20C18 23.3137 20.6863 26 24 26Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
@@ -13,9 +16,12 @@ function MapPin() {
   );
 }
 
-function User() {
+function User({ onClick }: { onClick?: () => void }) {
   return (
-    <div className="absolute left-[274px] size-[31px] top-[787px]">
+    <div 
+      className="absolute left-[274px] size-[31px] top-[787px] cursor-pointer hover:opacity-70 transition-opacity"
+      onClick={onClick}
+    >
       <svg className="block size-full" fill="none" viewBox="0 0 31 31">
         <path d={svgPaths.p28866700} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
       </svg>
@@ -23,9 +29,12 @@ function User() {
   );
 }
 
-function Home() {
+function Home({ onClick }: { onClick?: () => void }) {
   return (
-    <div className="absolute h-[31px] left-[185px] top-[787px] w-[32px]">
+    <div 
+      className="absolute h-[31px] left-[185px] top-[787px] w-[32px] cursor-pointer hover:opacity-70 transition-opacity"
+      onClick={onClick}
+    >
       <svg className="block size-full" fill="none" viewBox="0 0 32 31">
         <path d={svgPaths.p2eef9e80} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
       </svg>
@@ -246,13 +255,24 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
     <div className="bg-white min-h-screen flex items-center justify-center">
       <div className="relative w-[402px] h-[874px] bg-white overflow-hidden">
         
+        {/* Back Button */}
+        <button 
+          className="absolute left-[20px] top-[60px] text-[24px] text-gray-500 hover:text-black bg-transparent border-none cursor-pointer"
+          onClick={onBack}
+        >
+          ← Back
+        </button>
+        
         {/* Message Icon - top right */}
-        <button className="absolute right-[30px] top-[50px] hover:opacity-70 transition-opacity p-0 bg-transparent border-none">
+        <button 
+          className="absolute right-[30px] top-[50px] hover:opacity-70 transition-opacity p-0 bg-transparent border-none cursor-pointer"
+          onClick={() => onNavigate?.('chat')}
+        >
           <MessageIcon />
         </button>
         
         {/* Group Name */}
-        <p className="absolute font-bold text-[28px] text-black left-1/2 transform -translate-x-1/2 top-[100px]">
+        <p className="absolute font-bold text-[28px] text-black left-1/2 transform -translate-x-1/2 top-[100px] whitespace-nowrap">
           {groupName}
         </p>
         
@@ -563,12 +583,18 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
         
         {/* Bottom Navigation */}
         <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[264px] top-[776px]" />
-        <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[86px] top-[776px]" />
+        <div 
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => onNavigate?.('venues-map')}
+        />
         <div className="absolute bg-[#5493b3] border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[158px] w-[87px] top-[776px]" />
-        <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[247px] w-[86px] top-[776px]" />
-        <MapPin />
-        <User />
-        <Home />
+        <div 
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[247px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => onNavigate?.('profile')}
+        />
+        <MapPin onClick={() => onNavigate?.('venues-map')} />
+        <User onClick={() => onNavigate?.('profile')} />
+        <Home onClick={() => onNavigate?.('your-yutos')} />
       </div>
     </div>
   );

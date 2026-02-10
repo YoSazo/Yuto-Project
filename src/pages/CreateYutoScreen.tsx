@@ -40,7 +40,7 @@ export default function CreateYutoScreen({ venue, onBack, onCreate }: CreateYuto
         {venue && (
           <div className="absolute bg-[#5493b3] border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[60px] left-[13px] w-[375px] top-[210px] flex items-center justify-between px-[24px]">
             <p className="font-bold text-[18px] text-white">{venue.name}</p>
-            <p className="font-bold text-[16px] text-white">{venue.price}/person</p>
+            <p className="font-bold text-[16px] text-white">Ksh {venue.price}/person</p>
           </div>
         )}
 

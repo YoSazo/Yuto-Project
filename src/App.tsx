@@ -3,8 +3,12 @@ import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db4
 import HomeScreen from './pages/HomeScreen';
 import CreateYutoScreen from './pages/CreateYutoScreen';
 import YutoGroupScreen from './pages/YutoGroupScreen';
+import ProfileScreen from './pages/ProfileScreen';
+import YourYutosScreen from './pages/YourYutosScreen';
+import YutoChatScreen from './pages/YutoChatScreen';
+import VenuesMapScreen from './pages/VenuesMapScreen';
 
-type Screen = 'welcome' | 'home' | 'create-yuto' | 'yuto-group';
+type Screen = 'welcome' | 'home' | 'create-yuto' | 'yuto-group' | 'profile' | 'your-yutos' | 'chat' | 'venues-map';
 
 interface Venue {
   name: string;
@@ -81,11 +85,14 @@ export default function App() {
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [currentGroup, setCurrentGroup] = useState<YutoGroup | null>(null);
 
-  const handleNavigate = (screen: string, venue?: Venue) => {
-    if (screen === 'create-yuto' && venue) {
-      setSelectedVenue(venue);
+  const handleNavigate = (screen: string, data?: Venue | YutoGroup) => {
+    if (screen === 'create-yuto' && data && 'price' in data) {
+      setSelectedVenue(data as Venue);
       setCurrentScreen('create-yuto');
-    } else if (screen === 'home' || screen === 'welcome') {
+    } else if (screen === 'yuto-group' && data && 'peopleCount' in data) {
+      setCurrentGroup(data as YutoGroup);
+      setCurrentScreen('yuto-group');
+    } else if (screen === 'home' || screen === 'welcome' || screen === 'profile' || screen === 'your-yutos' || screen === 'chat' || screen === 'venues-map') {
       setCurrentScreen(screen as Screen);
     }
     console.log('Navigate to:', screen);
@@ -106,7 +113,7 @@ export default function App() {
   return (
     <>
       {currentScreen === 'welcome' && (
-        <WelcomeScreen onContinue={() => setCurrentScreen('home')} />
+        <WelcomeScreen onContinue={() => setCurrentScreen('your-yutos')} />
       )}
       {currentScreen === 'home' && (
         <HomeScreen onNavigate={handleNavigate} />
@@ -114,7 +121,7 @@ export default function App() {
       {currentScreen === 'create-yuto' && (
         <CreateYutoScreen 
           venue={selectedVenue}
-          onBack={() => setCurrentScreen('home')}
+          onBack={() => setCurrentScreen('venues-map')}
           onCreate={handleCreateYuto}
         />
       )}
@@ -123,9 +130,24 @@ export default function App() {
           groupName={currentGroup.name}
           venue={currentGroup.venue}
           peopleCount={currentGroup.peopleCount}
-          onBack={() => setCurrentScreen('home')}
+          onBack={() => setCurrentScreen('your-yutos')}
           onNavigate={handleNavigate}
         />
+      )}
+      {currentScreen === 'profile' && (
+        <ProfileScreen onNavigate={handleNavigate} />
+      )}
+      {currentScreen === 'your-yutos' && (
+        <YourYutosScreen onNavigate={handleNavigate} />
+      )}
+      {currentScreen === 'chat' && currentGroup && (
+        <YutoChatScreen 
+          groupName={currentGroup.name} 
+          onBack={() => setCurrentScreen('yuto-group')} 
+        />
+      )}
+      {currentScreen === 'venues-map' && (
+        <VenuesMapScreen onNavigate={handleNavigate} />
       )}
     </>
   );
