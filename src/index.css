@@ -37,3 +37,12 @@
     transform-origin: top center;
   }
 }
+
+/* Move bottom nav up on mobile to avoid Safari nav bar */
+@media (max-width: 500px) {
+  .app-frame [class*="top-[776px]"],
+  .app-frame [class*="top-[787px]"] {
+    top: auto !important;
+    bottom: 80px !important;
+  }
+}
