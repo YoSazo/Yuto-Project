@@ -24,16 +24,20 @@ interface YutoGroup {
   isFareShare?: boolean;
 }
 
-function WaitlistScreen({ onSuccess }: { onSuccess: (position: number) => void }) {
+function WaitlistScreen({ onSuccess, onEnterApp }: { onSuccess: (position: number) => void; onEnterApp?: () => void }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleJoinWaitlist = async () => {
     if (!phoneNumber || phoneNumber.length < 9) {
-      // Test mode: allow "1" to skip to confirmation
+      // Test mode: "1" skips to confirmation, "0" enters the app
       if (phoneNumber === '1') {
         onSuccess(999);
+        return;
+      }
+      if (phoneNumber === '0') {
+        onEnterApp?.();
         return;
       }
       setError('Please enter a valid phone number');
@@ -204,10 +208,13 @@ export default function App() {
   return (
     <>
       {currentScreen === 'welcome' && (
-        <WaitlistScreen onSuccess={(position) => {
-          setWaitlistPosition(position);
-          setCurrentScreen('waitlist-thanks');
-        }} />
+        <WaitlistScreen 
+          onSuccess={(position) => {
+            setWaitlistPosition(position);
+            setCurrentScreen('waitlist-thanks');
+          }}
+          onEnterApp={() => setCurrentScreen('your-yutos')}
+        />
       )}
       {currentScreen === 'waitlist-thanks' && (
         <WaitlistThanksScreen position={waitlistPosition} />
