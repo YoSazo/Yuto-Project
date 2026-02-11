@@ -1,55 +1,5 @@
-import svgPaths from "../imports/svg-haowxjp8c3";
 import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
-
-function CarIcon({ isActive = false, onClick }: { isActive?: boolean; onClick?: () => void }) {
-  return (
-    <div className="absolute left-[230px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={onClick}>
-      <svg className="block size-full" viewBox="0 0 24 24" fill="none" stroke={isActive ? "#FFFFFF" : "#1E1E1E"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 17h14v-5l-1.5-4.5h-11L5 12v5z"/>
-        <circle cx="7" cy="17" r="2"/>
-        <circle cx="17" cy="17" r="2"/>
-        <path d="M5 9h14"/>
-      </svg>
-    </div>
-  );
-}
-
-function MapPin({ onClick }: { onClick?: () => void }) {
-  return (
-    <div 
-      className="absolute left-[97px] size-[31px] top-[787px] cursor-pointer hover:opacity-70 transition-opacity"
-      onClick={onClick}
-    >
-      <svg className="block size-full" fill="none" viewBox="0 0 48 48">
-        <path d="M42 20C42 34 24 46 24 46C24 46 6 34 6 20C6 15.2261 7.89642 10.6477 11.2721 7.27208C14.6477 3.89642 19.2261 2 24 2C28.7739 2 33.3523 3.89642 36.7279 7.27208C40.1036 10.6477 42 15.2261 42 20Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M24 26C27.3137 26 30 23.3137 30 20C30 16.6863 27.3137 14 24 14C20.6863 14 18 16.6863 18 20C18 23.3137 20.6863 26 24 26Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </div>
-  );
-}
-
-function User({ onClick }: { onClick?: () => void }) {
-  return (
-    <div 
-      className="absolute left-[274px] size-[31px] top-[787px] cursor-pointer hover:opacity-70 transition-opacity"
-      onClick={onClick}
-    >
-      <svg className="block size-full" fill="none" viewBox="0 0 31 31">
-        <path d={svgPaths.p28866700} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-      </svg>
-    </div>
-  );
-}
-
-function Home({ isActive = false }: { isActive?: boolean }) {
-  return (
-    <div className="absolute h-[31px] left-[185px] top-[787px] w-[32px]">
-      <svg className="block size-full" fill="none" viewBox="0 0 32 31">
-        <path d={svgPaths.p2eef9e80} stroke={isActive ? "#FFFFFF" : "#1E1E1E"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-      </svg>
-    </div>
-  );
-}
+import GlassNavBar from "../components/GlassNavBar";
 
 interface YutoGroupData {
   id: number;
@@ -149,43 +99,8 @@ export default function YourYutosScreen({ onNavigate }: YourYutosScreenProps) {
           </div>
         )}
         
-        {/* Bottom Navigation - 4 items */}
-        <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[30px] w-[342px] top-[776px]" />
-        {/* Venues */}
-        <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[30px] w-[85px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
-          onClick={() => onNavigate?.('venues-map')}
-        />
-        {/* Home - Active */}
-        <div className="absolute bg-[#5493b3] border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[117px] w-[85px] top-[776px]" />
-        {/* Fare Share */}
-        <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[204px] w-[85px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
-          onClick={() => onNavigate?.('fare-share')}
-        />
-        {/* Profile */}
-        <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[287px] w-[85px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
-          onClick={() => onNavigate?.('profile')}
-        />
-        {/* Icons */}
-        <div className="absolute left-[58px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('venues-map')}>
-          <svg className="block size-full" fill="none" viewBox="0 0 48 48">
-            <path d="M42 20C42 34 24 46 24 46C24 46 6 34 6 20C6 15.2261 7.89642 10.6477 11.2721 7.27208C14.6477 3.89642 19.2261 2 24 2C28.7739 2 33.3523 3.89642 36.7279 7.27208C40.1036 10.6477 42 15.2261 42 20Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M24 26C27.3137 26 30 23.3137 30 20C30 16.6863 27.3137 14 24 14C20.6863 14 18 16.6863 18 20C18 23.3137 20.6863 26 24 26Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <div className="absolute left-[144px] top-[787px] size-[31px]">
-          <svg className="block size-full" fill="none" viewBox="0 0 32 31">
-            <path d={svgPaths.p2eef9e80} stroke="#FFFFFF" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-          </svg>
-        </div>
-        <CarIcon onClick={() => onNavigate?.('fare-share')} />
-        <div className="absolute left-[315px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('profile')}>
-          <svg className="block size-full" fill="none" viewBox="0 0 31 31">
-            <path d={svgPaths.p28866700} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-          </svg>
-        </div>
+        {/* Glass Navigation Bar */}
+        <GlassNavBar activeTab="home" onNavigate={(screen) => onNavigate?.(screen)} />
       </div>
     </div>
   );
