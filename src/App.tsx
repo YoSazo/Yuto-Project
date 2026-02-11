@@ -26,12 +26,16 @@ interface YutoGroup {
 
 function WaitlistScreen({ onSuccess }: { onSuccess: (position: number) => void }) {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleJoinWaitlist = async () => {
     if (!phoneNumber || phoneNumber.length < 9) {
+      // Test mode: allow "1" to skip to confirmation
+      if (phoneNumber === '1') {
+        onSuccess(999);
+        return;
+      }
       setError('Please enter a valid phone number');
       return;
     }
@@ -41,7 +45,7 @@ function WaitlistScreen({ onSuccess }: { onSuccess: (position: number) => void }
     
     try {
       const fullPhone = '+254' + phoneNumber;
-      await addToWaitlist(fullPhone, email || undefined);
+      await addToWaitlist(fullPhone);
       const position = await getWaitlistPosition(fullPhone);
       onSuccess(position);
     } catch (err: unknown) {
@@ -93,20 +97,9 @@ function WaitlistScreen({ onSuccess }: { onSuccess: (position: number) => void }
           />
         </div>
 
-        {/* Email Input (Optional) */}
-        <div className="absolute left-[53px] top-[460px] w-[296px] h-[55px] bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex items-center px-5">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email (optional)"
-            className="flex-1 outline-none bg-transparent text-[18px] text-black placeholder-gray-400"
-          />
-        </div>
-
         {/* Error Message */}
         {error && (
-          <p className="absolute left-[53px] right-[53px] top-[525px] text-[14px] text-red-500 text-center">
+          <p className="absolute left-[53px] right-[53px] top-[455px] text-[14px] text-red-500 text-center">
             {error}
           </p>
         )}
@@ -115,7 +108,7 @@ function WaitlistScreen({ onSuccess }: { onSuccess: (position: number) => void }
         <button
           onClick={handleJoinWaitlist}
           disabled={isLoading}
-          className="absolute left-[53px] top-[555px] w-[296px] h-[50px] bg-black border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex items-center justify-center cursor-pointer hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="absolute left-[53px] top-[480px] w-[296px] h-[50px] bg-black border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex items-center justify-center cursor-pointer hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           <span className="font-semibold text-[16px] text-white">
             {isLoading ? 'Joining...' : 'Join Waitlist 🎉'}
@@ -133,42 +126,44 @@ function WaitlistScreen({ onSuccess }: { onSuccess: (position: number) => void }
 
 function WaitlistThanksScreen({ position }: { position: number }) {
   return (
-    <div className="bg-white mobile-container">
-      <div className="relative w-[402px] h-[874px] bg-white app-frame">
-        {/* Logo/Mascot */}
-        <div className="absolute left-[114px] w-[167px] h-[167px] top-[150px]">
+    <div className="bg-[#fafafa] mobile-container">
+      <div className="relative w-[402px] h-[874px] bg-[#fafafa] app-frame flex flex-col items-center justify-center px-[30px]">
+        
+        {/* Mascot */}
+        <div className="w-[120px] h-[120px] mb-[20px]">
           <img 
             alt="Yuto mascot" 
-            className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" 
+            className="w-full h-full object-contain" 
             src={imgChatGptImageOct142025022518Pm1} 
           />
         </div>
 
         {/* Checkmark */}
-        <div className="absolute left-1/2 transform -translate-x-1/2 top-[320px] w-[60px] h-[60px] bg-[#5493b3] rounded-full flex items-center justify-center">
-          <span className="text-[32px]">✓</span>
+        <div className="w-[70px] h-[70px] rounded-full bg-black flex items-center justify-center mb-[30px]">
+          <svg width="40" height="40" viewBox="0 0 50 50" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="10,25 20,35 40,15" />
+          </svg>
         </div>
 
         {/* Title */}
-        <p className="absolute font-bold left-0 right-0 text-center text-[28px] text-black top-[400px]">
+        <h1 className="text-[2.2rem] font-bold text-black mb-[30px] tracking-tight">
           You're on the list!
-        </p>
+        </h1>
 
-        {/* Position */}
-        <div className="absolute left-[80px] right-[80px] top-[450px] bg-gray-50 border border-gray-200 rounded-[20px] py-[20px]">
-          <p className="text-center text-[14px] text-gray-500 mb-[8px]">Your position</p>
-          <p className="text-center text-[48px] font-bold text-black">#{position}</p>
+        {/* Position Card */}
+        <div className="w-full bg-white border-2 border-gray-200 rounded-[20px] p-[30px] mb-[25px] text-center">
+          <p className="text-[1rem] text-gray-500 mb-[12px]">Your position</p>
+          <p className="text-[4rem] font-bold text-black leading-none mb-[20px]">#{position}</p>
+          <p className="text-[1rem] text-gray-600 leading-[1.6]">
+            We'll send you an SMS when Yuto launches.<br/>
+            Get ready to organize outings with your squad!
+          </p>
         </div>
 
-        {/* Message */}
-        <p className="absolute left-[50px] right-[50px] top-[580px] text-center text-[15px] text-gray-600 leading-[1.6]">
-          We'll send you an SMS when Yuto launches. Get ready to organize outings with your squad! 🎳🎬🚗
-        </p>
-
-        {/* Share */}
-        <p className="absolute bottom-[80px] left-0 right-0 text-center text-[14px] text-[#5493b3] font-semibold">
+        {/* Share Link */}
+        <a href="#" className="text-[0.95rem] text-black font-medium border-b-2 border-black pb-[2px] hover:opacity-70 transition-opacity">
           Tell your friends to join too!
-        </p>
+        </a>
       </div>
     </div>
   );
