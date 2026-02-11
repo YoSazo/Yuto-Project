@@ -1,93 +1,192 @@
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
-import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import svgPaths from "../imports/svg-haowxjp8c3";
+import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 
-export default function YourYutosScreen() {
-  const navigate = useNavigate();
-  const { yutoGroups } = useApp();
-
-  const handleYutoClick = (yutoId: string) => {
-    navigate(`/yuto/${yutoId}`);
-  };
-
+function CarIcon({ isActive = false, onClick }: { isActive?: boolean; onClick?: () => void }) {
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Header */}
-      <header className="flex items-center gap-3 px-5 pt-12 pb-4">
-        <img 
-          alt="Yuto mascot" 
-          className="w-12 h-12 object-contain" 
-          src={imgYutoMascot} 
-        />
-        <h1 className="text-2xl font-bold text-black">Your Yutos</h1>
-      </header>
+    <div className="absolute left-[230px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={onClick}>
+      <svg className="block size-full" viewBox="0 0 24 24" fill="none" stroke={isActive ? "#FFFFFF" : "#1E1E1E"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 17h14v-5l-1.5-4.5h-11L5 12v5z"/>
+        <circle cx="7" cy="17" r="2"/>
+        <circle cx="17" cy="17" r="2"/>
+        <path d="M5 9h14"/>
+      </svg>
+    </div>
+  );
+}
 
-      {/* Content */}
-      <main className="flex-1 px-4 pb-24 space-y-4">
-        {yutoGroups.length === 0 ? (
-          /* Empty state */
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-gray-500 mb-5">No Yutos yet!</p>
+function MapPin({ onClick }: { onClick?: () => void }) {
+  return (
+    <div 
+      className="absolute left-[97px] size-[31px] top-[787px] cursor-pointer hover:opacity-70 transition-opacity"
+      onClick={onClick}
+    >
+      <svg className="block size-full" fill="none" viewBox="0 0 48 48">
+        <path d="M42 20C42 34 24 46 24 46C24 46 6 34 6 20C6 15.2261 7.89642 10.6477 11.2721 7.27208C14.6477 3.89642 19.2261 2 24 2C28.7739 2 33.3523 3.89642 36.7279 7.27208C40.1036 10.6477 42 15.2261 42 20Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M24 26C27.3137 26 30 23.3137 30 20C30 16.6863 27.3137 14 24 14C20.6863 14 18 16.6863 18 20C18 23.3137 20.6863 26 24 26Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
+  );
+}
+
+function User({ onClick }: { onClick?: () => void }) {
+  return (
+    <div 
+      className="absolute left-[274px] size-[31px] top-[787px] cursor-pointer hover:opacity-70 transition-opacity"
+      onClick={onClick}
+    >
+      <svg className="block size-full" fill="none" viewBox="0 0 31 31">
+        <path d={svgPaths.p28866700} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+      </svg>
+    </div>
+  );
+}
+
+function Home({ isActive = false }: { isActive?: boolean }) {
+  return (
+    <div className="absolute h-[31px] left-[185px] top-[787px] w-[32px]">
+      <svg className="block size-full" fill="none" viewBox="0 0 32 31">
+        <path d={svgPaths.p2eef9e80} stroke={isActive ? "#FFFFFF" : "#1E1E1E"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+      </svg>
+    </div>
+  );
+}
+
+interface YutoGroupData {
+  id: number;
+  name: string;
+  venue: { name: string; price: string };
+  members: number;
+  status: 'active' | 'completed' | 'pending';
+}
+
+const myYutos: YutoGroupData[] = [
+  { id: 1, name: "Saturday Squad", venue: { name: "Bowling", price: "500" }, members: 4, status: 'active' },
+  { id: 2, name: "Movie Night", venue: { name: "Movie", price: "800" }, members: 3, status: 'completed' },
+  { id: 3, name: "Arcade Gang", venue: { name: "Arcade", price: "300" }, members: 5, status: 'completed' },
+];
+
+interface YourYutosScreenProps {
+  onNavigate?: (screen: string, data?: { name: string; venue: { name: string; price: string }; peopleCount: number }) => void;
+}
+
+export default function YourYutosScreen({ onNavigate }: YourYutosScreenProps) {
+  return (
+    <div className="bg-white mobile-container">
+      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden app-frame">
+        
+        {/* Logo */}
+        <div className="absolute left-[56px] w-[51px] h-[51px] top-[113px]">
+          <img alt="Yuto mascot" className="w-full h-full object-cover" src={imgChatGptImageOct142025022518Pm1} />
+        </div>
+        
+        {/* Title */}
+        <p className="absolute font-bold text-[30px] text-black left-[37px] top-[151px]">Your Yutos</p>
+        
+        {/* Yuto Cards */}
+        {myYutos.map((yuto, index) => (
+          <div
+            key={yuto.id}
+            className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[120px] left-[13px] w-[375px] cursor-pointer hover:bg-gray-50 transition-all duration-200"
+            style={{ top: `${216 + index * 134}px` }}
+            onClick={() => onNavigate?.('yuto-group', { 
+              name: yuto.name, 
+              venue: yuto.venue, 
+              peopleCount: yuto.members 
+            })}
+          >
+            {/* Status indicator */}
+            <div 
+              className={`absolute top-[14px] right-[18px] px-[12px] py-[4px] rounded-full text-[10px] font-semibold ${
+                yuto.status === 'active' 
+                  ? 'bg-[#5493b3] text-white' 
+                  : yuto.status === 'completed'
+                  ? 'bg-gray-200 text-gray-600'
+                  : 'bg-yellow-100 text-yellow-700'
+              }`}
+            >
+              {yuto.status === 'active' ? 'Active' : yuto.status === 'completed' ? 'Completed' : 'Pending'}
+            </div>
+            
+            {/* Group name */}
+            <p className="absolute font-bold text-[18px] text-black left-[24px] top-[18px] right-[100px] truncate whitespace-nowrap overflow-hidden">{yuto.name}</p>
+            
+            {/* Venue */}
+            <p className="absolute text-[14px] text-gray-500 left-[24px] top-[44px]">{yuto.venue.name}</p>
+            
+            {/* Bottom row */}
+            <div className="absolute bottom-[16px] left-[24px] right-[24px] flex justify-between items-center">
+              {/* Member circles */}
+              <div className="flex items-center">
+                {Array.from({ length: Math.min(yuto.members, 4) }).map((_, i) => (
+                  <div 
+                    key={i}
+                    className="w-[28px] h-[28px] rounded-full bg-black border-2 border-white flex items-center justify-center text-white text-[12px] font-bold -ml-2 first:ml-0"
+                  >
+                    {String.fromCharCode(65 + i)}
+                  </div>
+                ))}
+                {yuto.members > 4 && (
+                  <div className="w-[28px] h-[28px] rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-gray-600 text-[10px] font-bold -ml-2">
+                    +{yuto.members - 4}
+                  </div>
+                )}
+              </div>
+              <p className="font-bold text-[14px] text-black">{(parseInt(yuto.venue.price) * yuto.members).toLocaleString()} KSH</p>
+            </div>
+          </div>
+        ))}
+        
+        {/* Empty state if no yutos */}
+        {myYutos.length === 0 && (
+          <div className="absolute left-[30px] right-[30px] top-[300px] text-center">
+            <p className="text-[16px] text-gray-500 mb-[20px]">No Yutos yet!</p>
             <button 
-              onClick={() => navigate('/venues')}
-              className="bg-black text-white rounded-full px-8 py-3 font-semibold hover:bg-gray-800 transition-colors"
+              onClick={() => onNavigate?.('home')}
+              className="bg-black text-white rounded-[30px] px-[32px] py-[14px] font-bold text-[16px] hover:bg-gray-800 transition-colors"
             >
               Browse Venues
             </button>
           </div>
-        ) : (
-          /* Yuto Cards */
-          yutoGroups.map((yuto) => (
-            <div
-              key={yuto.id}
-              onClick={() => handleYutoClick(yuto.id)}
-              className="bg-white border border-gray-200 rounded-3xl shadow-sm p-5 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all"
-            >
-              {/* Top row: Name + Status */}
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1 min-w-0 pr-3">
-                  <h3 className="font-bold text-lg text-black truncate">{yuto.name}</h3>
-                  <p className="text-sm text-gray-500">{yuto.venue.name}</p>
-                </div>
-                <span 
-                  className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${
-                    yuto.status === 'active' 
-                      ? 'bg-primary text-white' 
-                      : yuto.status === 'completed'
-                      ? 'bg-gray-200 text-gray-600'
-                      : 'bg-warning-light text-yellow-700'
-                  }`}
-                >
-                  {yuto.status === 'active' ? 'Active' : yuto.status === 'completed' ? 'Completed' : 'Pending'}
-                </span>
-              </div>
-
-              {/* Bottom row: Members + Price */}
-              <div className="flex items-center justify-between mt-4">
-                {/* Member avatars */}
-                <div className="flex items-center -space-x-2">
-                  {yuto.members.slice(0, 4).map((member, i) => (
-                    <div 
-                      key={member.id}
-                      className="w-8 h-8 rounded-full bg-black border-2 border-white flex items-center justify-center text-white text-xs font-bold"
-                    >
-                      {member.initial}
-                    </div>
-                  ))}
-                  {yuto.members.length > 4 && (
-                    <div className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-gray-600 text-xs font-bold">
-                      +{yuto.members.length - 4}
-                    </div>
-                  )}
-                </div>
-                <p className="font-bold text-black">
-                  {yuto.members.reduce((sum, m) => sum + m.amount, 0).toLocaleString()} KSH
-                </p>
-              </div>
-            </div>
-          ))
         )}
-      </main>
+        
+        {/* Bottom Navigation - 4 items */}
+        <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[30px] w-[342px] top-[776px]" />
+        {/* Venues */}
+        <div 
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[30px] w-[85px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => onNavigate?.('venues-map')}
+        />
+        {/* Home - Active */}
+        <div className="absolute bg-[#5493b3] border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[117px] w-[85px] top-[776px]" />
+        {/* Fare Share */}
+        <div 
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[204px] w-[85px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => onNavigate?.('fare-share')}
+        />
+        {/* Profile */}
+        <div 
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[287px] w-[85px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => onNavigate?.('profile')}
+        />
+        {/* Icons */}
+        <div className="absolute left-[58px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('venues-map')}>
+          <svg className="block size-full" fill="none" viewBox="0 0 48 48">
+            <path d="M42 20C42 34 24 46 24 46C24 46 6 34 6 20C6 15.2261 7.89642 10.6477 11.2721 7.27208C14.6477 3.89642 19.2261 2 24 2C28.7739 2 33.3523 3.89642 36.7279 7.27208C40.1036 10.6477 42 15.2261 42 20Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M24 26C27.3137 26 30 23.3137 30 20C30 16.6863 27.3137 14 24 14C20.6863 14 18 16.6863 18 20C18 23.3137 20.6863 26 24 26Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div className="absolute left-[144px] top-[787px] size-[31px]">
+          <svg className="block size-full" fill="none" viewBox="0 0 32 31">
+            <path d={svgPaths.p2eef9e80} stroke="#FFFFFF" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+          </svg>
+        </div>
+        <CarIcon onClick={() => onNavigate?.('fare-share')} />
+        <div className="absolute left-[315px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('profile')}>
+          <svg className="block size-full" fill="none" viewBox="0 0 31 31">
+            <path d={svgPaths.p28866700} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+          </svg>
+        </div>
+      </div>
     </div>
   );
 }
