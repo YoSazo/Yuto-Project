@@ -4,7 +4,7 @@ import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db4
 
 function CarIcon({ isActive = false, onClick }: { isActive?: boolean; onClick?: () => void }) {
   return (
-    <div className="absolute left-[218px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={onClick}>
+    <div className="absolute left-[230px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={onClick}>
       <svg className="block size-full" viewBox="0 0 24 24" fill="none" stroke={isActive ? "#FFFFFF" : "#1E1E1E"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M5 17h14v-5l-1.5-4.5h-11L5 12v5z"/>
         <circle cx="7" cy="17" r="2"/>

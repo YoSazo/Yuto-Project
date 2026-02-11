@@ -228,7 +228,7 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
             <path d={svgPaths.p2eef9e80} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
           </svg>
         </div>
-        <div className="absolute left-[218px] top-[787px] size-[31px]">
+        <div className="absolute left-[230px] top-[787px] size-[31px]">
           <CarIcon isActive />
         </div>
         <div className="absolute left-[315px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('profile')}>
