@@ -2,3 +2,38 @@
 
 @source "../index.html";
 @source "./**/*.{js,ts,jsx,tsx}";
+
+/* Mobile viewport fix */
+.mobile-container {
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+  box-sizing: border-box;
+}
+
+/* Scale down the app frame on mobile */
+@media (max-height: 800px) {
+  .app-frame {
+    transform: scale(0.85);
+    transform-origin: top center;
+  }
+}
+
+@media (max-height: 700px) {
+  .app-frame {
+    transform: scale(0.75);
+    transform-origin: top center;
+  }
+}
+
+@media (max-height: 600px) {
+  .app-frame {
+    transform: scale(0.65);
+    transform-origin: top center;
+  }
+}

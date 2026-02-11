@@ -102,8 +102,8 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const friendsCount = 7;
 
   return (
-    <div className="bg-white min-h-screen flex items-center justify-center">
-      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden">
+    <div className="bg-white mobile-container">
+      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden app-frame">
         
         {/* Settings Icon - top right */}
         <button className="absolute right-[30px] top-[50px] hover:opacity-70 transition-opacity p-0 bg-transparent border-none text-black">

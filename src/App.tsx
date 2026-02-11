@@ -30,8 +30,8 @@ function WelcomeScreen({ onContinue }: { onContinue: () => void }) {
   };
 
   return (
-    <div className="bg-white min-h-screen flex items-center justify-center">
-      <div className="relative w-[402px] h-[874px] bg-white">
+    <div className="bg-white mobile-container">
+      <div className="relative w-[402px] h-[874px] bg-white app-frame">
         {/* Logo/Mascot */}
         <div className="absolute left-[114px] w-[167px] h-[167px] top-[152px]">
           <img 

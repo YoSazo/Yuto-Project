@@ -252,8 +252,8 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
   const positions = getPositions();
 
   return (
-    <div className="bg-white min-h-screen flex items-center justify-center">
-      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden">
+    <div className="bg-white mobile-container">
+      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden app-frame">
         
         {/* Back Button */}
         <button 

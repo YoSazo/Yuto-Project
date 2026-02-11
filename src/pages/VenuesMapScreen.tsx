@@ -121,8 +121,8 @@ export default function VenuesMapScreen({ onNavigate }: VenuesMapScreenProps) {
   };
 
   return (
-    <div className="bg-white min-h-screen flex items-center justify-center">
-      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden">
+    <div className="bg-white mobile-container">
+      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden app-frame">
         
         {/* Logo */}
         <div className="absolute left-[56px] w-[51px] h-[51px] top-[50px]">
