@@ -234,16 +234,15 @@ export default function VenuesMapScreen({ onNavigate }: VenuesMapScreenProps) {
       <div className="relative w-[402px] h-[874px] bg-white overflow-hidden app-frame">
         
         {/* Logo */}
-        <div className="absolute left-[56px] w-[51px] h-[51px] top-[50px]">
+        <div className="absolute left-[56px] w-[51px] h-[51px] top-[113px]">
           <img alt="Yuto mascot" className="w-full h-full object-cover" src={imgChatGptImageOct142025022518Pm1} />
         </div>
         
         {/* Title */}
-        <p className="absolute font-bold text-[28px] text-black left-[37px] top-[110px]">Venues Near You</p>
-        <p className="absolute text-[14px] text-gray-500 left-[37px] top-[145px]">Nairobi, Kenya</p>
+        <p className="absolute font-bold text-[30px] text-black left-[37px] top-[151px]">Venues Near You</p>
         
         {/* Venue Cards */}
-        <div className="absolute left-[16px] right-[16px] top-[180px] bottom-[100px] overflow-y-auto">
+        <div className="absolute left-[16px] right-[16px] top-[216px] bottom-[100px] overflow-y-auto">
           <div className="flex flex-col gap-[16px] pb-[20px]">
             {venues.map((venue) => (
               <div
