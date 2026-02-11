@@ -144,9 +144,16 @@ function WaitlistThanksScreen({ position }: { position: number }) {
         </div>
 
         {/* Checkmark */}
-        <div className="w-[70px] h-[70px] rounded-full bg-black flex items-center justify-center mb-[30px]">
+        <div className="w-[70px] h-[70px] rounded-full bg-black flex items-center justify-center mb-[30px] animate-[scaleIn_0.5s_ease-out]">
           <svg width="40" height="40" viewBox="0 0 50 50" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="10,25 20,35 40,15" />
+            <polyline 
+              points="10,25 20,35 40,15"
+              style={{
+                strokeDasharray: 50,
+                strokeDashoffset: 0,
+                animation: 'drawCheck 0.6s ease-out 0.3s backwards'
+              }}
+            />
           </svg>
         </div>
 

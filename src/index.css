@@ -38,6 +38,27 @@
   }
 }
 
+/* Checkmark animations */
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes drawCheck {
+  from {
+    stroke-dashoffset: 50;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 /* Move bottom nav up on mobile to avoid Safari nav bar */
 @media (max-width: 500px) {
   .app-frame [class*="top-[776px]"] {
