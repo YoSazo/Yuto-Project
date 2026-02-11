@@ -117,11 +117,6 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
         {/* Title */}
         <p className="absolute font-bold text-[30px] text-black left-[37px] top-[151px]">Fare Share</p>
         
-        {/* Car Icon Badge */}
-        <div className="absolute right-[30px] top-[120px] w-[60px] h-[60px] bg-[#5493b3] rounded-full flex items-center justify-center">
-          <span className="text-[28px]">🚗</span>
-        </div>
-        
         {/* Fare Input Card */}
         <div className="absolute left-[20px] right-[20px] top-[210px]">
           <div className="bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] p-[24px]">
