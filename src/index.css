@@ -49,3 +49,17 @@
     bottom: 91px !important;
   }
 }
+
+/* Make chat screen smaller on mobile */
+@media (max-width: 500px) {
+  .chat-frame {
+    height: 75dvh !important;
+    max-height: 600px !important;
+  }
+  .chat-frame .absolute.top-\\[80px\\] {
+    top: 60px !important;
+  }
+  .chat-frame .absolute.bottom-\\[20px\\] {
+    bottom: 15px !important;
+  }
+}

@@ -61,7 +61,7 @@ export default function YutoChatScreen({ groupName, onBack }: YutoChatScreenProp
 
   return (
     <div className="bg-white mobile-container">
-      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden border border-gray-200 rounded-[40px] app-frame">
+      <div className="relative w-[402px] h-[600px] bg-white overflow-hidden border border-gray-200 rounded-[40px] chat-frame">
         
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 h-[80px] bg-white border-b border-gray-200 flex items-center justify-between px-[24px] pt-[20px]">
