@@ -59,14 +59,6 @@ const venues: Venue[] = [
   },
   {
     id: 2,
-    name: "Strike Arcade",
-    location: "Westgate Mall, Nairobi",
-    category: "Arcade",
-    coordinates: { lat: -1.2590, lng: 36.8037 },
-    priceRange: "300 KSH"
-  },
-  {
-    id: 3,
     name: "Century Cinemax",
     location: "Garden City Mall, Nairobi",
     category: "Movie",
@@ -74,7 +66,7 @@ const venues: Venue[] = [
     priceRange: "800 KSH"
   },
   {
-    id: 4,
+    id: 3,
     name: "Big Knife",
     location: "Kilimani, Nairobi",
     category: "Restaurant",
