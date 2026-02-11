@@ -91,6 +91,123 @@ function getCategoryIcon(category: string) {
   }
 }
 
+// Venue descriptions
+function getVenueDescription(name: string) {
+  switch (name) {
+    case "Strikez Bowling":
+      return "Nairobi's premier bowling alley with 12 lanes, great music, and a fully stocked bar. Perfect for group hangouts!";
+    case "Century Cinemax":
+      return "State-of-the-art cinema with IMAX screens, Dolby sound, and comfy recliners. Catch the latest blockbusters here.";
+    case "Big Knife":
+      return "Upscale steakhouse known for their signature cuts and vibrant atmosphere. Great for celebrations!";
+    default:
+      return "A great venue for your next group outing.";
+  }
+}
+
+// Venue hours
+function getVenueHours(name: string) {
+  switch (name) {
+    case "Strikez Bowling":
+      return "Mon-Sun: 10AM - 11PM";
+    case "Century Cinemax":
+      return "Mon-Sun: 9AM - 12AM";
+    case "Big Knife":
+      return "Mon-Sat: 12PM - 11PM";
+    default:
+      return "Hours vary";
+  }
+}
+
+// Venue Modal Component
+function VenueModal({ 
+  venue, 
+  onClose, 
+  onYutoIt, 
+  onGetDirections 
+}: { 
+  venue: Venue; 
+  onClose: () => void; 
+  onYutoIt: () => void;
+  onGetDirections: () => void;
+}) {
+  return (
+    <div 
+      className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 p-[20px]"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-[30px] w-full max-w-[360px] p-[24px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.3)] relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-[16px] right-[16px] w-[32px] h-[32px] bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors border-none cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+
+        {/* Category Icon */}
+        <div className="w-[70px] h-[70px] bg-gray-100 rounded-full flex items-center justify-center text-[36px] mx-auto mb-[16px]">
+          {getCategoryIcon(venue.category)}
+        </div>
+
+        {/* Venue Name */}
+        <h2 className="font-bold text-[24px] text-black text-center mb-[4px]">{venue.name}</h2>
+        
+        {/* Location */}
+        <p className="text-[14px] text-gray-500 text-center mb-[8px]">📍 {venue.location}</p>
+        
+        {/* Price & Category */}
+        <div className="flex items-center justify-center gap-[10px] mb-[16px]">
+          <span className="bg-[#5493b3] text-white text-[12px] font-semibold px-[12px] py-[4px] rounded-full">
+            {venue.priceRange}
+          </span>
+          <span className="bg-gray-100 text-gray-600 text-[12px] px-[12px] py-[4px] rounded-full">
+            {venue.category}
+          </span>
+        </div>
+
+        {/* Description */}
+        <p className="text-[14px] text-gray-600 text-center mb-[16px] leading-[1.5]">
+          {getVenueDescription(venue.name)}
+        </p>
+
+        {/* Hours */}
+        <div className="bg-gray-50 rounded-[15px] p-[12px] mb-[20px]">
+          <p className="text-[12px] text-gray-500 text-center">
+            🕐 {getVenueHours(venue.name)}
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-[10px]">
+          <button
+            onClick={onYutoIt}
+            className="w-full h-[50px] bg-black text-white font-bold text-[16px] rounded-[25px] hover:bg-gray-800 transition-colors cursor-pointer border-none"
+          >
+            Yuto it! 🎉
+          </button>
+          
+          <button
+            onClick={onGetDirections}
+            className="w-full h-[44px] bg-white text-black font-semibold text-[14px] rounded-[22px] border border-black hover:bg-gray-50 transition-colors cursor-pointer flex items-center justify-center gap-[8px]"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+            </svg>
+            Get Directions
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface VenuesMapScreenProps {
   onNavigate?: (screen: string, data?: { name: string; price: string }) => void;
 }
@@ -131,13 +248,11 @@ export default function VenuesMapScreen({ onNavigate }: VenuesMapScreenProps) {
             {venues.map((venue) => (
               <div
                 key={venue.id}
-                className={`bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] p-[20px] cursor-pointer transition-all ${
-                  selectedVenue?.id === venue.id ? 'ring-2 ring-[#5493b3]' : ''
-                }`}
-                onClick={() => setSelectedVenue(selectedVenue?.id === venue.id ? null : venue)}
+                className="bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] p-[20px] cursor-pointer transition-all hover:shadow-[0px_6px_12px_0px_rgba(0,0,0,0.15)] active:scale-[0.98]"
+                onClick={() => setSelectedVenue(venue)}
               >
                 {/* Header row */}
-                <div className="flex items-start justify-between mb-[12px]">
+                <div className="flex items-start justify-between">
                   <div className="flex items-center gap-[12px]">
                     {/* Category Icon */}
                     <div className="w-[50px] h-[50px] bg-gray-100 rounded-full flex items-center justify-center text-[24px]">
@@ -148,6 +263,9 @@ export default function VenuesMapScreen({ onNavigate }: VenuesMapScreenProps) {
                     <div>
                       <p className="font-bold text-[18px] text-black">{venue.name}</p>
                       <p className="text-[12px] text-gray-500">{venue.location}</p>
+                      <span className="text-[12px] text-gray-400 bg-gray-100 px-[10px] py-[2px] rounded-full mt-[4px] inline-block">
+                        {venue.category}
+                      </span>
                     </div>
                   </div>
                   
@@ -156,42 +274,6 @@ export default function VenuesMapScreen({ onNavigate }: VenuesMapScreenProps) {
                     {venue.priceRange}
                   </div>
                 </div>
-                
-                {/* Category Tag */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-gray-400 bg-gray-100 px-[12px] py-[4px] rounded-full">
-                    {venue.category}
-                  </span>
-                  
-                  {/* Get Directions Button */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleGetDirections(venue); }}
-                    className="flex items-center gap-[6px] bg-black text-white text-[12px] font-semibold px-[16px] py-[8px] rounded-full hover:bg-gray-800 transition-colors cursor-pointer border-none"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-                    </svg>
-                    Get Directions
-                  </button>
-                </div>
-
-                {/* Expanded Content */}
-                {selectedVenue?.id === venue.id && (
-                  <div className="mt-[16px] pt-[16px] border-t border-gray-200">
-                    <p className="text-[14px] text-gray-600 mb-[16px]">
-                      Get your squad together and enjoy {venue.category.toLowerCase()} at {venue.name}! 
-                      Split the cost with friends using Yuto.
-                    </p>
-                    
-                    {/* Yuto It Button */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleYutoIt(); }}
-                      className="w-full h-[50px] bg-black text-white font-bold text-[16px] rounded-[25px] hover:bg-gray-800 transition-colors cursor-pointer border-none"
-                    >
-                      Yuto it! 🎉
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>
@@ -211,6 +293,21 @@ export default function VenuesMapScreen({ onNavigate }: VenuesMapScreenProps) {
         <MapPin isActive />
         <Home onClick={() => onNavigate?.('your-yutos')} />
         <User onClick={() => onNavigate?.('profile')} />
+
+        {/* Venue Detail Modal */}
+        {selectedVenue && (
+          <VenueModal
+            venue={selectedVenue}
+            onClose={() => setSelectedVenue(null)}
+            onYutoIt={() => {
+              onNavigate?.('create-yuto', { 
+                name: selectedVenue.name, 
+                price: selectedVenue.priceRange.replace(' KSH', '') 
+              });
+            }}
+            onGetDirections={() => handleGetDirections(selectedVenue)}
+          />
+        )}
       </div>
     </div>
   );
