@@ -18,8 +18,9 @@ interface Venue {
 
 interface YutoGroup {
   name: string;
-  venue: Venue;
+  venue: Venue | { name: string; price: string };
   peopleCount: number;
+  isFareShare?: boolean;
 }
 
 function WelcomeScreen({ onContinue }: { onContinue: () => void }) {
@@ -87,7 +88,7 @@ export default function App() {
   const [currentGroup, setCurrentGroup] = useState<YutoGroup | null>(null);
 
   const handleNavigate = (screen: string, data?: Venue | YutoGroup) => {
-    if (screen === 'create-yuto' && data && 'price' in data) {
+    if (screen === 'create-yuto' && data && 'price' in data && !('peopleCount' in data)) {
       setSelectedVenue(data as Venue);
       setCurrentScreen('create-yuto');
     } else if (screen === 'yuto-group' && data && 'peopleCount' in data) {

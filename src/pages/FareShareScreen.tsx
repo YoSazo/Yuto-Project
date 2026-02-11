@@ -44,7 +44,7 @@ function Home({ onClick }: { onClick?: () => void }) {
 }
 
 interface FareShareScreenProps {
-  onNavigate?: (screen: string) => void;
+  onNavigate?: (screen: string, data?: { name: string; venue: { name: string; price: string }; peopleCount: number; isFareShare?: boolean }) => void;
   onBack?: () => void;
 }
 
@@ -75,11 +75,13 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
 
   const handleSplit = () => {
     if (fareAmount && selectedFriends.length > 0) {
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        onNavigate?.('your-yutos');
-      }, 2000);
+      // Create a Fare Share Yuto group
+      onNavigate?.('yuto-group', {
+        name: "Fare Share 🚗",
+        venue: { name: "Fare Share", price: String(splitAmount) },
+        peopleCount: totalPeople,
+        isFareShare: true
+      });
     }
   };
 
