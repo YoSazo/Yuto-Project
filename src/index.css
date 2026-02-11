@@ -16,21 +16,24 @@
   box-sizing: border-box;
 }
 
-/* Full size app frame that fills viewport */
-.app-frame {
-  width: 100% !important;
-  max-width: 402px;
-  height: 100dvh !important;
-  max-height: 100dvh;
+/* Scale app frame on mobile - slightly bigger than before */
+@media (max-height: 800px) {
+  .app-frame {
+    transform: scale(0.92);
+    transform-origin: top center;
+  }
 }
 
-/* Move bottom nav up on mobile */
-.bottom-nav {
-  top: auto !important;
-  bottom: 20px !important;
+@media (max-height: 700px) {
+  .app-frame {
+    transform: scale(0.82);
+    transform-origin: top center;
+  }
 }
 
-.bottom-nav-icon {
-  top: auto !important;
-  bottom: 31px !important;
+@media (max-height: 600px) {
+  .app-frame {
+    transform: scale(0.72);
+    transform-origin: top center;
+  }
 }

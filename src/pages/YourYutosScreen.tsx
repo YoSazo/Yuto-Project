@@ -137,19 +137,19 @@ export default function YourYutosScreen({ onNavigate }: YourYutosScreenProps) {
         )}
         
         {/* Bottom Navigation */}
-        <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[264px] top-[776px] bottom-nav" />
+        <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[264px] top-[776px]" />
         <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[86px] top-[776px] bottom-nav cursor-pointer hover:bg-gray-50 transition-colors"
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => onNavigate?.('venues-map')}
         />
-        <div className="absolute bg-[#5493b3] border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[158px] w-[87px] top-[776px] bottom-nav" />
+        <div className="absolute bg-[#5493b3] border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[158px] w-[87px] top-[776px]" />
         <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[247px] w-[86px] top-[776px] bottom-nav cursor-pointer hover:bg-gray-50 transition-colors"
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[247px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => onNavigate?.('profile')}
         />
-        <MapPin onClick={() => onNavigate?.('venues-map')} className="bottom-nav-icon" />
-        <Home isActive className="bottom-nav-icon" />
-        <User onClick={() => onNavigate?.('profile')} className="bottom-nav-icon" />
+        <MapPin onClick={() => onNavigate?.('venues-map')} />
+        <Home isActive />
+        <User onClick={() => onNavigate?.('profile')} />
       </div>
     </div>
   );
