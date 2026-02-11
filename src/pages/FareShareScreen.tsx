@@ -1,154 +1,124 @@
 import { useState } from "react";
-import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
-import GlassNavBar from "../components/GlassNavBar";
+import { useNavigate } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
+import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 
-interface FareShareScreenProps {
-  onNavigate?: (screen: string, data?: { name: string; venue: { name: string; price: string }; peopleCount: number; isFareShare?: boolean }) => void;
-  onBack?: () => void;
-}
-
-// Friend options
-const friends = [
-  { id: 1, name: "Jack", initial: "J" },
-  { id: 2, name: "Jane", initial: "Ja" },
-  { id: 3, name: "Mike", initial: "M" },
-  { id: 4, name: "Sara", initial: "S" },
-  { id: 5, name: "Alex", initial: "A" },
-];
-
-export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenProps) {
+export default function FareShareScreen() {
+  const navigate = useNavigate();
+  const { friends, addYutoGroup, venues } = useApp();
   const [fareAmount, setFareAmount] = useState("");
   const [selectedFriends, setSelectedFriends] = useState<number[]>([]);
-  const [showSuccess, setShowSuccess] = useState(false);
 
   const toggleFriend = (id: number) => {
-    if (selectedFriends.includes(id)) {
-      setSelectedFriends(selectedFriends.filter(f => f !== id));
-    } else {
-      setSelectedFriends([...selectedFriends, id]);
-    }
+    setSelectedFriends(prev => 
+      prev.includes(id) 
+        ? prev.filter(f => f !== id) 
+        : [...prev, id]
+    );
   };
 
   const totalPeople = selectedFriends.length + 1; // +1 for yourself
   const splitAmount = fareAmount ? Math.ceil(parseInt(fareAmount) / totalPeople) : 0;
+  const isValid = fareAmount && parseInt(fareAmount) > 0 && selectedFriends.length > 0;
 
   const handleSplit = () => {
-    if (fareAmount && selectedFriends.length > 0) {
-      // Create a Fare Share Yuto group
-      onNavigate?.('yuto-group', {
+    if (isValid) {
+      // Create a fare share Yuto group
+      const selectedFriendsList = friends.filter(f => selectedFriends.includes(f.id));
+      const members = [
+        { id: 'user-1', name: 'You', initial: 'Y', paid: false, amount: splitAmount },
+        ...selectedFriendsList.map(f => ({
+          id: `friend-${f.id}`,
+          name: f.name,
+          initial: f.initial,
+          paid: false,
+          amount: splitAmount,
+        }))
+      ];
+
+      const newGroup = addYutoGroup({
         name: "Fare Share 🚗",
-        venue: { name: "Fare Share", price: String(splitAmount) },
-        peopleCount: totalPeople,
-        isFareShare: true
+        venue: { ...venues[0], name: "Fare Share", price: splitAmount }, // Use a placeholder
+        members,
+        status: 'active',
+        isFareShare: true,
       });
+
+      navigate(`/yuto/${newGroup.id}`);
     }
   };
 
-  const isValid = fareAmount && parseInt(fareAmount) > 0 && selectedFriends.length > 0;
-
   return (
-    <div className="bg-white mobile-container">
-      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden app-frame">
-        
-        {/* Back Button */}
-        <button 
-          className="absolute left-[20px] top-[60px] text-[24px] text-gray-500 hover:text-black bg-transparent border-none cursor-pointer"
-          onClick={onBack}
-        >
-          ← Back
-        </button>
-        
-        {/* Logo */}
-        <div className="absolute left-[56px] w-[51px] h-[51px] top-[113px]">
-          <img alt="Yuto mascot" className="w-full h-full object-cover" src={imgChatGptImageOct142025022518Pm1} />
-        </div>
-        
-        {/* Title */}
-        <p className="absolute font-bold text-[30px] text-black left-[37px] top-[151px]">Fare Share</p>
-        
+    <div className="flex flex-col min-h-full">
+      {/* Header */}
+      <header className="flex items-center gap-3 px-5 pt-12 pb-4">
+        <img alt="Yuto mascot" className="w-12 h-12 object-contain" src={imgYutoMascot} />
+        <h1 className="text-2xl font-bold text-black">Fare Share</h1>
+      </header>
+
+      {/* Content */}
+      <main className="flex-1 px-4 pb-24 space-y-6">
         {/* Fare Input Card */}
-        <div className="absolute left-[20px] right-[20px] top-[210px]">
-          <div className="bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] p-[24px]">
-            <p className="font-semibold text-[16px] text-black mb-[12px]">Total Fare Amount</p>
-            <div className="flex items-center gap-[12px]">
-              <span className="text-[20px] font-bold text-gray-400">KSH</span>
-              <input
-                type="number"
-                value={fareAmount}
-                onChange={(e) => setFareAmount(e.target.value)}
-                placeholder="0"
-                className="flex-1 h-[50px] text-[32px] font-bold text-black bg-transparent border-none outline-none"
-              />
-            </div>
+        <div className="bg-white border border-gray-200 rounded-3xl shadow-sm p-6">
+          <p className="font-semibold text-black mb-3">Total Fare Amount</p>
+          <div className="flex items-center gap-3">
+            <span className="text-xl font-bold text-gray-400">KSH</span>
+            <input
+              type="number"
+              value={fareAmount}
+              onChange={(e) => setFareAmount(e.target.value)}
+              placeholder="0"
+              className="flex-1 text-4xl font-bold text-black bg-transparent border-none outline-none"
+            />
           </div>
         </div>
-        
+
         {/* Select Friends */}
-        <div className="absolute left-[20px] right-[20px] top-[350px]">
-          <p className="font-semibold text-[16px] text-black mb-[16px]">Split with</p>
-          <div className="flex flex-wrap gap-[12px]">
+        <div>
+          <p className="font-semibold text-black mb-4">Split with</p>
+          <div className="flex flex-wrap gap-3">
             {friends.map((friend) => (
               <button
                 key={friend.id}
                 onClick={() => toggleFriend(friend.id)}
-                className={`flex items-center gap-[8px] px-[16px] py-[10px] rounded-full border-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all ${
                   selectedFriends.includes(friend.id)
                     ? 'bg-black border-black text-white'
                     : 'bg-white border-gray-300 text-black hover:border-black'
                 }`}
               >
-                <div className={`w-[28px] h-[28px] rounded-full flex items-center justify-center text-[12px] font-bold ${
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                   selectedFriends.includes(friend.id) ? 'bg-white text-black' : 'bg-gray-200 text-gray-600'
                 }`}>
                   {friend.initial}
                 </div>
-                <span className="font-medium text-[14px]">{friend.name}</span>
+                <span className="font-medium text-sm">{friend.name}</span>
               </button>
             ))}
           </div>
         </div>
-        
-        {/* Split Button */}
-        <div className="absolute left-[20px] right-[20px] top-[520px]">
-          <button
-            onClick={handleSplit}
-            disabled={!isValid}
-            className={`w-full h-[56px] rounded-[28px] font-bold text-[18px] border-none cursor-pointer transition-all ${
-              isValid
-                ? 'bg-black text-white hover:bg-gray-800 active:scale-[0.98]'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {isValid ? `Split KSH ${splitAmount} each 🚗` : 'Enter fare & select friends'}
-          </button>
-        </div>
 
-        {/* Split Summary - below button */}
+        {/* Split Summary */}
         {isValid && (
-          <div className="absolute left-[20px] right-[20px] top-[600px]">
-            <div className="flex justify-between items-center">
-              <span className="text-[16px] text-gray-500">Each person pays</span>
-              <span className="font-bold text-[24px] text-[#5493b3]">KSH {splitAmount.toLocaleString()}</span>
-            </div>
+          <div className="flex justify-between items-center py-2">
+            <span className="text-gray-500">Each person pays</span>
+            <span className="font-bold text-2xl text-primary">KSH {splitAmount.toLocaleString()}</span>
           </div>
         )}
-        
-        {/* Success Overlay */}
-        {showSuccess && (
-          <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="text-center">
-              <div className="text-[80px] mb-[20px]">✅</div>
-              <p className="text-white font-bold text-[24px] mb-[8px]">Fare Split Sent!</p>
-              <p className="text-gray-300 text-[16px]">
-                {selectedFriends.length} friends notified
-              </p>
-            </div>
-          </div>
-        )}
-        
-        {/* Glass Navigation Bar */}
-        <GlassNavBar activeTab="fare-share" onNavigate={(screen) => onNavigate?.(screen)} />
-      </div>
+
+        {/* Split Button */}
+        <button
+          onClick={handleSplit}
+          disabled={!isValid}
+          className={`w-full py-4 rounded-full font-bold text-lg transition-all ${
+            isValid
+              ? 'bg-black text-white hover:bg-gray-800 active:scale-[0.98]'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {isValid ? `Split KSH ${splitAmount} each 🚗` : 'Enter fare & select friends'}
+        </button>
+      </main>
     </div>
   );
 }

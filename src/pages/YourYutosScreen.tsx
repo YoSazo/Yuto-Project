@@ -1,107 +1,93 @@
-import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
-import GlassNavBar from "../components/GlassNavBar";
+import { useNavigate } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
+import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 
-interface YutoGroupData {
-  id: number;
-  name: string;
-  venue: { name: string; price: string };
-  members: number;
-  status: 'active' | 'completed' | 'pending';
-}
+export default function YourYutosScreen() {
+  const navigate = useNavigate();
+  const { yutoGroups } = useApp();
 
-const myYutos: YutoGroupData[] = [
-  { id: 1, name: "Saturday Squad", venue: { name: "Bowling", price: "500" }, members: 4, status: 'active' },
-  { id: 2, name: "Movie Night", venue: { name: "Movie", price: "800" }, members: 3, status: 'completed' },
-  { id: 3, name: "Arcade Gang", venue: { name: "Arcade", price: "300" }, members: 5, status: 'completed' },
-];
+  const handleYutoClick = (yutoId: string) => {
+    navigate(`/yuto/${yutoId}`);
+  };
 
-interface YourYutosScreenProps {
-  onNavigate?: (screen: string, data?: { name: string; venue: { name: string; price: string }; peopleCount: number }) => void;
-}
-
-export default function YourYutosScreen({ onNavigate }: YourYutosScreenProps) {
   return (
-    <div className="bg-white mobile-container">
-      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden app-frame">
-        
-        {/* Logo */}
-        <div className="absolute left-[56px] w-[51px] h-[51px] top-[113px]">
-          <img alt="Yuto mascot" className="w-full h-full object-cover" src={imgChatGptImageOct142025022518Pm1} />
-        </div>
-        
-        {/* Title */}
-        <p className="absolute font-bold text-[30px] text-black left-[37px] top-[151px]">Your Yutos</p>
-        
-        {/* Yuto Cards */}
-        {myYutos.map((yuto, index) => (
-          <div
-            key={yuto.id}
-            className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[120px] left-[13px] w-[375px] cursor-pointer hover:bg-gray-50 transition-all duration-200"
-            style={{ top: `${216 + index * 134}px` }}
-            onClick={() => onNavigate?.('yuto-group', { 
-              name: yuto.name, 
-              venue: yuto.venue, 
-              peopleCount: yuto.members 
-            })}
-          >
-            {/* Status indicator */}
-            <div 
-              className={`absolute top-[14px] right-[18px] px-[12px] py-[4px] rounded-full text-[10px] font-semibold ${
-                yuto.status === 'active' 
-                  ? 'bg-[#5493b3] text-white' 
-                  : yuto.status === 'completed'
-                  ? 'bg-gray-200 text-gray-600'
-                  : 'bg-yellow-100 text-yellow-700'
-              }`}
-            >
-              {yuto.status === 'active' ? 'Active' : yuto.status === 'completed' ? 'Completed' : 'Pending'}
-            </div>
-            
-            {/* Group name */}
-            <p className="absolute font-bold text-[18px] text-black left-[24px] top-[18px] right-[100px] truncate whitespace-nowrap overflow-hidden">{yuto.name}</p>
-            
-            {/* Venue */}
-            <p className="absolute text-[14px] text-gray-500 left-[24px] top-[44px]">{yuto.venue.name}</p>
-            
-            {/* Bottom row */}
-            <div className="absolute bottom-[16px] left-[24px] right-[24px] flex justify-between items-center">
-              {/* Member circles */}
-              <div className="flex items-center">
-                {Array.from({ length: Math.min(yuto.members, 4) }).map((_, i) => (
-                  <div 
-                    key={i}
-                    className="w-[28px] h-[28px] rounded-full bg-black border-2 border-white flex items-center justify-center text-white text-[12px] font-bold -ml-2 first:ml-0"
-                  >
-                    {String.fromCharCode(65 + i)}
-                  </div>
-                ))}
-                {yuto.members > 4 && (
-                  <div className="w-[28px] h-[28px] rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-gray-600 text-[10px] font-bold -ml-2">
-                    +{yuto.members - 4}
-                  </div>
-                )}
-              </div>
-              <p className="font-bold text-[14px] text-black">{(parseInt(yuto.venue.price) * yuto.members).toLocaleString()} KSH</p>
-            </div>
-          </div>
-        ))}
-        
-        {/* Empty state if no yutos */}
-        {myYutos.length === 0 && (
-          <div className="absolute left-[30px] right-[30px] top-[300px] text-center">
-            <p className="text-[16px] text-gray-500 mb-[20px]">No Yutos yet!</p>
+    <div className="flex flex-col min-h-full">
+      {/* Header */}
+      <header className="flex items-center gap-3 px-5 pt-12 pb-4">
+        <img 
+          alt="Yuto mascot" 
+          className="w-12 h-12 object-contain" 
+          src={imgYutoMascot} 
+        />
+        <h1 className="text-2xl font-bold text-black">Your Yutos</h1>
+      </header>
+
+      {/* Content */}
+      <main className="flex-1 px-4 pb-24 space-y-4">
+        {yutoGroups.length === 0 ? (
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center py-20">
+            <p className="text-gray-500 mb-5">No Yutos yet!</p>
             <button 
-              onClick={() => onNavigate?.('home')}
-              className="bg-black text-white rounded-[30px] px-[32px] py-[14px] font-bold text-[16px] hover:bg-gray-800 transition-colors"
+              onClick={() => navigate('/venues')}
+              className="bg-black text-white rounded-full px-8 py-3 font-semibold hover:bg-gray-800 transition-colors"
             >
               Browse Venues
             </button>
           </div>
+        ) : (
+          /* Yuto Cards */
+          yutoGroups.map((yuto) => (
+            <div
+              key={yuto.id}
+              onClick={() => handleYutoClick(yuto.id)}
+              className="bg-white border border-gray-200 rounded-3xl shadow-sm p-5 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all"
+            >
+              {/* Top row: Name + Status */}
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1 min-w-0 pr-3">
+                  <h3 className="font-bold text-lg text-black truncate">{yuto.name}</h3>
+                  <p className="text-sm text-gray-500">{yuto.venue.name}</p>
+                </div>
+                <span 
+                  className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                    yuto.status === 'active' 
+                      ? 'bg-primary text-white' 
+                      : yuto.status === 'completed'
+                      ? 'bg-gray-200 text-gray-600'
+                      : 'bg-warning-light text-yellow-700'
+                  }`}
+                >
+                  {yuto.status === 'active' ? 'Active' : yuto.status === 'completed' ? 'Completed' : 'Pending'}
+                </span>
+              </div>
+
+              {/* Bottom row: Members + Price */}
+              <div className="flex items-center justify-between mt-4">
+                {/* Member avatars */}
+                <div className="flex items-center -space-x-2">
+                  {yuto.members.slice(0, 4).map((member, i) => (
+                    <div 
+                      key={member.id}
+                      className="w-8 h-8 rounded-full bg-black border-2 border-white flex items-center justify-center text-white text-xs font-bold"
+                    >
+                      {member.initial}
+                    </div>
+                  ))}
+                  {yuto.members.length > 4 && (
+                    <div className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-gray-600 text-xs font-bold">
+                      +{yuto.members.length - 4}
+                    </div>
+                  )}
+                </div>
+                <p className="font-bold text-black">
+                  {yuto.members.reduce((sum, m) => sum + m.amount, 0).toLocaleString()} KSH
+                </p>
+              </div>
+            </div>
+          ))
         )}
-        
-        {/* Glass Navigation Bar */}
-        <GlassNavBar activeTab="home" onNavigate={(screen) => onNavigate?.(screen)} />
-      </div>
+      </main>
     </div>
   );
 }

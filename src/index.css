@@ -3,42 +3,7 @@
 @source "../index.html";
 @source "./**/*.{js,ts,jsx,tsx}";
 
-/* Mobile viewport fix */
-.mobile-container {
-  width: 100%;
-  height: 100dvh;
-  max-height: 100dvh;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-bottom: env(safe-area-inset-bottom, 20px);
-  box-sizing: border-box;
-}
-
-/* Scale app frame on mobile - slightly bigger than before */
-@media (max-height: 800px) {
-  .app-frame {
-    transform: scale(0.92);
-    transform-origin: top center;
-  }
-}
-
-@media (max-height: 700px) {
-  .app-frame {
-    transform: scale(0.82);
-    transform-origin: top center;
-  }
-}
-
-@media (max-height: 600px) {
-  .app-frame {
-    transform: scale(0.72);
-    transform-origin: top center;
-  }
-}
-
-/* Checkmark animations */
+/* Animations */
 @keyframes scaleIn {
   from {
     transform: scale(0);
@@ -59,28 +24,41 @@
   }
 }
 
-/* Move bottom nav up on mobile to avoid Safari nav bar */
-@media (max-width: 500px) {
-  .app-frame [class*="top-[776px]"] {
-    top: auto !important;
-    bottom: 80px !important;
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
   }
-  .app-frame [class*="top-[787px]"] {
-    top: auto !important;
-    bottom: 91px !important;
+  to {
+    transform: translateY(0);
   }
 }
 
-/* Make chat screen smaller on mobile */
-@media (max-width: 500px) {
-  .chat-frame {
-    height: 75dvh !important;
-    max-height: 600px !important;
-  }
-  .chat-frame .absolute.top-\\[80px\\] {
-    top: 60px !important;
-  }
-  .chat-frame .absolute.bottom-\\[20px\\] {
-    bottom: 15px !important;
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Prevent pull-to-refresh on mobile */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* Safe area padding for notched phones */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
   }
 }

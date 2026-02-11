@@ -1,112 +1,128 @@
 import { useState } from "react";
-import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
+import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 
-interface CreateYutoScreenProps {
-  venue: { name: string; price: string } | null;
-  onBack: () => void;
-  onCreate: (groupName: string, peopleCount: number) => void;
-}
-
-export default function CreateYutoScreen({ venue, onBack, onCreate }: CreateYutoScreenProps) {
+export default function CreateYutoScreen() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { venues, friends, addYutoGroup } = useApp();
+  
+  // Get venue from navigation state or default to first venue
+  const venueId = location.state?.venueId;
+  const venue = venues.find(v => v.id === venueId) || venues[0];
+  
   const [groupName, setGroupName] = useState("");
-  const [peopleCount, setPeopleCount] = useState(3);
+  const [peopleCount, setPeopleCount] = useState(2);
 
   const handleCreate = () => {
-    if (groupName.trim()) {
-      onCreate(groupName, peopleCount);
+    if (groupName.trim() && venue) {
+      const splitPrice = Math.ceil(venue.price / peopleCount);
+      
+      // Create members (you + random friends)
+      const members = [
+        { id: 'user-1', name: 'You', initial: 'Y', paid: false, amount: splitPrice },
+        ...friends.slice(0, peopleCount - 1).map(f => ({
+          id: `friend-${f.id}`,
+          name: f.name,
+          initial: f.initial,
+          paid: false,
+          amount: splitPrice,
+        }))
+      ];
+
+      const newGroup = addYutoGroup({
+        name: groupName,
+        venue: venue,
+        members,
+        status: 'active',
+      });
+
+      navigate(`/yuto/${newGroup.id}`);
     }
   };
 
-  return (
-    <div className="bg-white mobile-container">
-      <div className="relative w-[402px] h-[874px] bg-white app-frame">
-        {/* Back button */}
-        <button
-          onClick={onBack}
-          className="absolute left-[20px] top-[60px] text-[24px] text-gray-500 hover:text-black"
-        >
-          ← Back
-        </button>
+  const splitPrice = Math.ceil(venue.price / peopleCount);
 
-        {/* Logo */}
-        <div className="absolute left-[56px] w-[51px] h-[51px] top-[113px]">
-          <img alt="Yuto mascot" className="w-full h-full object-cover" src={imgChatGptImageOct142025022518Pm1} />
+  return (
+    <div className="flex flex-col min-h-full">
+      {/* Header with back button */}
+      <header className="flex items-center gap-3 px-5 pt-12 pb-4">
+        <button 
+          onClick={() => navigate(-1)}
+          className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <img alt="Yuto mascot" className="w-10 h-10 object-contain" src={imgYutoMascot} />
+        <h1 className="text-xl font-bold text-black">Create a Yuto</h1>
+      </header>
+
+      {/* Content */}
+      <main className="flex-1 px-5 pb-8 space-y-6">
+        {/* Venue Card */}
+        <div className="bg-gray-100 rounded-2xl p-4">
+          <p className="text-sm text-gray-500 mb-1">Selected Venue</p>
+          <p className="font-bold text-lg text-black">{venue.name}</p>
+          <p className="text-primary font-semibold">{venue.price} KSH per person</p>
         </div>
-        
-        {/* Title */}
-        <p className="absolute font-bold text-[30px] text-black left-[37px] top-[151px]">Create Yuto</p>
-        
-        {/* Venue pill */}
-        {venue && (
-          <div className="absolute bg-[#5493b3] border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[60px] left-[13px] w-[375px] top-[210px] flex items-center justify-between px-[24px]">
-            <p className="font-bold text-[18px] text-white">{venue.name}</p>
-            <p className="font-bold text-[16px] text-white">Ksh {venue.price}/person</p>
-          </div>
-        )}
 
         {/* Group Name Input */}
-        <div className="absolute left-[13px] top-[300px] w-[375px]">
-          <p className="font-bold text-[16px] text-black mb-[10px] ml-[12px]">Group Name</p>
-          <div className="bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] h-[56px] w-full flex items-center px-[24px]">
-            <input
-              type="text"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              placeholder="e.g. Saturday Squad"
-              className="w-full outline-none text-[18px] text-black bg-transparent"
-              maxLength={25}
-            />
-          </div>
+        <div>
+          <label className="block font-semibold text-black mb-2">Group Name</label>
+          <input
+            type="text"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            placeholder="e.g., Friday Squad"
+            className="w-full px-5 py-4 bg-white border border-gray-300 rounded-2xl text-black placeholder-gray-400 outline-none focus:border-black transition-colors"
+          />
         </div>
 
         {/* People Count */}
-        <div className="absolute left-[13px] top-[420px] w-[375px]">
-          <p className="font-bold text-[16px] text-black mb-[10px] ml-[12px]">How many people?</p>
-          <div className="flex items-center justify-center gap-[20px]">
+        <div>
+          <label className="block font-semibold text-black mb-2">How many people?</label>
+          <div className="flex items-center gap-4">
             <button
               onClick={() => setPeopleCount(Math.max(2, peopleCount - 1))}
-              className="w-[60px] h-[60px] bg-white border border-black rounded-full text-[28px] font-bold hover:bg-gray-100 transition-colors"
+              className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-2xl font-bold hover:bg-gray-200 transition-colors"
             >
               −
             </button>
-            <div className="w-[100px] h-[80px] bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] flex items-center justify-center">
-              <span className="text-[36px] font-bold text-black">{peopleCount}</span>
-            </div>
+            <span className="text-3xl font-bold text-black w-16 text-center">{peopleCount}</span>
             <button
-              onClick={() => setPeopleCount(Math.min(5, peopleCount + 1))}
-              className="w-[60px] h-[60px] bg-white border border-black rounded-full text-[28px] font-bold hover:bg-gray-100 transition-colors"
+              onClick={() => setPeopleCount(Math.min(20, peopleCount + 1))}
+              className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-2xl font-bold hover:bg-gray-200 transition-colors"
             >
               +
             </button>
           </div>
-          <p className="text-center text-[14px] text-gray-500 mt-[10px]">Min 2, Max 5 people</p>
         </div>
 
-        {/* Total Cost Preview */}
-        {venue && (
-          <div className="absolute left-[13px] top-[620px] w-[375px]">
-            <div className="bg-gray-50 border border-gray-200 rounded-[30px] h-[80px] w-full flex items-center justify-between px-[24px]">
-              <p className="text-[16px] text-gray-600">Total Pool</p>
-              <p className="font-bold text-[24px] text-black">
-                {parseInt(venue.price) * peopleCount} KSH
-              </p>
-            </div>
-          </div>
-        )}
+        {/* Split Preview */}
+        <div className="bg-primary/10 rounded-2xl p-4">
+          <p className="text-sm text-gray-600 mb-1">Each person pays</p>
+          <p className="font-bold text-2xl text-primary">{splitPrice.toLocaleString()} KSH</p>
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
 
         {/* Create Button */}
         <button
           onClick={handleCreate}
           disabled={!groupName.trim()}
-          className={`absolute bottom-[80px] left-[13px] w-[375px] h-[60px] rounded-[30px] font-bold text-[20px] transition-colors ${
+          className={`w-full py-4 rounded-full font-bold text-lg transition-all ${
             groupName.trim()
-              ? "bg-black text-white hover:bg-gray-800"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              ? 'bg-black text-white hover:bg-gray-800'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
         >
-          Create Yuto
+          Create Yuto 🎉
         </button>
-      </div>
+      </main>
     </div>
   );
 }
