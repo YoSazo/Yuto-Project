@@ -159,29 +159,8 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
           </div>
         </div>
         
-        {/* Split Summary */}
-        {isValid && (
-          <div className="absolute left-[20px] right-[20px] top-[530px]">
-            <div className="bg-gray-50 border border-gray-200 rounded-[25px] p-[20px]">
-              <div className="flex justify-between items-center mb-[12px]">
-                <span className="text-[14px] text-gray-500">Total fare</span>
-                <span className="font-bold text-[16px] text-black">KSH {parseInt(fareAmount).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center mb-[12px]">
-                <span className="text-[14px] text-gray-500">Splitting with</span>
-                <span className="font-bold text-[16px] text-black">{totalPeople} people</span>
-              </div>
-              <div className="h-[1px] bg-gray-300 my-[12px]" />
-              <div className="flex justify-between items-center">
-                <span className="text-[16px] font-semibold text-black">Each person pays</span>
-                <span className="font-bold text-[24px] text-[#5493b3]">KSH {splitAmount.toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-        )}
-        
         {/* Split Button */}
-        <div className="absolute left-[20px] right-[20px] top-[560px]">
+        <div className="absolute left-[20px] right-[20px] top-[520px]">
           <button
             onClick={handleSplit}
             disabled={!isValid}
@@ -194,6 +173,16 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
             {isValid ? `Split KSH ${splitAmount} each 🚗` : 'Enter fare & select friends'}
           </button>
         </div>
+
+        {/* Split Summary - below button */}
+        {isValid && (
+          <div className="absolute left-[20px] right-[20px] top-[600px]">
+            <div className="flex justify-between items-center">
+              <span className="text-[16px] text-gray-500">Each person pays</span>
+              <span className="font-bold text-[24px] text-[#5493b3]">KSH {splitAmount.toLocaleString()}</span>
+            </div>
+          </div>
+        )}
         
         {/* Success Overlay */}
         {showSuccess && (
