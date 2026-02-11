@@ -7,8 +7,9 @@ import ProfileScreen from './pages/ProfileScreen';
 import YourYutosScreen from './pages/YourYutosScreen';
 import YutoChatScreen from './pages/YutoChatScreen';
 import VenuesMapScreen from './pages/VenuesMapScreen';
+import FareShareScreen from './pages/FareShareScreen';
 
-type Screen = 'welcome' | 'home' | 'create-yuto' | 'yuto-group' | 'profile' | 'your-yutos' | 'chat' | 'venues-map';
+type Screen = 'welcome' | 'home' | 'create-yuto' | 'yuto-group' | 'profile' | 'your-yutos' | 'chat' | 'venues-map' | 'fare-share';
 
 interface Venue {
   name: string;
@@ -92,7 +93,7 @@ export default function App() {
     } else if (screen === 'yuto-group' && data && 'peopleCount' in data) {
       setCurrentGroup(data as YutoGroup);
       setCurrentScreen('yuto-group');
-    } else if (screen === 'home' || screen === 'welcome' || screen === 'profile' || screen === 'your-yutos' || screen === 'chat' || screen === 'venues-map') {
+    } else if (screen === 'home' || screen === 'welcome' || screen === 'profile' || screen === 'your-yutos' || screen === 'chat' || screen === 'venues-map' || screen === 'fare-share') {
       setCurrentScreen(screen as Screen);
     }
     console.log('Navigate to:', screen);
@@ -148,6 +149,12 @@ export default function App() {
       )}
       {currentScreen === 'venues-map' && (
         <VenuesMapScreen onNavigate={handleNavigate} />
+      )}
+      {currentScreen === 'fare-share' && (
+        <FareShareScreen 
+          onNavigate={handleNavigate} 
+          onBack={() => setCurrentScreen('venues-map')}
+        />
       )}
     </>
   );

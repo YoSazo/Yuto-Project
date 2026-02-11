@@ -241,6 +241,15 @@ export default function VenuesMapScreen({ onNavigate }: VenuesMapScreenProps) {
         {/* Title */}
         <p className="absolute font-bold text-[30px] text-black left-[37px] top-[151px]">Venues Near You</p>
         
+        {/* Fare Share Button */}
+        <button
+          onClick={() => onNavigate?.('fare-share')}
+          className="absolute right-[20px] top-[155px] flex items-center gap-[8px] bg-[#5493b3] text-white text-[12px] font-semibold px-[14px] py-[8px] rounded-full hover:bg-[#4a8299] transition-colors cursor-pointer border-none"
+        >
+          <span>🚗</span>
+          Fare Share
+        </button>
+        
         {/* Venue Cards */}
         <div className="absolute left-[16px] right-[16px] top-[216px] bottom-[100px] overflow-y-auto">
           <div className="flex flex-col gap-[16px] pb-[20px]">
