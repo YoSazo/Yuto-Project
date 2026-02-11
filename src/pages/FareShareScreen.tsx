@@ -1,6 +1,7 @@
 import { useState } from "react";
 import svgPaths from "../imports/svg-haowxjp8c3";
 import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import carIcon from "../assets/car.png";
 
 function MapPin({ onClick }: { onClick?: () => void }) {
   return (
@@ -153,7 +154,7 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
         
         {/* Split Summary */}
         {isValid && (
-          <div className="absolute left-[20px] right-[20px] top-[500px]">
+          <div className="absolute left-[20px] right-[20px] top-[530px]">
             <div className="bg-gray-50 border border-gray-200 rounded-[25px] p-[20px]">
               <div className="flex justify-between items-center mb-[12px]">
                 <span className="text-[14px] text-gray-500">Total fare</span>
@@ -173,7 +174,7 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
         )}
         
         {/* Split Button */}
-        <div className="absolute left-[20px] right-[20px] top-[660px]">
+        <div className="absolute left-[20px] right-[20px] top-[700px]">
           <button
             onClick={handleSplit}
             disabled={!isValid}
@@ -200,23 +201,45 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
           </div>
         )}
         
-        {/* Bottom Navigation */}
-        <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[264px] top-[776px]" />
+        {/* Bottom Navigation - 4 items */}
+        <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[30px] w-[342px] top-[776px]" />
+        {/* Venues */}
         <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[30px] w-[85px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => onNavigate?.('venues-map')}
         />
+        {/* Home */}
         <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[158px] w-[87px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[117px] w-[85px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => onNavigate?.('your-yutos')}
         />
+        {/* Fare Share - Active */}
+        <div className="absolute bg-[#5493b3] border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[204px] w-[85px] top-[776px]" />
+        {/* Profile */}
         <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[247px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[287px] w-[85px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => onNavigate?.('profile')}
         />
-        <MapPin onClick={() => onNavigate?.('venues-map')} />
-        <Home onClick={() => onNavigate?.('your-yutos')} />
-        <User onClick={() => onNavigate?.('profile')} />
+        {/* Icons */}
+        <div className="absolute left-[58px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('venues-map')}>
+          <svg className="block size-full" fill="none" viewBox="0 0 48 48">
+            <path d="M42 20C42 34 24 46 24 46C24 46 6 34 6 20C6 15.2261 7.89642 10.6477 11.2721 7.27208C14.6477 3.89642 19.2261 2 24 2C28.7739 2 33.3523 3.89642 36.7279 7.27208C40.1036 10.6477 42 15.2261 42 20Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M24 26C27.3137 26 30 23.3137 30 20C30 16.6863 27.3137 14 24 14C20.6863 14 18 16.6863 18 20C18 23.3137 20.6863 26 24 26Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div className="absolute left-[144px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('your-yutos')}>
+          <svg className="block size-full" fill="none" viewBox="0 0 32 31">
+            <path d={svgPaths.p2eef9e80} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+          </svg>
+        </div>
+        <div className="absolute left-[231px] top-[787px] w-[31px] h-[31px]">
+          <img src={carIcon} alt="Fare Share" className="w-full h-full object-contain" />
+        </div>
+        <div className="absolute left-[315px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('profile')}>
+          <svg className="block size-full" fill="none" viewBox="0 0 31 31">
+            <path d={svgPaths.p28866700} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+          </svg>
+        </div>
       </div>
     </div>
   );
