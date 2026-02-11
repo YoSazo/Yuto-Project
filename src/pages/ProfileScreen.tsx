@@ -223,7 +223,7 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
         </div>
         
         {/* Logout Button */}
-        <div className="absolute left-[30px] right-[30px] top-[700px]">
+        <div className="absolute left-[30px] right-[30px] top-[650px]">
           <div className="bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] overflow-hidden">
             <MenuItem
               icon={
@@ -271,7 +271,7 @@ export default function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             <path d={svgPaths.p2eef9e80} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
           </svg>
         </div>
-        <div className="absolute left-[222px] top-[782px] w-[50px] h-[40px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('fare-share')}>
+        <div className="absolute left-[218px] top-[786px] w-[38px] h-[32px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('fare-share')}>
           <img src={carIcon} alt="Fare Share" className="w-full h-full object-contain" />
         </div>
         <div className="absolute left-[315px] top-[787px] size-[31px]">

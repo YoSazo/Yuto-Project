@@ -234,7 +234,7 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
             <path d={svgPaths.p2eef9e80} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
           </svg>
         </div>
-        <div className="absolute left-[222px] top-[782px] w-[50px] h-[40px]">
+        <div className="absolute left-[218px] top-[786px] w-[38px] h-[32px]">
           <img src={carIcon} alt="Fare Share" className="w-full h-full object-contain" />
         </div>
         <div className="absolute left-[315px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('profile')}>
