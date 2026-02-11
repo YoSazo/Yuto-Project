@@ -99,7 +99,7 @@ function WaitlistScreen({ onSuccess }: { onSuccess: (position: number) => void }
 
         {/* Error Message */}
         {error && (
-          <p className="absolute left-[53px] right-[53px] top-[455px] text-[14px] text-red-500 text-center">
+          <p className="absolute left-[53px] right-[53px] top-[450px] text-[14px] text-red-500 text-center">
             {error}
           </p>
         )}
@@ -108,7 +108,7 @@ function WaitlistScreen({ onSuccess }: { onSuccess: (position: number) => void }
         <button
           onClick={handleJoinWaitlist}
           disabled={isLoading}
-          className="absolute left-[53px] top-[480px] w-[296px] h-[50px] bg-black border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex items-center justify-center cursor-pointer hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="absolute left-[53px] top-[460px] w-[296px] h-[50px] bg-black border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex items-center justify-center cursor-pointer hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           <span className="font-semibold text-[16px] text-white">
             {isLoading ? 'Joining...' : 'Join Waitlist 🎉'}
@@ -125,6 +125,7 @@ function WaitlistScreen({ onSuccess }: { onSuccess: (position: number) => void }
 }
 
 function WaitlistThanksScreen({ position }: { position: number }) {
+  console.log('Position:', position); // Keep for debugging but unused
   return (
     <div className="bg-[#fafafa] mobile-container">
       <div className="relative w-[402px] h-[874px] bg-[#fafafa] app-frame flex flex-col items-center justify-center px-[30px]">
@@ -146,19 +147,19 @@ function WaitlistThanksScreen({ position }: { position: number }) {
         </div>
 
         {/* Title */}
-        <h1 className="text-[2.2rem] font-bold text-black mb-[30px] tracking-tight">
+        <h1 className="text-[2.2rem] font-bold text-black mb-[10px] tracking-tight">
           You're on the list!
         </h1>
 
-        {/* Position Card */}
-        <div className="w-full bg-white border-2 border-gray-200 rounded-[20px] p-[30px] mb-[25px] text-center">
-          <p className="text-[1rem] text-gray-500 mb-[12px]">Your position</p>
-          <p className="text-[4rem] font-bold text-black leading-none mb-[20px]">#{position}</p>
-          <p className="text-[1rem] text-gray-600 leading-[1.6]">
-            We'll send you an SMS when Yuto launches.<br/>
-            Get ready to organize outings with your squad!
-          </p>
-        </div>
+        {/* Subtitle */}
+        <p className="text-[1rem] text-gray-500 mb-[20px]">
+          We'll send you an SMS when Yuto launches.
+        </p>
+
+        {/* Tagline */}
+        <p className="text-[1.1rem] text-black font-semibold mb-[40px]">
+          Don't pay alone, Yuto it!
+        </p>
 
         {/* Share Link */}
         <a href="#" className="text-[0.95rem] text-black font-medium border-b-2 border-black pb-[2px] hover:opacity-70 transition-opacity">
