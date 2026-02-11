@@ -186,7 +186,7 @@ export default function FareShareScreen({ onNavigate, onBack }: FareShareScreenP
         )}
         
         {/* Split Button */}
-        <div className="absolute left-[20px] right-[20px] top-[700px]">
+        <div className="absolute left-[20px] right-[20px] top-[560px]">
           <button
             onClick={handleSplit}
             disabled={!isValid}
