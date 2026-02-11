@@ -1,7 +1,19 @@
 import { useState } from "react";
 import svgPaths from "../imports/svg-haowxjp8c3";
 import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
-import carIcon from "../assets/car.png";
+
+function CarIcon({ isActive = false, onClick }: { isActive?: boolean; onClick?: () => void }) {
+  return (
+    <div className="absolute left-[218px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={onClick}>
+      <svg className="block size-full" viewBox="0 0 24 24" fill="none" stroke={isActive ? "#FFFFFF" : "#1E1E1E"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 17h14v-5l-1.5-4.5h-11L5 12v5z"/>
+        <circle cx="7" cy="17" r="2"/>
+        <circle cx="17" cy="17" r="2"/>
+        <path d="M5 9h14"/>
+      </svg>
+    </div>
+  );
+}
 
 function MapPin({ isActive = false }: { isActive?: boolean }) {
   return (
@@ -310,9 +322,7 @@ export default function VenuesMapScreen({ onNavigate }: VenuesMapScreenProps) {
             <path d={svgPaths.p2eef9e80} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
           </svg>
         </div>
-        <div className="absolute left-[218px] top-[786px] w-[38px] h-[32px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('fare-share')}>
-          <img src={carIcon} alt="Fare Share" className="w-full h-full object-contain" />
-        </div>
+        <CarIcon onClick={() => onNavigate?.('fare-share')} />
         <div className="absolute left-[315px] top-[787px] size-[31px] cursor-pointer hover:opacity-70" onClick={() => onNavigate?.('profile')}>
           <svg className="block size-full" fill="none" viewBox="0 0 31 31">
             <path d={svgPaths.p28866700} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
