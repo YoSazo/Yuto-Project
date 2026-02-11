@@ -16,24 +16,21 @@
   box-sizing: border-box;
 }
 
-/* Scale down the app frame on mobile */
-@media (max-height: 800px) {
-  .app-frame {
-    transform: scale(0.85);
-    transform-origin: top center;
-  }
+/* Full size app frame that fills viewport */
+.app-frame {
+  width: 100% !important;
+  max-width: 402px;
+  height: 100dvh !important;
+  max-height: 100dvh;
 }
 
-@media (max-height: 700px) {
-  .app-frame {
-    transform: scale(0.75);
-    transform-origin: top center;
-  }
+/* Move bottom nav up on mobile */
+.bottom-nav {
+  top: auto !important;
+  bottom: 20px !important;
 }
 
-@media (max-height: 600px) {
-  .app-frame {
-    transform: scale(0.65);
-    transform-origin: top center;
-  }
+.bottom-nav-icon {
+  top: auto !important;
+  bottom: 31px !important;
 }
