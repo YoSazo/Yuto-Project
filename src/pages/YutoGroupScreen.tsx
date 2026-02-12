@@ -387,7 +387,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
         
         {/* Payment Modal */}
         {showPaymentModal && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="absolute inset-0 flex items-center justify-center z-50">
             <div className="bg-white rounded-[30px] w-[350px] p-[24px] shadow-lg">
               {!showConfirmation ? (
                 <>
