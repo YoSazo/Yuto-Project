@@ -65,7 +65,7 @@ export default function CreateYutoScreen({ venue, onBack, onCreate }: CreateYuto
           <div className="flex items-center justify-center gap-[20px]">
             <button
               onClick={() => setPeopleCount(Math.max(2, peopleCount - 1))}
-              className="w-[60px] h-[60px] bg-white border border-black rounded-full text-[28px] font-bold hover:bg-gray-100 transition-colors"
+              className="w-[60px] h-[60px] bg-white border border-black rounded-full text-[28px] font-bold hover:bg-gray-100 transition-colors tap-dramatic"
             >
               −
             </button>
@@ -74,7 +74,7 @@ export default function CreateYutoScreen({ venue, onBack, onCreate }: CreateYuto
             </div>
             <button
               onClick={() => setPeopleCount(Math.min(5, peopleCount + 1))}
-              className="w-[60px] h-[60px] bg-white border border-black rounded-full text-[28px] font-bold hover:bg-gray-100 transition-colors"
+              className="w-[60px] h-[60px] bg-white border border-black rounded-full text-[28px] font-bold hover:bg-gray-100 transition-colors tap-dramatic"
             >
               +
             </button>
@@ -100,7 +100,7 @@ export default function CreateYutoScreen({ venue, onBack, onCreate }: CreateYuto
           disabled={!groupName.trim()}
           className={`absolute bottom-[80px] left-[13px] w-[375px] h-[60px] rounded-[30px] font-bold text-[20px] transition-colors ${
             groupName.trim()
-              ? "bg-black text-white hover:bg-gray-800"
+              ? "bg-black text-white hover:bg-gray-800 create-button-tap"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
         >

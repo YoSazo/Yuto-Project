@@ -352,7 +352,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
         ) : !youAreReady ? (
           <button 
             onClick={handlePayYuto}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
+            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
           >
             Pay Yuto 💰
           </button>
@@ -366,14 +366,14 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
         ) : !yutoStarted ? (
           <button 
             onClick={handleStartYuto}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
+            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
           >
             Start Yuto! 🎉
           </button>
         ) : !paymentComplete ? (
           <button 
             onClick={handlePayVenue}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
+            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
           >
             Pay Venue 💳
           </button>
@@ -411,7 +411,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
                   <div className="flex gap-[10px] mb-[20px]">
                     <button
                       onClick={() => handlePaymentTypeSelect('buy-goods')}
-                      className={`flex-1 py-[12px] rounded-[20px] font-semibold text-[12px] border transition-colors ${
+                      className={`flex-1 py-[12px] rounded-[20px] font-semibold text-[12px] border transition-colors tap-dramatic ${
                         paymentType === 'buy-goods' 
                           ? 'bg-black text-white border-black' 
                           : 'bg-white text-black border-black hover:bg-gray-100'
@@ -571,7 +571,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
                   {/* Final Pay Button */}
                   <button
                     onClick={handleFinalPay}
-                    className="w-full h-[50px] bg-black text-white rounded-[25px] font-bold text-[16px] hover:bg-gray-800 transition-colors"
+                    className="w-full h-[50px] bg-black text-white rounded-[25px] font-bold text-[16px] hover:bg-gray-800 transition-colors pay-button-tap"
                   >
                     Confirm & Pay
                   </button>

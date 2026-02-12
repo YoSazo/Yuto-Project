@@ -38,6 +38,61 @@
   }
 }
 
+/* Dramatic button press animations for video recording */
+.tap-dramatic {
+  transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform-origin: center;
+}
+
+.tap-dramatic:active {
+  transform: scale(0.92);
+  filter: brightness(0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Venue card press animation */
+.venue-card-tap:active {
+  transform: scale(0.96);
+  background-color: rgba(84, 147, 179, 0.08);
+  box-shadow: 0 4px 16px rgba(84, 147, 179, 0.2);
+}
+
+/* Yuto It button dramatic press */
+.yuto-button-tap:active {
+  transform: scale(0.94);
+  background-color: rgba(84, 147, 179, 0.85);
+  box-shadow: 0 6px 20px rgba(84, 147, 179, 0.4);
+}
+
+/* Create Yuto button press */
+.create-button-tap:active {
+  transform: scale(0.95);
+  background-color: rgba(156, 163, 175, 0.8);
+}
+
+/* Pay buttons press */
+.pay-button-tap:active {
+  transform: scale(0.93);
+  background-color: rgba(0, 0, 0, 0.85);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Modal slide-up animation */
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-slide-up {
+  animation: modalSlideUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
 /* Checkmark animations */
 @keyframes scaleIn {
   from {

@@ -150,7 +150,7 @@ function VenueModal({
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-[30px] w-full max-w-[360px] p-[24px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.3)] relative"
+        className="bg-white rounded-[30px] w-full max-w-[360px] p-[24px] shadow-[0px_8px_30px_0px_rgba(0,0,0,0.3)] relative modal-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -201,7 +201,7 @@ function VenueModal({
         <div className="flex flex-col gap-[10px]">
           <button
             onClick={onYutoIt}
-            className="w-full h-[50px] bg-black text-white font-bold text-[16px] rounded-[25px] hover:bg-gray-800 transition-colors cursor-pointer border-none"
+            className="w-full h-[50px] bg-black text-white font-bold text-[16px] rounded-[25px] hover:bg-gray-800 transition-colors cursor-pointer border-none yuto-button-tap modal-slide-up"
           >
             Yuto it! 🎉
           </button>
@@ -260,7 +260,7 @@ export default function VenuesMapScreen({ onNavigate }: VenuesMapScreenProps) {
             {venues.map((venue) => (
               <div
                 key={venue.id}
-                className="bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] p-[20px] cursor-pointer transition-all hover:shadow-[0px_6px_12px_0px_rgba(0,0,0,0.15)] active:scale-[0.98]"
+                className="bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] p-[20px] cursor-pointer transition-all hover:shadow-[0px_6px_12px_0px_rgba(0,0,0,0.15)] venue-card-tap"
                 onClick={() => setSelectedVenue(venue)}
               >
                 {/* Header row */}
