@@ -376,7 +376,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
             onClick={handlePayVenue}
             className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
           >
-            {isFareShare ? 'Pay Driver 🚗' : 'Pay Venue 💳'}
+            Pay Driver 🚗
           </button>
         ) : (
           <button 
