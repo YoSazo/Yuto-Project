@@ -394,7 +394,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
                 <>
                   {/* Header */}
                   <div className="flex justify-between items-center mb-[20px]">
-                    <h2 className="font-bold text-[22px] text-black">{isFareShare ? 'Pay Driver' : 'Pay Venue'}</h2>
+                    <h2 className="font-bold text-[22px] text-black">Pay Driver</h2>
                     <button 
                       onClick={() => setShowPaymentModal(false)}
                       className="text-[24px] text-gray-400 hover:text-black"
