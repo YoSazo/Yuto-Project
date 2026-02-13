@@ -144,9 +144,10 @@ interface YutoGroupScreenProps {
   peopleCount: number;
   onBack: () => void;
   onNavigate?: (screen: string) => void;
+  isFareShare?: boolean;
 }
 
-export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack, onNavigate }: YutoGroupScreenProps) {
+export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack, onNavigate, isFareShare }: YutoGroupScreenProps) {
   const totalPool = venue ? parseInt(venue.price) * peopleCount : 0;
   
   const fakeFriends = ["Jack", "Jane", "Mike", "Sara"];
@@ -375,7 +376,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
             onClick={handlePayVenue}
             className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
           >
-            Pay Venue 💳
+            {isFareShare ? 'Pay Driver 🚗' : 'Pay Venue 💳'}
           </button>
         ) : (
           <button 
@@ -393,7 +394,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
                 <>
                   {/* Header */}
                   <div className="flex justify-between items-center mb-[20px]">
-                    <h2 className="font-bold text-[22px] text-black">Pay Venue</h2>
+                    <h2 className="font-bold text-[22px] text-black">{isFareShare ? 'Pay Driver' : 'Pay Venue'}</h2>
                     <button 
                       onClick={() => setShowPaymentModal(false)}
                       className="text-[24px] text-gray-400 hover:text-black"
