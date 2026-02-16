@@ -305,12 +305,13 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
                     left: '50%',
                     top: '50%',
                     transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                    zIndex: 20,
                   }}
                 >
                   <div className="flex flex-col items-center">
                     <div className="relative">
                       <div
-                        className={`w-[70px] h-[70px] rounded-full flex items-center justify-center font-bold text-[24px] border-4 shadow-lg transition-all duration-300 ${
+                        className={`w-[90px] h-[90px] rounded-full flex items-center justify-center font-bold text-[32px] border-4 shadow-lg transition-all duration-300 ${
                           member.isReady
                             ? 'bg-black border-green-500 text-white'
                             : 'bg-white border-gray-400 text-black'
@@ -333,7 +334,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
             })}
             
             {/* Yuto in Center with Filling Effect */}
-            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2" style={{ zIndex: 10 }}>
               <div
                 className="bg-white rounded-[30px] shadow-2xl flex flex-col items-center relative overflow-hidden border-2 border-gray-200"
                 style={{ width: '140px', height: '160px' }}
@@ -348,18 +349,13 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
                   <img 
                     alt="Yuto mascot" 
-                    className="w-[50px] h-[50px] object-contain mb-[6px]" 
+                    className="w-[60px] h-[60px] object-contain mb-[8px]" 
                     src={imgChatGptImageOct142025022518Pm1} 
                   />
-                  <p className={`text-[13px] font-bold text-center transition-colors duration-300 ${
+                  <p className={`text-[16px] font-bold text-center transition-colors duration-300 ${
                     fillPercentage > 50 ? 'text-white' : 'text-black'
                   }`}>
-                    {isFareShare ? 'Fare Share' : groupName}
-                  </p>
-                  <p className={`text-[11px] font-semibold transition-colors duration-300 ${
-                    fillPercentage > 50 ? 'text-white' : 'text-gray-600'
-                  }`}>
-                    {venue?.price}/person
+                    KSH {venue?.price}
                   </p>
                 </div>
               </div>
@@ -373,7 +369,7 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
             ? `${peopleCount - members.length} more ${peopleCount - members.length === 1 ? 'person' : 'people'} needed`
             : allReady
               ? '🎉 Everyone has paid!'
-              : `Waiting for ${members.length - paidCount} to pay...`
+              : `Waiting for ${peopleCount - paidCount} to pay...`
           }
         </p>
         
