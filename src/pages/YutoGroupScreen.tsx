@@ -286,18 +286,14 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
           {totalPool} KSH Pool
         </p>
         
-        {/* Large Circular Container */}
-        <div className="absolute left-1/2 top-[230px] transform -translate-x-1/2">
-          {/* Large outer circle */}
-          <div 
-            className="relative border-4 border-black rounded-full bg-white"
-            style={{ width: '360px', height: '360px' }}
-          >
+        {/* Circular Layout Container */}
+        <div className="absolute left-1/2 top-[280px] transform -translate-x-1/2">
+          <div className="relative" style={{ width: '300px', height: '300px' }}>
             
-            {/* Member Circles positioned around the edge inside the circle */}
+            {/* Member Circles positioned in a circle around center */}
             {members.map((member, index) => {
               const angle = (index * 2 * Math.PI) / peopleCount - Math.PI / 2; // Start from top
-              const radius = 135; // Distance from center to position on edge
+              const radius = 160; // Distance from center
               const x = Math.cos(angle) * radius;
               const y = Math.sin(angle) * radius;
               
@@ -315,10 +311,10 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
                   <div className="flex flex-col items-center">
                     <div className="relative">
                       <div
-                        className={`w-[75px] h-[75px] rounded-full flex items-center justify-center font-bold text-[28px] border-4 shadow-lg transition-all duration-300 ${
+                        className={`w-[90px] h-[90px] rounded-full flex items-center justify-center font-bold text-[32px] border-4 shadow-lg transition-all duration-300 ${
                           member.isReady
                             ? 'bg-black border-green-500 text-white'
-                            : 'bg-white border-gray-300 text-black'
+                            : 'bg-white border-gray-400 text-black'
                         }`}
                       >
                         {member.name.charAt(0).toUpperCase()}
@@ -337,11 +333,11 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
               );
             })}
             
-            {/* Yuto in Center with Filling Effect - Smaller */}
+            {/* Yuto in Center with Filling Effect */}
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2" style={{ zIndex: 10 }}>
               <div
-                className="bg-white rounded-[20px] shadow-xl flex flex-col items-center relative overflow-hidden border-2 border-gray-200"
-                style={{ width: '100px', height: '120px' }}
+                className="bg-white rounded-[30px] shadow-2xl flex flex-col items-center relative overflow-hidden border-2 border-gray-200"
+                style={{ width: '140px', height: '160px' }}
               >
                 {/* Green fill animation from bottom */}
                 <div
@@ -349,13 +345,18 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
                   style={{ height: `${fillPercentage}%` }}
                 />
                 
-                {/* Yuto mascot on top of fill */}
+                {/* Yuto mascot and text on top of fill */}
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
                   <img 
                     alt="Yuto mascot" 
-                    className="w-[50px] h-[50px] object-contain" 
+                    className="w-[60px] h-[60px] object-contain mb-[8px]" 
                     src={imgChatGptImageOct142025022518Pm1} 
                   />
+                  <p className={`text-[16px] font-bold text-center transition-colors duration-300 ${
+                    fillPercentage > 50 ? 'text-white' : 'text-black'
+                  }`}>
+                    KSH {venue?.price}
+                  </p>
                 </div>
               </div>
             </div>
