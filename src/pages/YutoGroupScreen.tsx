@@ -170,6 +170,10 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
   const allReady = members.length === peopleCount && members.every(m => m.isReady);
   const youAreReady = members.find(m => m.name === "You")?.isReady || false;
   
+  // Calculate fill percentage for Yuto
+  const paidCount = members.filter(m => m.isReady).length;
+  const fillPercentage = members.length > 0 ? (paidCount / members.length) * 100 : 0;
+  
   const handleInviteFriend = () => {
     if (!isPartyFull) {
       const nextFriendIndex = members.length - 1;
@@ -282,65 +286,96 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
           {totalPool} KSH Pool
         </p>
         
-        {/* Member Circles - render in reverse order so first members appear on top */}
-        {positions.map((pos, index) => {
-          const member = members[index];
-          const isPlaceholder = !member;
-          return (
-            <MemberCircle
-              key={index}
-              member={member || { name: "", isReady: false, isLeader: false }}
-              position={pos}
-              isPlaceholder={isPlaceholder}
-              zIndex={positions.length - index}
-            />
-          );
-        })}
-        
-        {/* Progress Bar */}
-        {!isPartyFull && (
-          <div className="absolute left-[30px] right-[30px] top-[360px]">
-            <div className="bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] px-[20px] py-[20px]">
-              <p className="text-center text-[14px] text-black mb-[10px]">
-                {peopleCount - members.length} more {peopleCount - members.length === 1 ? 'person' : 'people'} needed to start
-              </p>
-              <div className="h-[8px] bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-black rounded-full transition-all duration-500"
-                  style={{ width: `${(members.length / peopleCount) * 100}%` }}
+        {/* Circular Layout Container */}
+        <div className="absolute left-1/2 top-[280px] transform -translate-x-1/2">
+          <div className="relative" style={{ width: '300px', height: '300px' }}>
+            
+            {/* Member Circles positioned in a circle around center */}
+            {members.map((member, index) => {
+              const angle = (index * 2 * Math.PI) / peopleCount - Math.PI / 2; // Start from top
+              const radius = 110; // Distance from center
+              const x = Math.cos(angle) * radius;
+              const y = Math.sin(angle) * radius;
+              
+              return (
+                <div
+                  key={index}
+                  className="absolute transition-all duration-500"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                  }}
+                >
+                  <div className="flex flex-col items-center">
+                    <div className="relative">
+                      <div
+                        className={`w-[70px] h-[70px] rounded-full flex items-center justify-center font-bold text-[24px] border-4 shadow-lg transition-all duration-300 ${
+                          member.isReady
+                            ? 'bg-black border-green-500 text-white'
+                            : 'bg-white border-gray-400 text-black'
+                        }`}
+                      >
+                        {member.name.charAt(0).toUpperCase()}
+                      </div>
+                      {member.isReady && (
+                        <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1">
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[11px] font-medium mt-1">{member.name}</p>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {/* Yuto in Center with Filling Effect */}
+            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <div
+                className="bg-white rounded-[30px] shadow-2xl flex flex-col items-center relative overflow-hidden border-2 border-gray-200"
+                style={{ width: '140px', height: '160px' }}
+              >
+                {/* Green fill animation from bottom */}
+                <div
+                  className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-500 to-green-400 transition-all duration-1000 ease-out"
+                  style={{ height: `${fillPercentage}%` }}
                 />
+                
+                {/* Yuto mascot and text on top of fill */}
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <img 
+                    alt="Yuto mascot" 
+                    className="w-[50px] h-[50px] object-contain mb-[6px]" 
+                    src={imgChatGptImageOct142025022518Pm1} 
+                  />
+                  <p className={`text-[13px] font-bold text-center transition-colors duration-300 ${
+                    fillPercentage > 50 ? 'text-white' : 'text-black'
+                  }`}>
+                    {isFareShare ? 'Fare Share' : groupName}
+                  </p>
+                  <p className={`text-[11px] font-semibold transition-colors duration-300 ${
+                    fillPercentage > 50 ? 'text-white' : 'text-gray-600'
+                  }`}>
+                    {venue?.price}/person
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        )}
-        
-        {/* Venue Card with Mascot */}
-        <div className="absolute bg-white border border-black rounded-[30px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] h-[160px] left-[30px] right-[30px] top-[480px] flex flex-col items-center justify-center overflow-hidden">
-          {showConfetti && <Confetti />}
-          <img 
-            alt="Yuto mascot" 
-            className="w-[60px] h-[60px] object-contain mb-[10px]" 
-            src={imgChatGptImageOct142025022518Pm1} 
-          />
-          {yutoStarted ? (
-            <>
-              <p className="font-bold text-[16px] text-[#5493b3]">Yuto is holding your money! 🎉</p>
-              <p className="text-[14px] text-gray-500">{totalPool} KSH secured</p>
-            </>
-          ) : (
-            <>
-              <p className="font-bold text-[18px] text-black">{venue?.name || "Venue"}</p>
-              <p className="text-[14px] text-gray-500">{venue?.price}/person</p>
-            </>
-          )}
         </div>
         
         {/* Status Message */}
-        {isPartyFull && !allReady && (
-          <p className="absolute bottom-[200px] left-0 right-0 text-center text-[16px] text-gray-500">
-            Waiting for everyone to pay...
-          </p>
-        )}
+        <p className="absolute top-[600px] left-0 right-0 text-center text-[14px] text-gray-600">
+          {!isPartyFull 
+            ? `${peopleCount - members.length} more ${peopleCount - members.length === 1 ? 'person' : 'people'} needed`
+            : allReady
+              ? '🎉 Everyone has paid!'
+              : `Waiting for ${members.length - paidCount} to pay...`
+          }
+        </p>
         
         {/* Action Button */}
         {!isPartyFull ? (
@@ -353,34 +388,34 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
         ) : !youAreReady ? (
           <button 
             onClick={handlePayYuto}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
+            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-green-500 border-none rounded-[30px] text-white font-bold text-[16px] hover:bg-green-600 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
           >
-            Pay Yuto 💰
+            Pay Yuto
           </button>
         ) : !allReady ? (
           <button 
             disabled
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-white border border-black rounded-[30px] text-gray-400 font-bold text-[16px] cursor-not-allowed shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
+            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-gray-300 border-none rounded-[30px] text-gray-500 font-bold text-[16px] cursor-not-allowed shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
           >
             Waiting for others...
           </button>
         ) : !yutoStarted ? (
           <button 
             onClick={handleStartYuto}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
+            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-green-500 border-none rounded-[30px] text-white font-bold text-[16px] hover:bg-green-600 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
           >
             Start Yuto! 🎉
           </button>
         ) : !paymentComplete ? (
           <button 
             onClick={handlePayVenue}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
+            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-green-500 border-none rounded-[30px] text-white font-bold text-[16px] hover:bg-green-600 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
           >
             Pay Driver 🚗
           </button>
         ) : (
           <button 
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
+            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-green-500 border-none rounded-[30px] text-white font-bold text-[16px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
           >
             Payment Complete ✓
           </button>
@@ -583,14 +618,14 @@ export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack,
         )}
         
         {/* Bottom Navigation */}
-        <div className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[264px] top-[776px]" />
+        <div className="absolute bg-white border-2 border-[#5493b3] rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[264px] top-[776px]" />
         <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          className="absolute bg-white border-2 border-[#5493b3] rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => onNavigate?.('venues-map')}
         />
-        <div className="absolute bg-[#5493b3] border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[158px] w-[87px] top-[776px]" />
+        <div className="absolute bg-[#5493b3] border-2 border-[#5493b3] rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[158px] w-[87px] top-[776px]" />
         <div 
-          className="absolute bg-white border border-black rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[247px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
+          className="absolute bg-white border-2 border-[#5493b3] rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[247px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => onNavigate?.('profile')}
         />
         <MapPin onClick={() => onNavigate?.('venues-map')} />
