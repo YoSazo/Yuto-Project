@@ -1,59 +1,28 @@
-import { useState } from "react";
-import svgPaths from "../imports/svg-haowxjp8c3";
-import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 
-function MapPin({ onClick }: { onClick?: () => void }) {
-  return (
-    <div 
-      className="absolute left-[97px] size-[31px] top-[787px] cursor-pointer hover:opacity-70 transition-opacity"
-      onClick={onClick}
-    >
-      <svg className="block size-full" fill="none" viewBox="0 0 48 48">
-        <path d="M42 20C42 34 24 46 24 46C24 46 6 34 6 20C6 15.2261 7.89642 10.6477 11.2721 7.27208C14.6477 3.89642 19.2261 2 24 2C28.7739 2 33.3523 3.89642 36.7279 7.27208C40.1036 10.6477 42 15.2261 42 20Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M24 26C27.3137 26 30 23.3137 30 20C30 16.6863 27.3137 14 24 14C20.6863 14 18 16.6863 18 20C18 23.3137 20.6863 26 24 26Z" stroke="#1E1E1E" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </div>
-  );
+interface GroupState {
+  groupName: string;
+  amount: number;
+  totalAmount: number;
+  members: string[];
+  peopleCount: number;
+  paidCount?: number;
+  allJoined?: boolean;
 }
 
-function User({ onClick }: { onClick?: () => void }) {
-  return (
-    <div 
-      className="absolute left-[274px] size-[31px] top-[787px] cursor-pointer hover:opacity-70 transition-opacity"
-      onClick={onClick}
-    >
-      <svg className="block size-full" fill="none" viewBox="0 0 31 31">
-        <path d={svgPaths.p28866700} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-      </svg>
-    </div>
-  );
+interface Member {
+  name: string;
+  isPaid: boolean;
+  isHost: boolean;
+  hasJoined: boolean;
+  justJoined: boolean;
 }
 
-function Home({ onClick }: { onClick?: () => void }) {
-  return (
-    <div 
-      className="absolute h-[31px] left-[185px] top-[787px] w-[32px] cursor-pointer hover:opacity-70 transition-opacity"
-      onClick={onClick}
-    >
-      <svg className="block size-full" fill="none" viewBox="0 0 32 31">
-        <path d={svgPaths.p2eef9e80} stroke="#1E1E1E" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-      </svg>
-    </div>
-  );
-}
-
-function MessageIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 48 48" fill="none">
-      <path d="M42 23C42.0069 25.6397 41.3901 28.2438 40.2 30.6C38.7889 33.4235 36.6195 35.7984 33.9349 37.4586C31.2503 39.1188 28.1565 39.9988 25 40C22.3603 40.0069 19.7562 39.3901 17.4 38.2L6 42L9.8 30.6C8.60986 28.2438 7.99312 25.6397 8 23C8.00122 19.8435 8.88122 16.7497 10.5414 14.0651C12.2017 11.3805 14.5765 9.21114 17.4 7.8C19.7562 6.60987 22.3603 5.99312 25 6H26C30.1687 6.22999 34.1061 7.98953 37.0583 10.9417C40.0105 13.8939 41.77 17.8313 42 22V23Z" stroke="#1E1E1E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-// Confetti component
 function Confetti() {
-  const colors = ['#5493b3', '#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'];
-  const confettiPieces = Array(30).fill(0).map((_, i) => ({
+  const colors = ["#5493b3", "#FFD700", "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4"];
+  const pieces = Array.from({ length: 24 }, (_, i) => ({
     id: i,
     left: Math.random() * 100,
     delay: Math.random() * 0.5,
@@ -62,572 +31,575 @@ function Confetti() {
   }));
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {confettiPieces.map((piece) => (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-50">
+      {pieces.map((p) => (
         <div
-          key={piece.id}
-          className="absolute w-2 h-2 rounded-sm animate-bounce"
+          key={p.id}
+          className="absolute w-2 h-2 rounded-sm"
           style={{
-            left: `${piece.left}%`,
-            backgroundColor: piece.color,
-            animation: `fall ${piece.duration}s ease-in-out ${piece.delay}s forwards`,
-            top: '-10px',
+            left: `${p.left}%`,
+            top: "-10px",
+            backgroundColor: p.color,
+            animation: `confettiFall ${p.duration}s ease-in-out ${p.delay}s forwards`,
           }}
         />
       ))}
-      <style>{`
-        @keyframes fall {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(180px) rotate(720deg); opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }
 
-interface Member {
-  name: string;
-  isReady: boolean;
-  isLeader: boolean;
-}
+function PaymentModal({
+  totalAmount,
+  onClose,
+  onComplete,
+}: {
+  totalAmount: number;
+  onClose: () => void;
+  onComplete: () => void;
+}) {
+  const [paymentType, setPaymentType] = useState<"buy-goods" | "paybill" | "phone" | null>(null);
+  const [tillNumber, setTillNumber] = useState("");
+  const [businessNo, setBusinessNo] = useState("");
+  const [accountNo, setAccountNo] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [step, setStep] = useState<"select" | "confirm">("select");
 
-interface MemberCircleProps {
-  member: Member;
-  position: { top: string; left: string };
-  isPlaceholder?: boolean;
-  zIndex?: number;
-}
-
-function MemberCircle({ member, position, isPlaceholder = false, zIndex = 1 }: MemberCircleProps) {
-  const isLeader = member.isLeader && !isPlaceholder;
-  const circleSize = '80px';
-  const fontSize = '24px';
-  
-  return (
-    <div 
-      className="absolute flex flex-col items-center"
-      style={{ top: position.top, left: position.left, zIndex }}
-    >
-      <div 
-        className={`rounded-full flex items-center justify-center font-bold relative border ${
-          isPlaceholder 
-            ? 'bg-white border-dashed border-gray-400 text-gray-400' 
-            : member.isReady 
-              ? 'bg-black border-black text-white' 
-              : 'bg-white border-black text-black'
-        }`}
-        style={{ width: circleSize, height: circleSize, fontSize }}
-      >
-        {isPlaceholder ? <span className="text-[32px]">?</span> : member.name.charAt(0).toUpperCase()}
-        {isLeader && (
-          <span className="absolute -top-1 -right-1 text-[16px] bg-white rounded-full border border-black p-[2px]">👑</span>
-        )}
-      </div>
-      <p className="text-[12px] text-black mt-[6px] font-semibold">
-        {isPlaceholder ? 'Empty' : member.name}
-      </p>
-      {isLeader && (
-        <p className="text-[10px] text-gray-500">Host</p>
-      )}
-      {!isPlaceholder && !isLeader && (
-        <p className={`text-[10px] font-bold ${member.isReady ? 'text-green-600' : 'text-gray-400'}`}>
-          {member.isReady ? '✓ Ready' : 'Not Ready'}
-        </p>
-      )}
-    </div>
-  );
-}
-
-interface YutoGroupScreenProps {
-  groupName: string;
-  venue: { name: string; price: string } | null;
-  peopleCount: number;
-  onBack: () => void;
-  onNavigate?: (screen: string) => void;
-  isFareShare?: boolean;
-}
-
-export default function YutoGroupScreen({ groupName, venue, peopleCount, onBack, onNavigate, isFareShare }: YutoGroupScreenProps) {
-  const totalPool = venue ? parseInt(venue.price) * peopleCount : 0;
-  
-  const fakeFriends = ["Jack", "Jane", "Mike", "Sara"];
-  
-  const [members, setMembers] = useState<Member[]>([
-    { name: "You", isReady: false, isLeader: true }
-  ]);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [yutoStarted, setYutoStarted] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentType, setPaymentType] = useState<'buy-goods' | 'paybill' | 'phone' | null>(null);
-  const [tillNumber, setTillNumber] = useState('');
-  const [businessNo, setBusinessNo] = useState('');
-  const [accountNo, setAccountNo] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [paymentComplete, setPaymentComplete] = useState(false);
-  
-  const isPartyFull = members.length >= peopleCount;
-  const allReady = members.length === peopleCount && members.every(m => m.isReady);
-  const youAreReady = members.find(m => m.name === "You")?.isReady || false;
-  
-  // Calculate fill percentage for Yuto
-  const paidCount = members.filter(m => m.isReady).length;
-  const fillPercentage = members.length > 0 ? (paidCount / members.length) * 100 : 0;
-  
-  const handleInviteFriend = () => {
-    if (!isPartyFull) {
-      const nextFriendIndex = members.length - 1;
-      if (nextFriendIndex < fakeFriends.length) {
-        setMembers([...members, { 
-          name: fakeFriends[nextFriendIndex], 
-          isReady: false, 
-          isLeader: false 
-        }]);
-      }
-    }
-  };
-  
-  const handlePayYuto = () => {
-    // Simulate M-PESA payment - mark "You" as ready
-    setMembers(members.map(m => 
-      m.name === "You" ? { ...m, isReady: true } : m
-    ));
-    
-    // Simulate others paying after a delay (for demo)
-    setTimeout(() => {
-      setMembers(prev => prev.map(m => ({ ...m, isReady: true })));
-    }, 1500);
-  };
-  
-  const handleStartYuto = () => {
-    setShowConfetti(true);
-    setYutoStarted(true);
-  };
-  
-  const handlePayVenue = () => {
-    setShowPaymentModal(true);
-    setPaymentType(null);
-    setShowConfirmation(false);
-  };
-  
-  const handlePaymentTypeSelect = (type: 'buy-goods' | 'paybill' | 'phone') => {
-    setPaymentType(type);
-    setTillNumber('');
-    setBusinessNo('');
-    setAccountNo('');
-    setPhoneNumber('');
-  };
-  
-  const handleShowConfirmation = () => {
-    setShowConfirmation(true);
-  };
-  
-  const handleFinalPay = () => {
-    setPaymentComplete(true);
-    setShowPaymentModal(false);
-    setShowConfirmation(false);
-  };
-  
-  const isPaymentFormValid = () => {
-    if (paymentType === 'buy-goods') return tillNumber.length >= 5;
-    if (paymentType === 'paybill') return businessNo.length >= 5 && accountNo.length >= 1;
-    if (paymentType === 'phone') return phoneNumber.length >= 10;
+  const isFormValid = () => {
+    if (paymentType === "buy-goods") return tillNumber.length >= 5;
+    if (paymentType === "paybill") return businessNo.length >= 5 && accountNo.length >= 1;
+    if (paymentType === "phone") return phoneNumber.length >= 10;
     return false;
   };
-  
-  // Generate horizontal positions based on people count
-  const getPositions = () => {
-    const positions: { top: string; left: string }[] = [];
-    const top = "200px";
-    const containerWidth = 402;
-    const circleWidth = 80; // circle size
-    const gap = 20; // gap between circles
-    const totalWidth = (peopleCount * circleWidth) + ((peopleCount - 1) * gap);
-    const startLeft = (containerWidth - totalWidth) / 2;
-    
-    for (let i = 0; i < peopleCount; i++) {
-      positions.push({ 
-        top, 
-        left: `${startLeft + (i * (circleWidth + gap))}px` 
-      });
-    }
-    return positions;
+
+  const selectType = (type: typeof paymentType) => {
+    setPaymentType(type);
+    setTillNumber("");
+    setBusinessNo("");
+    setAccountNo("");
+    setPhoneNumber("");
+    setStep("select");
   };
-  
-  const positions = getPositions();
 
   return (
-    <div className="bg-white mobile-container">
-      <div className="relative w-[402px] h-[874px] bg-white overflow-hidden app-frame">
-        
-        {/* Back Button */}
-        <button 
-          className="absolute left-[20px] top-[60px] text-[24px] text-gray-500 hover:text-black bg-transparent border-none cursor-pointer"
-          onClick={onBack}
+    <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
+      <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+        {step === "select" ? (
+          <>
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="font-bold text-xl text-black">Pay Driver</h2>
+              <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer">
+                ✕
+              </button>
+            </div>
+
+            <p className="text-center text-sm text-gray-500 mb-5">
+              Total: <span className="font-bold text-black">KSH {totalAmount.toLocaleString()}</span>
+            </p>
+
+            {/* Payment type pills */}
+            <div className="flex gap-2 mb-5">
+              {(["buy-goods", "paybill", "phone"] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => selectType(type)}
+                  className={`flex-1 py-3 rounded-full font-semibold text-xs border transition-colors tap-scale ${
+                    paymentType === type
+                      ? "bg-black text-white border-black"
+                      : "bg-white text-black border-gray-300 hover:border-black"
+                  }`}
+                >
+                  {type === "buy-goods" ? "Buy Goods" : type === "paybill" ? "PayBill" : "Phone"}
+                </button>
+              ))}
+            </div>
+
+            {/* Input fields */}
+            {paymentType === "buy-goods" && (
+              <div className="mb-5">
+                <label className="text-xs text-gray-500 mb-1.5 block">Till Number</label>
+                <input
+                  type="text"
+                  value={tillNumber}
+                  onChange={(e) => setTillNumber(e.target.value.replace(/\D/g, ""))}
+                  placeholder="e.g. 123456"
+                  className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+                />
+              </div>
+            )}
+
+            {paymentType === "paybill" && (
+              <div className="mb-5 space-y-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1.5 block">Business No</label>
+                  <input
+                    type="text"
+                    value={businessNo}
+                    onChange={(e) => setBusinessNo(e.target.value.replace(/\D/g, ""))}
+                    placeholder="e.g. 247247"
+                    className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1.5 block">Account No</label>
+                  <input
+                    type="text"
+                    value={accountNo}
+                    onChange={(e) => setAccountNo(e.target.value)}
+                    placeholder="e.g. 0712345678"
+                    className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+                  />
+                </div>
+              </div>
+            )}
+
+            {paymentType === "phone" && (
+              <div className="mb-5">
+                <label className="text-xs text-gray-500 mb-1.5 block">Phone Number</label>
+                <input
+                  type="text"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                  placeholder="e.g. 0712345678"
+                  maxLength={12}
+                  className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+                />
+              </div>
+            )}
+
+            {paymentType && (
+              <button
+                onClick={() => setStep("confirm")}
+                disabled={!isFormValid()}
+                className={`w-full h-12 rounded-full font-bold text-base transition-colors tap-scale ${
+                  isFormValid()
+                    ? "bg-black text-white hover:bg-gray-800"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                Continue
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex justify-between items-center mb-5">
+              <button
+                onClick={() => setStep("select")}
+                className="text-sm text-gray-500 hover:text-black bg-transparent border-none cursor-pointer"
+              >
+                ← Back
+              </button>
+              <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer">
+                ✕
+              </button>
+            </div>
+
+            <h2 className="font-bold text-xl text-black text-center mb-6">Confirm Payment</h2>
+
+            <div className="bg-gray-50 rounded-2xl p-5 mb-6">
+              {paymentType === "buy-goods" && (
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 mb-1">Till Number</p>
+                  <p className="font-bold text-3xl text-black">{tillNumber}</p>
+                </div>
+              )}
+              {paymentType === "paybill" && (
+                <div className="text-center space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Business No</p>
+                    <p className="font-bold text-2xl text-black">{businessNo}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Account No</p>
+                    <p className="font-bold text-2xl text-black">{accountNo}</p>
+                  </div>
+                </div>
+              )}
+              {paymentType === "phone" && (
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 mb-1">Phone Number</p>
+                  <p className="font-bold text-3xl text-black">{phoneNumber}</p>
+                </div>
+              )}
+              <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+                <p className="text-sm text-gray-500 mb-1">Amount</p>
+                <p className="font-bold text-2xl text-black">KSH {totalAmount.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <p className="text-center text-xs text-gray-400 mb-4">
+              Please verify the details before confirming
+            </p>
+
+            <button
+              onClick={onComplete}
+              className="w-full h-12 bg-black text-white rounded-full font-bold text-base hover:bg-gray-800 transition-colors tap-scale"
+            >
+              Confirm & Pay
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function YutoGroupScreen() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const state = location.state as GroupState | null;
+
+  const groupName = state?.groupName || "Fare Share";
+  const perPersonAmount = state?.amount || 150;
+  const totalAmount = state?.totalAmount || 450;
+  const initialMembers = state?.members || ["You", "Jack", "Jane"];
+  const initialPaidCount = state?.paidCount || 0;
+  const startAllJoined = state?.allJoined || false;
+
+  const joinTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const [members, setMembers] = useState<Member[]>(
+    initialMembers.map((name, i) => ({
+      name,
+      isPaid: i < initialPaidCount,
+      isHost: i === 0,
+      hasJoined: i === 0 || startAllJoined || i < initialPaidCount,
+      justJoined: false,
+    }))
+  );
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [driverPaid, setDriverPaid] = useState(false);
+
+  useEffect(() => {
+    members.forEach((member, i) => {
+      if (!member.hasJoined && !member.isHost) {
+        const timer = setTimeout(() => {
+          setMembers((prev) =>
+            prev.map((m, idx) =>
+              idx === i ? { ...m, hasJoined: true, justJoined: true } : m
+            )
+          );
+          setTimeout(() => {
+            setMembers((prev) =>
+              prev.map((m, idx) => (idx === i ? { ...m, justJoined: false } : m))
+            );
+          }, 700);
+        }, 1200 + i * 1400);
+        joinTimers.current.push(timer);
+      }
+    });
+    return () => joinTimers.current.forEach(clearTimeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const paidCount = members.filter((m) => m.isPaid).length;
+  const joinedCount = members.filter((m) => m.hasJoined).length;
+  const allJoined = joinedCount === members.length;
+  const allPaid = paidCount === members.length;
+  const youPaid = members.find((m) => m.name === "You")?.isPaid || false;
+  const fillPercentage = members.length > 0 ? (paidCount / members.length) * 100 : 0;
+
+  const handlePayShare = () => {
+    setMembers((prev) => prev.map((m) => (m.name === "You" ? { ...m, isPaid: true } : m)));
+    setTimeout(() => {
+      setMembers((prev) => prev.map((m) => ({ ...m, isPaid: true })));
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2500);
+    }, 2000);
+  };
+
+  const handlePayDriver = () => setShowPaymentModal(true);
+
+  const handlePaymentComplete = () => {
+    setShowPaymentModal(false);
+    setDriverPaid(true);
+  };
+
+  return (
+    <div className="flex flex-col min-h-full px-5 pt-10 pb-6 relative">
+      {showConfetti && <Confetti />}
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate("/activity")}
+          className="text-gray-400 hover:text-black bg-transparent border-none cursor-pointer text-base"
         >
           ← Back
         </button>
-        
-        {/* Message Icon - top right */}
-        <button 
-          className="absolute right-[30px] top-[50px] hover:opacity-70 transition-opacity p-0 bg-transparent border-none cursor-pointer"
-          onClick={() => onNavigate?.('chat')}
+        <button
+          onClick={() => navigate(`/yuto/group/chat`, { state: { groupName } })}
+          className="p-2 bg-transparent border-none cursor-pointer hover:opacity-70"
         >
-          <MessageIcon />
+          <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
+            <path
+              d="M42 23C42 25.64 41.39 28.24 40.2 30.6C38.79 33.42 36.62 35.8 33.93 37.46C31.25 39.12 28.16 40 25 40C22.36 40.01 19.76 39.39 17.4 38.2L6 42L9.8 30.6C8.61 28.24 7.99 25.64 8 23C8 19.84 8.88 16.75 10.54 14.07C12.2 11.38 14.58 9.21 17.4 7.8C19.76 6.61 22.36 5.99 25 6H26C30.17 6.23 34.11 7.99 37.06 10.94C40.01 13.89 41.77 17.83 42 22V23Z"
+              stroke="#1E1E1E"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
-        
-        {/* Group Name */}
-        <p className="absolute font-bold text-[28px] text-black left-1/2 transform -translate-x-1/2 top-[100px] whitespace-nowrap">
-          {groupName}
-        </p>
-        
-        {/* Pool Amount */}
-        <p className="absolute text-[18px] text-gray-600 left-1/2 transform -translate-x-1/2 top-[138px]">
-          {totalPool} KSH Pool
-        </p>
-        
-        {/* Circular Layout Container */}
-        <div className="absolute left-1/2 top-[280px] transform -translate-x-1/2">
-          <div className="relative" style={{ width: '300px', height: '300px' }}>
-            
-            {/* Member Circles positioned in a circle around center */}
-            {members.map((member, index) => {
-              const angle = (index * 2 * Math.PI) / peopleCount - Math.PI / 2; // Start from top
-              const radius = 160; // Distance from center
-              const x = Math.cos(angle) * radius;
-              const y = Math.sin(angle) * radius;
-              
-              return (
-                <div
-                  key={index}
-                  className="absolute transition-all duration-500"
-                  style={{
-                    left: '50%',
-                    top: '50%',
-                    transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
-                    zIndex: 20,
-                  }}
-                >
-                  <div className="flex flex-col items-center">
-                    <div className="relative">
-                      <div
-                        className={`w-[90px] h-[90px] rounded-full flex items-center justify-center font-bold text-[32px] border-4 shadow-lg transition-all duration-300 ${
-                          member.isReady
-                            ? 'bg-black border-green-500 text-white'
-                            : 'bg-white border-gray-400 text-black'
-                        }`}
-                      >
-                        {member.name.charAt(0).toUpperCase()}
-                      </div>
-                      {member.isReady && (
-                        <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1">
-                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-[11px] font-medium mt-1">{member.name}</p>
-                  </div>
-                </div>
-              );
-            })}
-            
-            {/* Yuto in Center with Filling Effect */}
-            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2" style={{ zIndex: 10 }}>
-              <div
-                className="bg-white rounded-[30px] shadow-2xl flex flex-col items-center relative overflow-hidden border-2 border-gray-200"
-                style={{ width: '140px', height: '160px' }}
+      </div>
+
+      {/* Group info */}
+      <div className="text-center mb-1">
+        <h1 className="text-3xl font-bold text-black">{groupName}</h1>
+        <p className="text-base text-gray-500 mt-0.5">KSH {totalAmount.toLocaleString()} total</p>
+      </div>
+
+      {/* Graph / Mind-map layout */}
+      <div className="relative w-full max-w-[380px] mx-auto flex-1 min-h-[380px]">
+        {/* SVG layer: orbit rings + connection lines */}
+        <svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 380 420"
+          preserveAspectRatio="xMidYMid meet"
+          style={{ zIndex: 1 }}
+        >
+          {/* Orbit rings */}
+          <circle cx="190" cy="210" r="85" fill="none" stroke="#f0f0f0" strokeWidth="1" />
+          <circle
+            cx="190" cy="210" r="155"
+            fill="none" stroke="#f0f0f0" strokeWidth="1"
+            strokeDasharray="4 6"
+            style={{ animation: "orbitSpin 60s linear infinite", transformOrigin: "190px 210px" }}
+          />
+          <circle cx="190" cy="210" r="120" fill="none" stroke="#f7f7f7" strokeWidth="0.5" />
+
+          {/* Pulse ring on center (only when not all paid) */}
+          {!allPaid && (
+            <>
+              <circle
+                cx="190" cy="210" r="40"
+                fill="none" stroke="#5493b3" strokeWidth="1.5" opacity="0"
               >
-                {/* Green fill animation from bottom */}
-                <div
-                  className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-500 to-green-400 transition-all duration-1000 ease-out"
-                  style={{ height: `${fillPercentage}%` }}
+                <animate attributeName="r" from="40" to="85" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" from="0.3" to="0" dur="2s" repeatCount="indefinite" />
+              </circle>
+              <circle
+                cx="190" cy="210" r="40"
+                fill="none" stroke="#5493b3" strokeWidth="1" opacity="0"
+              >
+                <animate attributeName="r" from="40" to="85" dur="2s" begin="1s" repeatCount="indefinite" />
+                <animate attributeName="opacity" from="0.2" to="0" dur="2s" begin="1s" repeatCount="indefinite" />
+              </circle>
+            </>
+          )}
+
+          {/* Connection lines from center to each member */}
+          {members.map((member, i) => {
+            const angle = (i * 2 * Math.PI) / members.length - Math.PI / 2;
+            const r = 155;
+            const mx = 190 + Math.cos(angle) * r;
+            const my = 210 + Math.sin(angle) * r;
+            const joined = member.hasJoined;
+            const paid = member.isPaid;
+
+            return (
+              <g key={`line-${i}`}>
+                {/* Main connection line */}
+                <line
+                  x1={190} y1={210} x2={mx} y2={my}
+                  stroke={paid ? "#22c55e" : joined ? "#d1d5db" : "#efefef"}
+                  strokeWidth={paid ? 3 : joined ? 2 : 1}
+                  strokeDasharray={paid ? "none" : joined ? "7 5" : "3 8"}
+                  className={
+                    member.justJoined ? "rope-yank" : paid ? "" : joined ? "graph-line-flowing" : ""
+                  }
+                  style={{ transition: "stroke 0.6s, stroke-width 0.6s, stroke-dasharray 0.6s" }}
                 />
-                
-                {/* Yuto mascot and text on top of fill */}
-                <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <img 
-                    alt="Yuto mascot" 
-                    className="w-[60px] h-[60px] object-contain mb-[8px]" 
-                    src={imgChatGptImageOct142025022518Pm1} 
+
+                {/* Glow line behind paid connections */}
+                {paid && (
+                  <line
+                    x1={190} y1={210} x2={mx} y2={my}
+                    stroke="#22c55e" strokeWidth={8} opacity={0.12} strokeLinecap="round"
                   />
-                  <p className={`text-[16px] font-bold text-center transition-colors duration-300 ${
-                    fillPercentage > 50 ? 'text-white' : 'text-black'
-                  }`}>
-                    KSH {venue?.price}
-                  </p>
-                </div>
-              </div>
+                )}
+
+                {/* Dot at member end */}
+                <circle
+                  cx={mx} cy={my}
+                  r={paid ? 5 : joined ? 4 : 2}
+                  fill={paid ? "#22c55e" : joined ? "#d1d5db" : "#efefef"}
+                  style={{ transition: "fill 0.6s, r 0.6s" }}
+                />
+
+                {/* Dot at center end */}
+                <circle
+                  cx={190 + Math.cos(angle) * 45}
+                  cy={210 + Math.sin(angle) * 45}
+                  r={2.5}
+                  fill={paid ? "#22c55e" : joined ? "#e5e7eb" : "#f5f5f5"}
+                  style={{ transition: "fill 0.6s" }}
+                />
+
+                {/* Traveling dot on joined but unpaid connections */}
+                {joined && !paid && (
+                  <circle r="3.5" fill="#5493b3" opacity="0.7">
+                    <animateMotion
+                      dur="1.5s"
+                      repeatCount="indefinite"
+                      begin={`${i * 0.4}s`}
+                      path={`M190,210 L${mx},${my}`}
+                    />
+                    <animate attributeName="opacity" values="0;0.8;0.8;0" dur="1.5s" repeatCount="indefinite" begin={`${i * 0.4}s`} />
+                  </circle>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Center Yuto jar (HTML on top of SVG) */}
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 10 }}>
+          <div
+            className={`bg-white rounded-[28px] shadow-xl border-2 w-[160px] h-[195px] relative overflow-hidden transition-all duration-500 ${
+              allPaid ? "border-green-400 shadow-green-300/40" : "border-gray-200"
+            }`}
+          >
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-500 to-green-400 transition-all duration-1000 ease-out"
+              style={{ height: `${fillPercentage}%` }}
+            />
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <img src={imgYutoMascot} alt="Yuto" className="w-[72px] h-[72px] object-contain mb-2" />
+              <p
+                className={`text-2xl font-bold transition-colors duration-300 ${
+                  fillPercentage > 50 ? "text-white" : "text-black"
+                }`}
+              >
+                KSH {perPersonAmount}
+              </p>
+              <p
+                className={`text-sm transition-colors duration-300 ${
+                  fillPercentage > 50 ? "text-white/80" : "text-gray-400"
+                }`}
+              >
+                per person
+              </p>
             </div>
           </div>
         </div>
-        
-        {/* Status Message */}
-        <p className="absolute top-[590px] left-0 right-0 text-center text-[14px] text-gray-600">
-          {!isPartyFull 
-            ? `${peopleCount - members.length} more ${peopleCount - members.length === 1 ? 'person' : 'people'} needed`
-            : allReady
-              ? '🎉 Everyone has paid!'
-              : `Waiting for ${peopleCount - paidCount} to pay...`
-          }
-        </p>
-        
-        {/* Action Button */}
-        {!isPartyFull ? (
-          <button 
-            onClick={handleInviteFriend}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-black border border-black rounded-[30px] text-white font-bold text-[16px] hover:bg-gray-800 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
-          >
-            Invite Friends ({members.length}/{peopleCount})
-          </button>
-        ) : !youAreReady ? (
-          <button 
-            onClick={handlePayYuto}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-green-500 border-none rounded-[30px] text-white font-bold text-[16px] hover:bg-green-600 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
-          >
-            Pay Yuto
-          </button>
-        ) : !allReady ? (
-          <button 
+
+        {/* Member node bubbles */}
+        {members.map((member, i) => {
+          const angle = (i * 2 * Math.PI) / members.length - Math.PI / 2;
+          const r = 155;
+          const x = Math.cos(angle) * r;
+          const y = Math.sin(angle) * r;
+          const joined = member.hasJoined;
+          const paid = member.isPaid;
+
+          return (
+            <div
+              key={i}
+              className={`absolute left-1/2 top-1/2 transition-all duration-500 ${
+                member.justJoined ? "node-snap-in" : ""
+              }`}
+              style={{
+                transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                zIndex: 20,
+              }}
+            >
+              <div className="flex flex-col items-center">
+                <div className={`relative ${paid ? "node-glow" : ""}`}>
+                  <div
+                    className={`w-[76px] h-[76px] rounded-full flex items-center justify-center font-bold text-2xl border-[3px] transition-all duration-500 ${
+                      paid
+                        ? "bg-black border-green-500 text-white shadow-xl shadow-green-500/25"
+                        : joined
+                        ? "bg-white border-gray-300 text-black shadow-lg"
+                        : "bg-gray-100 border-gray-200 text-gray-300 shadow-sm"
+                    }`}
+                    style={!joined ? { filter: "blur(3px)" } : undefined}
+                  >
+                    {member.name.charAt(0)}
+                  </div>
+                  {paid && (
+                    <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full p-1">
+                      <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                {joined ? (
+                  <p className="text-sm font-semibold mt-2 text-gray-700">{member.name}</p>
+                ) : (
+                  <p className="text-xs mt-2 text-gray-400 italic whitespace-nowrap">
+                    Waiting for {member.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Status text */}
+      <p className="text-center text-base text-gray-500 mt-2 mb-4">
+        {driverPaid
+          ? "Driver paid! You're all set"
+          : allPaid
+          ? "Everyone has paid!"
+          : !allJoined
+          ? `${joinedCount}/${members.length} joined`
+          : `${paidCount}/${members.length} have paid`}
+      </p>
+
+      {/* Action button */}
+      <div>
+        {!allJoined ? (
+          <button
             disabled
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-gray-300 border-none rounded-[30px] text-gray-500 font-bold text-[16px] cursor-not-allowed shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
+            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed"
+          >
+            Waiting for group to join...
+          </button>
+        ) : !youPaid ? (
+          <button
+            onClick={handlePayShare}
+            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale"
+          >
+            Pay KSH {perPersonAmount.toLocaleString()}
+          </button>
+        ) : !allPaid ? (
+          <button
+            disabled
+            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed"
           >
             Waiting for others...
           </button>
-        ) : !yutoStarted ? (
-          <button 
-            onClick={handleStartYuto}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-green-500 border-none rounded-[30px] text-white font-bold text-[16px] hover:bg-green-600 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
+        ) : !driverPaid ? (
+          <button
+            onClick={handlePayDriver}
+            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale"
           >
-            Start Yuto! 🎉
-          </button>
-        ) : !paymentComplete ? (
-          <button 
-            onClick={handlePayVenue}
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-green-500 border-none rounded-[30px] text-white font-bold text-[16px] hover:bg-green-600 transition-colors shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] pay-button-tap"
-          >
-            Pay Driver 🚗
+            Pay Driver
           </button>
         ) : (
-          <button 
-            className="absolute bottom-[140px] left-[30px] right-[30px] h-[50px] bg-green-500 border-none rounded-[30px] text-white font-bold text-[16px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)]"
-          >
+          <button className="w-full py-5 bg-green-500 text-white rounded-full font-bold text-lg cursor-default">
             Payment Complete ✓
           </button>
         )}
-        
-        {/* Payment Modal */}
-        {showPaymentModal && (
-          <div className="absolute inset-0 flex items-center justify-center z-50">
-            <div className="bg-white rounded-[30px] w-[350px] p-[24px] shadow-lg">
-              {!showConfirmation ? (
-                <>
-                  {/* Header */}
-                  <div className="flex justify-between items-center mb-[20px]">
-                    <h2 className="font-bold text-[22px] text-black">Pay Driver</h2>
-                    <button 
-                      onClick={() => setShowPaymentModal(false)}
-                      className="text-[24px] text-gray-400 hover:text-black"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  
-                  {/* Amount */}
-                  <p className="text-center text-[14px] text-gray-500 mb-[20px]">
-                    Total: <span className="font-bold text-black">{totalPool} KSH</span>
-                  </p>
-                  
-                  {/* Payment Type Pills */}
-                  <div className="flex gap-[10px] mb-[20px]">
-                    <button
-                      onClick={() => handlePaymentTypeSelect('buy-goods')}
-                      className={`flex-1 py-[12px] rounded-[20px] font-semibold text-[12px] border transition-colors tap-dramatic ${
-                        paymentType === 'buy-goods' 
-                          ? 'bg-black text-white border-black' 
-                          : 'bg-white text-black border-black hover:bg-gray-100'
-                      }`}
-                    >
-                      Buy Goods
-                    </button>
-                    <button
-                      onClick={() => handlePaymentTypeSelect('paybill')}
-                      className={`flex-1 py-[12px] rounded-[20px] font-semibold text-[12px] border transition-colors ${
-                        paymentType === 'paybill' 
-                          ? 'bg-black text-white border-black' 
-                          : 'bg-white text-black border-black hover:bg-gray-100'
-                      }`}
-                    >
-                      PayBill
-                    </button>
-                    <button
-                      onClick={() => handlePaymentTypeSelect('phone')}
-                      className={`flex-1 py-[12px] rounded-[20px] font-semibold text-[12px] border transition-colors ${
-                        paymentType === 'phone' 
-                          ? 'bg-black text-white border-black' 
-                          : 'bg-white text-black border-black hover:bg-gray-100'
-                      }`}
-                    >
-                      Phone
-                    </button>
-                  </div>
-                  
-                  {/* Input Fields */}
-                  {paymentType === 'buy-goods' && (
-                    <div className="mb-[20px]">
-                      <label className="text-[12px] text-gray-500 mb-[6px] block">Enter Till Number</label>
-                      <input
-                        type="text"
-                        value={tillNumber}
-                        onChange={(e) => setTillNumber(e.target.value.replace(/\D/g, ''))}
-                        placeholder="e.g. 123456"
-                        className="w-full h-[50px] border border-black rounded-[25px] px-[20px] text-[16px] outline-none"
-                      />
-                    </div>
-                  )}
-                  
-                  {paymentType === 'paybill' && (
-                    <div className="mb-[20px] space-y-[12px]">
-                      <div>
-                        <label className="text-[12px] text-gray-500 mb-[6px] block">Enter Business No</label>
-                        <input
-                          type="text"
-                          value={businessNo}
-                          onChange={(e) => setBusinessNo(e.target.value.replace(/\D/g, ''))}
-                          placeholder="e.g. 247247"
-                          className="w-full h-[50px] border border-black rounded-[25px] px-[20px] text-[16px] outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[12px] text-gray-500 mb-[6px] block">Enter Account No</label>
-                        <input
-                          type="text"
-                          value={accountNo}
-                          onChange={(e) => setAccountNo(e.target.value)}
-                          placeholder="e.g. 0712345678"
-                          className="w-full h-[50px] border border-black rounded-[25px] px-[20px] text-[16px] outline-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {paymentType === 'phone' && (
-                    <div className="mb-[20px]">
-                      <label className="text-[12px] text-gray-500 mb-[6px] block">Enter Phone Number</label>
-                      <input
-                        type="text"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                        placeholder="e.g. 0712345678"
-                        className="w-full h-[50px] border border-black rounded-[25px] px-[20px] text-[16px] outline-none"
-                        maxLength={12}
-                      />
-                    </div>
-                  )}
-                  
-                  {/* Pay Button */}
-                  {paymentType && (
-                    <button
-                      onClick={handleShowConfirmation}
-                      disabled={!isPaymentFormValid()}
-                      className={`w-full h-[50px] rounded-[25px] font-bold text-[16px] transition-colors ${
-                        isPaymentFormValid()
-                          ? 'bg-black text-white hover:bg-gray-800'
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      }`}
-                    >
-                      Pay
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  {/* Confirmation View */}
-                  <div className="flex justify-between items-center mb-[20px]">
-                    <button 
-                      onClick={() => setShowConfirmation(false)}
-                      className="text-[16px] text-gray-500 hover:text-black"
-                    >
-                      ← Back
-                    </button>
-                    <button 
-                      onClick={() => setShowPaymentModal(false)}
-                      className="text-[24px] text-gray-400 hover:text-black"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  
-                  <h2 className="font-bold text-[22px] text-black text-center mb-[24px]">Confirm Payment</h2>
-                  
-                  {/* Payment Details */}
-                  <div className="bg-gray-50 rounded-[20px] p-[20px] mb-[24px]">
-                    {paymentType === 'buy-goods' && (
-                      <div className="text-center">
-                        <p className="text-[14px] text-gray-500 mb-[4px]">Till Number</p>
-                        <p className="font-bold text-[32px] text-black">{tillNumber}</p>
-                      </div>
-                    )}
-                    
-                    {paymentType === 'paybill' && (
-                      <div className="text-center space-y-[16px]">
-                        <div>
-                          <p className="text-[14px] text-gray-500 mb-[4px]">Business No</p>
-                          <p className="font-bold text-[28px] text-black">{businessNo}</p>
-                        </div>
-                        <div>
-                          <p className="text-[14px] text-gray-500 mb-[4px]">Account No</p>
-                          <p className="font-bold text-[28px] text-black">{accountNo}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {paymentType === 'phone' && (
-                      <div className="text-center">
-                        <p className="text-[14px] text-gray-500 mb-[4px]">Phone Number</p>
-                        <p className="font-bold text-[32px] text-black">{phoneNumber}</p>
-                      </div>
-                    )}
-                    
-                    <div className="mt-[16px] pt-[16px] border-t border-gray-200 text-center">
-                      <p className="text-[14px] text-gray-500 mb-[4px]">Amount</p>
-                      <p className="font-bold text-[28px] text-black">{totalPool} KSH</p>
-                    </div>
-                  </div>
-                  
-                  <p className="text-center text-[12px] text-gray-500 mb-[16px]">
-                    Please verify the details above before confirming
-                  </p>
-                  
-                  {/* Final Pay Button */}
-                  <button
-                    onClick={handleFinalPay}
-                    className="w-full h-[50px] bg-black text-white rounded-[25px] font-bold text-[16px] hover:bg-gray-800 transition-colors pay-button-tap"
-                  >
-                    Confirm & Pay
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-        
-        {/* Bottom Navigation */}
-        <div className="absolute bg-white border-2 border-[#5493b3] rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[264px] top-[776px]" />
-        <div 
-          className="absolute bg-white border-2 border-[#5493b3] rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[69px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
-          onClick={() => onNavigate?.('venues-map')}
-        />
-        <div className="absolute bg-[#5493b3] border-2 border-[#5493b3] rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[158px] w-[87px] top-[776px]" />
-        <div 
-          className="absolute bg-white border-2 border-[#5493b3] rounded-[40px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[53px] left-[247px] w-[86px] top-[776px] cursor-pointer hover:bg-gray-50 transition-colors"
-          onClick={() => onNavigate?.('profile')}
-        />
-        <MapPin onClick={() => onNavigate?.('venues-map')} />
-        <User onClick={() => onNavigate?.('profile')} />
-        <Home onClick={() => onNavigate?.('your-yutos')} />
       </div>
+
+      {/* Payment modal */}
+      {showPaymentModal && (
+        <PaymentModal
+          totalAmount={totalAmount}
+          onClose={() => setShowPaymentModal(false)}
+          onComplete={handlePaymentComplete}
+        />
+      )}
     </div>
   );
 }

@@ -1,35 +1,29 @@
-import { Outlet, useLocation } from 'react-router-dom';
-import GlassNavBar from './GlassNavBar';
+import { Outlet, useLocation } from "react-router-dom";
+import GlassNavBar from "./GlassNavBar";
 
-// Screens that should show the bottom navigation
-const SCREENS_WITH_NAV = ['/venues', '/home', '/fare-share', '/profile'];
+type NavTab = "split" | "activity" | "profile";
 
-// Map routes to nav tabs
-const routeToTab: Record<string, 'venues' | 'home' | 'fare-share' | 'profile'> = {
-  '/venues': 'venues',
-  '/home': 'home',
-  '/': 'home',
-  '/fare-share': 'fare-share',
-  '/profile': 'profile',
+const TAB_ROUTES: Record<string, NavTab> = {
+  "/": "split",
+  "/split": "split",
+  "/activity": "activity",
+  "/profile": "profile",
 };
 
 export default function Layout() {
   const location = useLocation();
-  const showNav = SCREENS_WITH_NAV.some(path => location.pathname.startsWith(path)) || location.pathname === '/';
-  const activeTab = routeToTab[location.pathname] || 'home';
+  const activeTab = TAB_ROUTES[location.pathname];
+  const showNav = !!activeTab;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      {/* Phone frame container - max width for mobile feel on desktop */}
-      <div className="w-full max-w-md h-screen max-h-[900px] bg-white relative overflow-hidden shadow-2xl">
-        {/* Main content area */}
-        <div className="h-full overflow-y-auto pb-20">
+    <div className="min-h-[100dvh] bg-gray-100 flex items-center justify-center">
+      <div className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white relative overflow-hidden md:rounded-[40px] md:shadow-2xl">
+        <div className={`h-full overflow-y-auto ${showNav ? "pb-24" : ""}`}>
           <Outlet />
         </div>
-        
-        {/* Bottom navigation - fixed at bottom */}
+
         {showNav && (
-          <div className="absolute bottom-4 left-4 right-4">
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
             <GlassNavBar activeTab={activeTab} />
           </div>
         )}

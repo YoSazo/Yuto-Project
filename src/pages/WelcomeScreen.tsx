@@ -17,7 +17,7 @@ export default function WelcomeScreen() {
         return;
       }
       if (phoneNumber === '0') {
-        navigate('/home');
+        navigate('/split');
         return;
       }
       setError('Please enter a valid phone number');
