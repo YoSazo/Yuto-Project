@@ -17,6 +17,7 @@ export default function FareShareScreen() {
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -41,6 +42,7 @@ export default function FareShareScreen() {
   const handleSplit = async () => {
     if (!isValid || !user) return;
     setIsCreating(true);
+    setError("");
     try {
       const group = await createGroup(
         "Fare Share",
@@ -52,6 +54,7 @@ export default function FareShareScreen() {
       navigate(`/yuto/${group.id}`);
     } catch (err) {
       console.error("Failed to create group:", err);
+      setError(err instanceof Error ? err.message : "Failed to create group. Try again.");
     } finally {
       setIsCreating(false);
     }
@@ -133,6 +136,10 @@ export default function FareShareScreen() {
             </span>
           </div>
         </div>
+      )}
+
+      {error && (
+        <p className="text-center text-sm text-red-500 font-semibold mt-4">{error}</p>
       )}
 
       <div className="mt-auto pb-6 pt-8">

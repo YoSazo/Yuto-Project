@@ -120,22 +120,47 @@ export async function createGroup(
   createdBy: string,
   memberIds: string[]
 ) {
-  const { data: group, error: groupError } = await supabase
+  // Step 1: Insert the group (no .select() — RLS select policy requires group_members to exist first)
+  const { error: groupError } = await supabase
     .from("groups")
-    .insert({ name, total_amount: totalAmount, per_person: perPerson, created_by: createdBy })
-    .select()
-    .single();
+    .insert({ name, total_amount: totalAmount, per_person: perPerson, created_by: createdBy });
   if (groupError) throw groupError;
 
-  const members = memberIds.map((uid) => ({
-    group_id: group.id,
-    user_id: uid,
-    has_joined: uid === createdBy,
-    joined_at: uid === createdBy ? new Date().toISOString() : null,
-  }));
+  // Step 2: Fetch the group we just created (now created_by = auth.uid() so creator can find it via created_by)
+  // We use created_by + order to get the latest one just inserted
+  const { data: group, error: fetchError } = await supabase
+    .from("groups")
+    .select("*")
+    .eq("created_by", createdBy)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+  if (fetchError) throw fetchError;
 
-  const { error: membersError } = await supabase.from("group_members").insert(members);
-  if (membersError) throw membersError;
+  // Step 3: Insert creator first so RLS on group_members select works for future queries
+  const creatorMember = {
+    group_id: group.id,
+    user_id: createdBy,
+    has_joined: true,
+    joined_at: new Date().toISOString(),
+  };
+  const { error: creatorError } = await supabase.from("group_members").insert(creatorMember);
+  if (creatorError) throw creatorError;
+
+  // Step 4: Insert remaining members
+  const otherMembers = memberIds
+    .filter((uid) => uid !== createdBy)
+    .map((uid) => ({
+      group_id: group.id,
+      user_id: uid,
+      has_joined: false,
+      joined_at: null,
+    }));
+
+  if (otherMembers.length > 0) {
+    const { error: membersError } = await supabase.from("group_members").insert(otherMembers);
+    if (membersError) throw membersError;
+  }
 
   return group;
 }
