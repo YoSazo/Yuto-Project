@@ -345,7 +345,7 @@ export default function YutoGroupScreen() {
       </div>
 
       {/* Group info */}
-      <div className="text-center mb-1">
+      <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-black">{groupName}</h1>
         <p className="text-base text-gray-500 mt-0.5">KSH {totalAmount.toLocaleString()} total</p>
       </div>
