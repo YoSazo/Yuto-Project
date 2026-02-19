@@ -482,7 +482,7 @@ export default function YutoGroupScreen() {
           {/* Connection ropes */}
           {members.map((member, i) => {
             const angle = (i * 2 * Math.PI) / members.length + Math.PI / 4;
-            const r = 155;
+            const r = 185;
             const mx = 190 + Math.cos(angle) * r;
             const my = 210 + Math.sin(angle) * r;
             const joined = member.hasJoined;
@@ -568,7 +568,7 @@ export default function YutoGroupScreen() {
         {/* Member nodes */}
         {members.map((member, i) => {
           const angle = (i * 2 * Math.PI) / members.length + Math.PI / 4;
-          const r = 155;
+          const r = 185;
           const x = Math.cos(angle) * r;
           const y = Math.sin(angle) * r;
           const joined = member.hasJoined;
