@@ -1,3 +1,4 @@
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 type NavTab = "split" | "activity" | "profile";
@@ -45,8 +46,82 @@ export default function GlassNavBar({ activeTab }: GlassNavBarProps) {
   const navigate = useNavigate();
   const activeIndex = tabs.findIndex((t) => t.id === activeTab);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragStart = useRef({ pointerX: 0, pillLeft: 0 });
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragLeft, setDragLeft] = useState(0);
+
+  const getPillWidth = useCallback(() => {
+    if (!containerRef.current) return 0;
+    return containerRef.current.getBoundingClientRect().width / 3 - 10;
+  }, []);
+
+  const getHoverIndex = useCallback(() => {
+    if (!containerRef.current) return activeIndex;
+    const w = containerRef.current.getBoundingClientRect().width;
+    const pillW = w / 3 - 10;
+    const center = dragLeft + pillW / 2;
+    return Math.min(2, Math.max(0, Math.floor(center / (w / 3))));
+  }, [dragLeft, activeIndex]);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+      const rect = container.getBoundingClientRect();
+      const currentLeft = (activeIndex / 3) * rect.width + 5;
+
+      dragStart.current = { pointerX: e.clientX, pillLeft: currentLeft };
+      setDragLeft(currentLeft);
+      setIsDragging(true);
+    },
+    [activeIndex]
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDragging) return;
+      const container = containerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const pillW = rect.width / 3 - 10;
+      const delta = e.clientX - dragStart.current.pointerX;
+      const newLeft = dragStart.current.pillLeft + delta;
+      setDragLeft(Math.max(5, Math.min(newLeft, rect.width - pillW - 5)));
+    },
+    [isDragging]
+  );
+
+  const handlePointerUp = useCallback(() => {
+    if (!isDragging) return;
+    const snapIndex = getHoverIndex();
+    setIsDragging(false);
+    if (tabs[snapIndex].id !== activeTab) {
+      navigate(tabs[snapIndex].path);
+    }
+  }, [isDragging, getHoverIndex, activeTab, navigate]);
+
+  const visualIndex = isDragging ? getHoverIndex() : activeIndex;
+
+  const pillStyle: React.CSSProperties = isDragging
+    ? {
+        left: `${dragLeft}px`,
+        width: `${getPillWidth()}px`,
+        transition: "none",
+        transform: "scaleY(1.03)",
+      }
+    : {
+        left: `calc(${activeIndex * 33.333}% + 5px)`,
+        width: "calc(33.333% - 10px)",
+      };
+
   return (
-    <div className="relative h-[60px] w-full">
+    <div ref={containerRef} className="relative h-[60px] w-full">
       {/* Glass background */}
       <div
         className="absolute inset-0 rounded-full overflow-hidden border border-gray-200"
@@ -58,28 +133,38 @@ export default function GlassNavBar({ activeTab }: GlassNavBarProps) {
         }}
       />
 
-      {/* Sliding pill */}
+      {/* Sliding pill — draggable */}
       <div
-        className="absolute top-[5px] bottom-[5px] rounded-full bg-black transition-all duration-300 ease-out"
-        style={{
-          left: `calc(${activeIndex * 33.333}% + 5px)`,
-          width: "calc(33.333% - 10px)",
-        }}
+        className="absolute top-[5px] bottom-[5px] rounded-full bg-black z-20 touch-none transition-all duration-300 ease-out"
+        style={pillStyle}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => setIsDragging(false)}
       />
 
-      {/* Tab buttons */}
-      <div className="relative h-full flex items-center">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          const color = isActive ? "#fff" : "#9ca3af";
+      {/* Tab buttons — z-30 so icons render on top of the pill */}
+      <div
+        className="relative h-full flex items-center z-30"
+        style={isDragging ? { pointerEvents: "none" } : undefined}
+      >
+        {tabs.map((tab, i) => {
+          const isLit = i === visualIndex;
+          const color = isLit ? "#fff" : "#9ca3af";
           return (
             <button
               key={tab.id}
               onClick={() => navigate(tab.path)}
-              className="flex-1 relative z-10 flex flex-col items-center justify-center gap-0.5 h-full cursor-pointer bg-transparent border-none"
+              className={`flex-1 relative flex flex-col items-center justify-center gap-0.5 h-full cursor-pointer bg-transparent border-none ${
+                isLit && !isDragging ? "pointer-events-none" : ""
+              }`}
             >
               <tab.Icon color={color} />
-              <span className={`text-[10px] font-semibold ${isActive ? "text-white" : "text-gray-400"}`}>
+              <span
+                className={`text-[10px] font-semibold transition-colors duration-200 ${
+                  isLit ? "text-white" : "text-gray-400"
+                }`}
+              >
                 {tab.label}
               </span>
             </button>
