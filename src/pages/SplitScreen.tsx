@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
 import { getFriends, createGroup } from "../lib/supabase";
 
@@ -71,7 +72,7 @@ export default function SplitScreen() {
     <div className="flex flex-col min-h-full px-6 pt-14">
       {/* Header */}
       <div className="flex items-center gap-3 mb-10">
-        <SplitIcon />
+        <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
         <span className="text-xl font-bold text-black">Split Anything</span>
       </div>
 
@@ -99,7 +100,7 @@ export default function SplitScreen() {
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="What's this for? (chips, lunch, drinks...)"
+          placeholder="What's this for? (chipo, lunch, drinks...)"
           maxLength={40}
           className="w-full text-sm text-center text-gray-500 bg-gray-50 border-none outline-none rounded-full px-4 py-3 placeholder-gray-300"
         />
