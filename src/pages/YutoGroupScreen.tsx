@@ -479,7 +479,7 @@ export default function YutoGroupScreen() {
             </>
           )}
 
-          {/* Connection ropes */}
+          {/* Connection ropes — curved from jar corners to member nodes */}
           {members.map((member, i) => {
             const angle = (i * 2 * Math.PI) / members.length + Math.PI / 4;
             const r = 185;
@@ -488,18 +488,25 @@ export default function YutoGroupScreen() {
             const joined = member.hasJoined;
             const paid = member.isPaid;
 
+            // Jar corners: jar is ~80x97px centered at 190,210
+            // Top-left corner: (150, 162), Top-right: (230, 162)
+            // Bottom-left: (150, 258), Bottom-right: (230, 258)
+            const jarCorners = [
+              { x: 230, y: 162 }, // top-right
+              { x: 150, y: 258 }, // bottom-left
+              { x: 150, y: 162 }, // top-left
+              { x: 230, y: 258 }, // bottom-right
+            ];
+            const corner = jarCorners[i % jarCorners.length];
+
             const hangOffset = joined ? 0 : 35;
             const endX = mx;
             const endY = my + hangOffset;
 
-            let pathD: string;
-            if (joined) {
-              pathD = `M 190 210 L ${mx} ${my}`;
-            } else {
-              const cpX = (190 + endX) / 2;
-              const cpY = (210 + endY) / 2 + 55;
-              pathD = `M 190 210 Q ${cpX} ${cpY} ${endX} ${endY}`;
-            }
+            // Curved rope: control point pulls outward for a natural droop
+            const cpX = (corner.x + endX) / 2 + (Math.cos(angle) * 30);
+            const cpY = (corner.y + endY) / 2 + (joined ? 40 : 60);
+            const pathD = `M ${corner.x} ${corner.y} Q ${cpX} ${cpY} ${endX} ${endY}`;
 
             return (
               <g key={`line-${i}`}>
@@ -516,19 +523,16 @@ export default function YutoGroupScreen() {
                 />
                 {paid && (
                   <path
-                    d={`M 190 210 L ${mx} ${my}`}
+                    d={pathD}
                     fill="none" stroke="#22c55e" strokeWidth={8} opacity={0.12} strokeLinecap="round"
                   />
                 )}
                 <circle cx={endX} cy={endY} r={paid ? 5 : joined ? 4 : 2}
                   fill={paid ? "#22c55e" : joined ? "#d1d5db" : "#e0e0e0"} />
-                <circle
-                  cx={190 + Math.cos(angle) * 45} cy={210 + Math.sin(angle) * 45}
-                  r={2.5} fill={paid ? "#22c55e" : joined ? "#e5e7eb" : "#f5f5f5"} />
                 {joined && !paid && (
                   <circle r="3.5" fill="#5493b3" opacity="0.7">
                     <animateMotion dur="1.5s" repeatCount="indefinite" begin={`${i * 0.4}s`}
-                      path={`M190,210 L${mx},${my}`} />
+                      path={pathD} />
                     <animate attributeName="opacity" values="0;0.8;0.8;0" dur="1.5s"
                       repeatCount="indefinite" begin={`${i * 0.4}s`} />
                   </circle>
