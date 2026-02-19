@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { getFriends, getMyGroups } from "../lib/supabase";
+import { getFriends, getMyGroups, getPendingRequests } from "../lib/supabase";
 
 function ChevronRight() {
   return (
@@ -18,12 +18,14 @@ function MenuItem({
   sublabel,
   onClick,
   danger = false,
+  badge,
 }: {
   icon: React.ReactNode;
   label: string;
   sublabel?: string;
   onClick?: () => void;
   danger?: boolean;
+  badge?: number;
 }) {
   return (
     <button
@@ -33,10 +35,21 @@ function MenuItem({
       <div className="flex items-center gap-4">
         <div className={danger ? "text-red-500" : "text-black"}>{icon}</div>
         <div>
-          <p className={`font-semibold text-[15px] ${danger ? "text-red-500" : "text-black"}`}>
-            {label}
-          </p>
-          {sublabel && <p className="text-xs text-gray-400 mt-0.5">{sublabel}</p>}
+          <div className="flex items-center gap-2">
+            <p className={`font-semibold text-[15px] ${danger ? "text-red-500" : "text-black"}`}>
+              {label}
+            </p>
+            {badge && badge > 0 ? (
+              <span className="bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                {badge}
+              </span>
+            ) : null}
+          </div>
+          {sublabel && (
+            <p className={`text-xs mt-0.5 ${badge && badge > 0 ? "text-red-400" : "text-gray-400"}`}>
+              {sublabel}
+            </p>
+          )}
         </div>
       </div>
       {!danger && <ChevronRight />}
@@ -48,11 +61,12 @@ export default function ProfileScreen() {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
   const [stats, setStats] = useState({ totalYutos: 0, totalSpent: 0, friendsCount: 0 });
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([getMyGroups(), getFriends(user.id)]).then(
-      ([groups, friends]) => {
+    Promise.all([getMyGroups(), getFriends(user.id), getPendingRequests(user.id)]).then(
+      ([groups, friends, pending]) => {
         const paidGroups = (groups as any[]).filter((g: any) =>
           g.group_members.some((m: any) => m.user_id === user.id && m.has_paid)
         );
@@ -62,6 +76,7 @@ export default function ProfileScreen() {
           totalSpent,
           friendsCount: friends.length,
         });
+        setPendingCount(pending.length);
       }
     );
   }, [user]);
@@ -126,7 +141,8 @@ export default function ProfileScreen() {
             </svg>
           }
           label="Friends"
-          sublabel={`${stats.friendsCount} friends`}
+          sublabel={pendingCount > 0 ? `${pendingCount} pending request${pendingCount > 1 ? "s" : ""}` : `${stats.friendsCount} friends`}
+          badge={pendingCount}
           onClick={() => navigate("/friends")}
         />
         <MenuItem

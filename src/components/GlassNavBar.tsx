@@ -5,6 +5,7 @@ type NavTab = "split" | "activity" | "profile";
 
 interface GlassNavBarProps {
   activeTab: NavTab;
+  pendingCount?: number;
 }
 
 function CarIcon({ color }: { color: string }) {
@@ -42,7 +43,7 @@ const tabs: { id: NavTab; label: string; path: string; Icon: typeof CarIcon }[] 
   { id: "profile", label: "Profile", path: "/profile", Icon: PersonIcon },
 ];
 
-export default function GlassNavBar({ activeTab }: GlassNavBarProps) {
+export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBarProps) {
   const navigate = useNavigate();
   const activeIndex = tabs.findIndex((t) => t.id === activeTab);
 
@@ -159,7 +160,14 @@ export default function GlassNavBar({ activeTab }: GlassNavBarProps) {
                 isLit && !isDragging ? "pointer-events-none" : ""
               }`}
             >
-              <tab.Icon color={color} />
+              <div className="relative">
+                <tab.Icon color={color} />
+                {tab.id === "profile" && pendingCount > 0 && (
+                  <div className="absolute -top-1 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-[9px] font-bold text-white">{pendingCount}</span>
+                  </div>
+                )}
+              </div>
               <span
                 className={`text-[10px] font-semibold transition-colors duration-200 ${
                   isLit ? "text-white" : "text-gray-400"
