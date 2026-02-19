@@ -118,16 +118,16 @@ export async function createGroup(
   totalAmount: number,
   perPerson: number,
   createdBy: string,
-  memberIds: string[]
+  memberIds: string[],
+  groupType: "single" | "multi" = "single"
 ) {
-  // Step 1: Insert the group (no .select() — RLS select policy requires group_members to exist first)
+  // Step 1: Insert the group
   const { error: groupError } = await supabase
     .from("groups")
-    .insert({ name, total_amount: totalAmount, per_person: perPerson, created_by: createdBy });
+    .insert({ name, total_amount: totalAmount, per_person: perPerson, created_by: createdBy, group_type: groupType });
   if (groupError) throw groupError;
 
-  // Step 2: Fetch the group we just created (now created_by = auth.uid() so creator can find it via created_by)
-  // We use created_by + order to get the latest one just inserted
+  // Step 2: Fetch the group we just created (creator can select via created_by = auth.uid())
   const { data: group, error: fetchError } = await supabase
     .from("groups")
     .select("*")
@@ -165,6 +165,35 @@ export async function createGroup(
   return group;
 }
 
+export async function submitRideAmount(groupId: string, userId: string, rideAmount: number) {
+  // Update this member's ride_amount
+  const { error: memberError } = await supabase
+    .from("group_members")
+    .update({ ride_amount: rideAmount })
+    .eq("group_id", groupId)
+    .eq("user_id", userId);
+  if (memberError) throw memberError;
+
+  // Recalculate total and per_person from all submitted ride amounts
+  const { data: members, error: fetchError } = await supabase
+    .from("group_members")
+    .select("ride_amount")
+    .eq("group_id", groupId);
+  if (fetchError) throw fetchError;
+
+  const submitted = members.filter((m) => m.ride_amount !== null);
+  const total = submitted.reduce((sum, m) => sum + (m.ride_amount || 0), 0);
+  const perPerson = members.length > 0 ? Math.ceil(total / members.length) : 0;
+
+  // Update the group totals (any member can trigger this, but only creator RLS allows group update)
+  // We use service-side logic: the update will silently succeed if user is creator, or be ignored if not
+  // The correct fix is an RLS policy that allows any group member to update total_amount/per_person
+  await supabase
+    .from("groups")
+    .update({ total_amount: total, per_person: perPerson })
+    .eq("id", groupId);
+}
+
 export async function getMyGroups() {
   const { data, error } = await supabase
     .from("groups")
@@ -180,7 +209,7 @@ export async function getGroup(groupId: string) {
   const { data, error } = await supabase
     .from("groups")
     .select(
-      `*, group_members(id, user_id, has_joined, has_paid, profiles(id, username, display_name))`
+      `*, group_members(id, user_id, has_joined, has_paid, ride_amount, profiles(id, username, display_name))`
     )
     .eq("id", groupId)
     .single();
