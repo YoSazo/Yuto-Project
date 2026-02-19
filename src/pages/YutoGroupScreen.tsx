@@ -632,30 +632,28 @@ export default function YutoGroupScreen() {
           // Multi-ride: enter your fare first
           <div className="flex flex-col gap-3">
             <p className="text-center text-sm font-semibold text-gray-500">Enter your ride fare</p>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 flex items-center border-2 border-gray-200 rounded-full px-5 h-14 focus-within:border-black transition-colors">
-                <span className="text-sm text-gray-400 mr-2 font-medium">KSH</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={myRideAmount}
-                  onChange={(e) => setMyRideAmount(e.target.value.replace(/\D/g, ""))}
-                  placeholder="0"
-                  className="flex-1 text-lg font-bold bg-transparent border-none outline-none text-black"
-                />
-              </div>
-              <button
-                onClick={handleSubmitRideAmount}
-                disabled={!myRideAmount || parseInt(myRideAmount) <= 0 || isSubmittingRide}
-                className={`h-14 px-6 rounded-full font-bold text-base transition-all tap-scale ${
-                  myRideAmount && parseInt(myRideAmount) > 0 && !isSubmittingRide
-                    ? "bg-black text-white"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                }`}
-              >
-                {isSubmittingRide ? "..." : "Submit"}
-              </button>
+            <div className="flex items-center border-2 border-gray-200 rounded-full px-5 h-14 focus-within:border-black transition-colors">
+              <span className="text-sm text-gray-400 mr-2 font-medium">KSH</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={myRideAmount}
+                onChange={(e) => setMyRideAmount(e.target.value.replace(/\D/g, ""))}
+                placeholder="0"
+                className="flex-1 text-lg font-bold bg-transparent border-none outline-none text-black"
+              />
             </div>
+            <button
+              onClick={handleSubmitRideAmount}
+              disabled={!myRideAmount || parseInt(myRideAmount) <= 0 || isSubmittingRide}
+              className={`w-full py-4 rounded-full font-bold text-lg transition-all tap-scale ${
+                myRideAmount && parseInt(myRideAmount) > 0 && !isSubmittingRide
+                  ? "bg-black text-white"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              {isSubmittingRide ? "Submitting..." : "Submit Fare"}
+            </button>
             {rideSubmitError && <p className="text-red-500 text-sm text-center">{rideSubmitError}</p>}
           </div>
         ) : groupType === "multi" && myRideSubmitted && !allRidesSubmitted ? (
