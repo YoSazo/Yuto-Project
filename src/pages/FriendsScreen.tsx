@@ -17,7 +17,7 @@ interface ProfileResult {
 
 export default function FriendsScreen() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ProfileResult[]>([]);
   const [friends, setFriends] = useState<ProfileResult[]>([]);
@@ -88,6 +88,21 @@ export default function FriendsScreen() {
           ← Back
         </button>
         <span className="text-2xl font-bold text-black">Friends</span>
+        <button
+          onClick={() => {
+            const link = `${window.location.origin}/invite/${profile?.username || ""}`;
+            if (navigator.share) {
+              navigator.share({ title: "Join me on Yuto!", text: "Split rides fairly with me on Yuto 🚗", url: link });
+            } else {
+              navigator.clipboard.writeText(link);
+              setToast("Invite link copied!");
+              setTimeout(() => setToast(""), 2000);
+            }
+          }}
+          className="ml-auto px-4 py-1.5 bg-black text-white text-xs font-semibold rounded-full border-none cursor-pointer"
+        >
+          Invite Friends
+        </button>
       </div>
 
       <input
