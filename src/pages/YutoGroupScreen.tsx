@@ -389,7 +389,7 @@ export default function YutoGroupScreen() {
             </>
           )}
 
-          {/* Connection lines from center to each member */}
+          {/* Connection ropes from center to each member */}
           {members.map((member, i) => {
             const angle = (i * 2 * Math.PI) / members.length - Math.PI / 2;
             const r = 155;
@@ -398,34 +398,48 @@ export default function YutoGroupScreen() {
             const joined = member.hasJoined;
             const paid = member.isPaid;
 
+            const hangOffset = joined ? 0 : 35;
+            const endX = mx;
+            const endY = my + hangOffset;
+
+            let pathD: string;
+            if (joined) {
+              pathD = `M 190 210 L ${mx} ${my}`;
+            } else {
+              const cpX = (190 + endX) / 2;
+              const cpY = (210 + endY) / 2 + 55;
+              pathD = `M 190 210 Q ${cpX} ${cpY} ${endX} ${endY}`;
+            }
+
             return (
               <g key={`line-${i}`}>
-                {/* Main connection line */}
-                <line
-                  x1={190} y1={210} x2={mx} y2={my}
-                  stroke={paid ? "#22c55e" : joined ? "#d1d5db" : "#efefef"}
+                {/* Connection rope */}
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke={paid ? "#22c55e" : joined ? "#d1d5db" : "#e0e0e0"}
                   strokeWidth={paid ? 3 : joined ? 2 : 1}
-                  strokeDasharray={paid ? "none" : joined ? "7 5" : "3 8"}
+                  strokeDasharray={paid ? "none" : joined ? "7 5" : "4 6"}
+                  strokeLinecap="round"
                   className={
                     member.justJoined ? "rope-yank" : paid ? "" : joined ? "graph-line-flowing" : ""
                   }
-                  style={{ transition: "stroke 0.6s, stroke-width 0.6s, stroke-dasharray 0.6s" }}
                 />
 
-                {/* Glow line behind paid connections */}
+                {/* Glow behind paid connections */}
                 {paid && (
-                  <line
-                    x1={190} y1={210} x2={mx} y2={my}
+                  <path
+                    d={`M 190 210 L ${mx} ${my}`}
+                    fill="none"
                     stroke="#22c55e" strokeWidth={8} opacity={0.12} strokeLinecap="round"
                   />
                 )}
 
-                {/* Dot at member end */}
+                {/* Dot at member end (follows hanging position) */}
                 <circle
-                  cx={mx} cy={my}
+                  cx={endX} cy={endY}
                   r={paid ? 5 : joined ? 4 : 2}
-                  fill={paid ? "#22c55e" : joined ? "#d1d5db" : "#efefef"}
-                  style={{ transition: "fill 0.6s, r 0.6s" }}
+                  fill={paid ? "#22c55e" : joined ? "#d1d5db" : "#e0e0e0"}
                 />
 
                 {/* Dot at center end */}
@@ -434,7 +448,6 @@ export default function YutoGroupScreen() {
                   cy={210 + Math.sin(angle) * 45}
                   r={2.5}
                   fill={paid ? "#22c55e" : joined ? "#e5e7eb" : "#f5f5f5"}
-                  style={{ transition: "fill 0.6s" }}
                 />
 
                 {/* Traveling dot on joined but unpaid connections */}
@@ -493,29 +506,35 @@ export default function YutoGroupScreen() {
           const y = Math.sin(angle) * r;
           const joined = member.hasJoined;
           const paid = member.isPaid;
+          const hangOffset = joined ? 0 : 35;
 
           return (
             <div
               key={i}
-              className={`absolute left-1/2 top-1/2 transition-all duration-500 ${
-                member.justJoined ? "node-snap-in" : ""
-              }`}
+              className="absolute left-1/2 top-1/2"
               style={{
-                transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y + hangOffset}px))`,
+                transition: "transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)",
                 zIndex: 20,
               }}
             >
-              <div className="flex flex-col items-center">
+              <div
+                className={`flex flex-col items-center ${member.justJoined ? "node-snap-in" : ""}`}
+                style={
+                  !joined && !member.justJoined
+                    ? { filter: "blur(3px)", opacity: 0.5 }
+                    : undefined
+                }
+              >
                 <div className={`relative ${paid ? "node-glow" : ""}`}>
                   <div
-                    className={`w-[76px] h-[76px] rounded-full flex items-center justify-center font-bold text-2xl border-[3px] transition-all duration-500 ${
+                    className={`w-[76px] h-[76px] rounded-full flex items-center justify-center font-bold text-2xl border-[3px] transition-colors duration-500 ${
                       paid
                         ? "bg-black border-green-500 text-white shadow-xl shadow-green-500/25"
                         : joined
                         ? "bg-white border-gray-300 text-black shadow-lg"
                         : "bg-gray-100 border-gray-200 text-gray-300 shadow-sm"
                     }`}
-                    style={!joined ? { filter: "blur(3px)" } : undefined}
                   >
                     {member.name.charAt(0)}
                   </div>
