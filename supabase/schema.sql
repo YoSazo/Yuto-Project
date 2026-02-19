@@ -124,7 +124,47 @@ create policy "Auth users can add members" on group_members
 create policy "Users can update own membership" on group_members
   for update using (user_id = auth.uid());
 
+-- Messages table for group chat
+create table if not exists messages (
+  id uuid default gen_random_uuid() primary key,
+  group_id uuid references groups(id) on delete cascade not null,
+  user_id uuid references profiles(id) on delete cascade not null,
+  content text not null,
+  created_at timestamptz default now()
+);
+
+alter table messages enable row level security;
+
+create policy "Group members can read messages" on messages
+  for select using (group_id in (select auth_user_group_ids()));
+
+create policy "Group members can send messages" on messages
+  for insert with check (
+    auth.uid() = user_id
+    and group_id in (select auth_user_group_ids())
+  );
+
+-- Push notification tokens
+create table if not exists push_tokens (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references profiles(id) on delete cascade not null unique,
+  token text not null,
+  updated_at timestamptz default now()
+);
+
+alter table push_tokens enable row level security;
+
+create policy "Users can manage own push token" on push_tokens
+  for all using (user_id = auth.uid());
+
 -- ─── Realtime ────────────────────────────────────────
 
 alter publication supabase_realtime add table group_members;
 alter publication supabase_realtime add table friendships;
+alter publication supabase_realtime add table messages;
+
+-- ─── Indexes ─────────────────────────────────────────
+
+create index if not exists idx_friendships_requester on friendships(requester_id);
+create index if not exists idx_friendships_addressee on friendships(addressee_id);
+create index if not exists idx_messages_group on messages(group_id, created_at);
