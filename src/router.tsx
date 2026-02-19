@@ -9,11 +9,15 @@ import AuthScreen from "./pages/AuthScreen";
 import FriendsScreen from "./pages/FriendsScreen";
 import WelcomeScreen from "./pages/WelcomeScreen";
 import WaitlistThanksScreen from "./pages/WaitlistThanksScreen";
+import JoinGroupScreen from "./pages/JoinGroupScreen";
+import InviteScreen from "./pages/InviteScreen";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthScreen /> },
   { path: "/welcome", element: <WelcomeScreen /> },
   { path: "/waitlist-thanks", element: <WaitlistThanksScreen /> },
+  { path: "/join/:groupId", element: <JoinGroupScreen /> },
+  { path: "/invite/:username", element: <InviteScreen /> },
   {
     element: <Layout />,
     children: [

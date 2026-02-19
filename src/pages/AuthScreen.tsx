@@ -14,7 +14,15 @@ export default function AuthScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (user) navigate("/split", { replace: true });
+    if (user) {
+      const redirect = sessionStorage.getItem("joinAfterAuth");
+      if (redirect) {
+        sessionStorage.removeItem("joinAfterAuth");
+        navigate(redirect, { replace: true });
+      } else {
+        navigate("/split", { replace: true });
+      }
+    }
   }, [user, navigate]);
 
   const handleSubmit = async () => {
