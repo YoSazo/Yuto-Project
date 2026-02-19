@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import { useAuth } from "../contexts/AuthContext";
+import { getFriends, getMyGroups } from "../lib/supabase";
 
 function ChevronRight() {
   return (
@@ -36,30 +39,45 @@ function MenuItem({
           {sublabel && <p className="text-xs text-gray-400 mt-0.5">{sublabel}</p>}
         </div>
       </div>
-      <ChevronRight />
+      {!danger && <ChevronRight />}
     </button>
   );
 }
 
 export default function ProfileScreen() {
-  const [userName] = useState("Alex");
-  const [phoneNumber] = useState("+254 712 345 678");
+  const navigate = useNavigate();
+  const { user, profile, signOut } = useAuth();
+  const [stats, setStats] = useState({ totalYutos: 0, totalSpent: 0, friendsCount: 0 });
 
-  const totalYutos = 12;
-  const totalSpent = 8400;
-  const friendsCount = 7;
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([getMyGroups(), getFriends(user.id)]).then(
+      ([groups, friends]) => {
+        const paidGroups = (groups as any[]).filter((g: any) =>
+          g.group_members.some((m: any) => m.user_id === user.id && m.has_paid)
+        );
+        const totalSpent = paidGroups.reduce((sum: number, g: any) => sum + g.per_person, 0);
+        setStats({
+          totalYutos: groups.length,
+          totalSpent,
+          friendsCount: friends.length,
+        });
+      }
+    );
+  }, [user]);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  const userName = profile?.display_name || "User";
+  const userHandle = profile?.username ? `@${profile.username}` : "";
 
   return (
     <div className="flex flex-col min-h-full px-6 pt-14">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <span className="text-2xl font-bold text-black">Profile</span>
-        <button className="p-2 bg-transparent border-none cursor-pointer text-gray-400 hover:text-black transition-colors">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </button>
       </div>
 
       {/* Profile card */}
@@ -75,10 +93,7 @@ export default function ProfileScreen() {
           </div>
           <div>
             <p className="font-bold text-xl text-black">{userName}</p>
-            <p className="text-sm text-gray-400 mt-0.5">{phoneNumber}</p>
-            <button className="text-xs text-[#5493b3] font-semibold mt-2 bg-transparent border-none cursor-pointer p-0">
-              Edit Profile
-            </button>
+            <p className="text-sm text-gray-400 mt-0.5">{userHandle}</p>
           </div>
         </div>
       </div>
@@ -86,41 +101,21 @@ export default function ProfileScreen() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-white border border-gray-200 rounded-xl py-4 px-3 text-center">
-          <p className="font-bold text-xl text-black">{totalYutos}</p>
-          <p className="text-xs text-gray-400 mt-1">Yutos</p>
+          <p className="font-bold text-xl text-black">{stats.totalYutos}</p>
+          <p className="text-xs text-gray-400 mt-1">Splits</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl py-4 px-3 text-center">
-          <p className="font-bold text-lg text-black">{totalSpent.toLocaleString()}</p>
-          <p className="text-xs text-gray-400 mt-1">KSH Spent</p>
+          <p className="font-bold text-lg text-black">{stats.totalSpent.toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-1">KSH Paid</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl py-4 px-3 text-center">
-          <p className="font-bold text-xl text-black">{friendsCount}</p>
+          <p className="font-bold text-xl text-black">{stats.friendsCount}</p>
           <p className="text-xs text-gray-400 mt-1">Friends</p>
         </div>
       </div>
 
       {/* Menu */}
       <div className="bg-white border border-gray-200 rounded-2xl px-5 divide-y divide-gray-100">
-        <MenuItem
-          icon={
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-              <line x1="1" y1="10" x2="23" y2="10" />
-            </svg>
-          }
-          label="Payment Methods"
-          sublabel="M-PESA linked"
-        />
-        <MenuItem
-          icon={
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          }
-          label="Split History"
-          sublabel="View past fare splits"
-        />
         <MenuItem
           icon={
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -131,17 +126,31 @@ export default function ProfileScreen() {
             </svg>
           }
           label="Friends"
-          sublabel={`${friendsCount} friends added`}
+          sublabel={`${stats.friendsCount} friends`}
+          onClick={() => navigate("/friends")}
         />
         <MenuItem
           icon={
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
             </svg>
           }
-          label="Settings"
-          sublabel="App preferences"
+          label="Split History"
+          sublabel="View past fare splits"
+          onClick={() => navigate("/activity")}
+        />
+        <MenuItem
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          }
+          label="Log Out"
+          danger
+          onClick={handleLogout}
         />
       </div>
     </div>

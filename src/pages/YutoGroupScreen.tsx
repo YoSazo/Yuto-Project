@@ -1,18 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
-
-interface GroupState {
-  groupName: string;
-  amount: number;
-  totalAmount: number;
-  members: string[];
-  peopleCount: number;
-  paidCount?: number;
-  allJoined?: boolean;
-}
+import { useAuth } from "../contexts/AuthContext";
+import { supabase, getGroup, joinGroup, markPaid } from "../lib/supabase";
 
 interface Member {
+  user_id: string;
   name: string;
   isPaid: boolean;
   isHost: boolean;
@@ -48,273 +41,159 @@ function Confetti() {
   );
 }
 
-function PaymentModal({
-  totalAmount,
-  onClose,
-  onComplete,
-}: {
-  totalAmount: number;
-  onClose: () => void;
-  onComplete: () => void;
-}) {
-  const [paymentType, setPaymentType] = useState<"buy-goods" | "paybill" | "phone" | null>(null);
-  const [tillNumber, setTillNumber] = useState("");
-  const [businessNo, setBusinessNo] = useState("");
-  const [accountNo, setAccountNo] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [step, setStep] = useState<"select" | "confirm">("select");
-
-  const isFormValid = () => {
-    if (paymentType === "buy-goods") return tillNumber.length >= 5;
-    if (paymentType === "paybill") return businessNo.length >= 5 && accountNo.length >= 1;
-    if (paymentType === "phone") return phoneNumber.length >= 10;
-    return false;
-  };
-
-  const selectType = (type: typeof paymentType) => {
-    setPaymentType(type);
-    setTillNumber("");
-    setBusinessNo("");
-    setAccountNo("");
-    setPhoneNumber("");
-    setStep("select");
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-      <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
-        {step === "select" ? (
-          <>
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="font-bold text-xl text-black">Pay Driver</h2>
-              <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer">
-                ✕
-              </button>
-            </div>
-
-            <p className="text-center text-sm text-gray-500 mb-5">
-              Total: <span className="font-bold text-black">KSH {totalAmount.toLocaleString()}</span>
-            </p>
-
-            {/* Payment type pills */}
-            <div className="flex gap-2 mb-5">
-              {(["buy-goods", "paybill", "phone"] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => selectType(type)}
-                  className={`flex-1 py-3 rounded-full font-semibold text-xs border transition-colors tap-scale ${
-                    paymentType === type
-                      ? "bg-black text-white border-black"
-                      : "bg-white text-black border-gray-300 hover:border-black"
-                  }`}
-                >
-                  {type === "buy-goods" ? "Buy Goods" : type === "paybill" ? "PayBill" : "Phone"}
-                </button>
-              ))}
-            </div>
-
-            {/* Input fields */}
-            {paymentType === "buy-goods" && (
-              <div className="mb-5">
-                <label className="text-xs text-gray-500 mb-1.5 block">Till Number</label>
-                <input
-                  type="text"
-                  value={tillNumber}
-                  onChange={(e) => setTillNumber(e.target.value.replace(/\D/g, ""))}
-                  placeholder="e.g. 123456"
-                  className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
-                />
-              </div>
-            )}
-
-            {paymentType === "paybill" && (
-              <div className="mb-5 space-y-3">
-                <div>
-                  <label className="text-xs text-gray-500 mb-1.5 block">Business No</label>
-                  <input
-                    type="text"
-                    value={businessNo}
-                    onChange={(e) => setBusinessNo(e.target.value.replace(/\D/g, ""))}
-                    placeholder="e.g. 247247"
-                    className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1.5 block">Account No</label>
-                  <input
-                    type="text"
-                    value={accountNo}
-                    onChange={(e) => setAccountNo(e.target.value)}
-                    placeholder="e.g. 0712345678"
-                    className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
-                  />
-                </div>
-              </div>
-            )}
-
-            {paymentType === "phone" && (
-              <div className="mb-5">
-                <label className="text-xs text-gray-500 mb-1.5 block">Phone Number</label>
-                <input
-                  type="text"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                  placeholder="e.g. 0712345678"
-                  maxLength={12}
-                  className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
-                />
-              </div>
-            )}
-
-            {paymentType && (
-              <button
-                onClick={() => setStep("confirm")}
-                disabled={!isFormValid()}
-                className={`w-full h-12 rounded-full font-bold text-base transition-colors tap-scale ${
-                  isFormValid()
-                    ? "bg-black text-white hover:bg-gray-800"
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                }`}
-              >
-                Continue
-              </button>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="flex justify-between items-center mb-5">
-              <button
-                onClick={() => setStep("select")}
-                className="text-sm text-gray-500 hover:text-black bg-transparent border-none cursor-pointer"
-              >
-                ← Back
-              </button>
-              <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer">
-                ✕
-              </button>
-            </div>
-
-            <h2 className="font-bold text-xl text-black text-center mb-6">Confirm Payment</h2>
-
-            <div className="bg-gray-50 rounded-2xl p-5 mb-6">
-              {paymentType === "buy-goods" && (
-                <div className="text-center">
-                  <p className="text-sm text-gray-500 mb-1">Till Number</p>
-                  <p className="font-bold text-3xl text-black">{tillNumber}</p>
-                </div>
-              )}
-              {paymentType === "paybill" && (
-                <div className="text-center space-y-4">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Business No</p>
-                    <p className="font-bold text-2xl text-black">{businessNo}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Account No</p>
-                    <p className="font-bold text-2xl text-black">{accountNo}</p>
-                  </div>
-                </div>
-              )}
-              {paymentType === "phone" && (
-                <div className="text-center">
-                  <p className="text-sm text-gray-500 mb-1">Phone Number</p>
-                  <p className="font-bold text-3xl text-black">{phoneNumber}</p>
-                </div>
-              )}
-              <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-                <p className="text-sm text-gray-500 mb-1">Amount</p>
-                <p className="font-bold text-2xl text-black">KSH {totalAmount.toLocaleString()}</p>
-              </div>
-            </div>
-
-            <p className="text-center text-xs text-gray-400 mb-4">
-              Please verify the details before confirming
-            </p>
-
-            <button
-              onClick={onComplete}
-              className="w-full h-12 bg-black text-white rounded-full font-bold text-base hover:bg-gray-800 transition-colors tap-scale"
-            >
-              Confirm & Pay
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function YutoGroupScreen() {
-  const location = useLocation();
+  const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
-  const state = location.state as GroupState | null;
+  const { user } = useAuth();
 
-  const groupName = state?.groupName || "Fare Share";
-  const perPersonAmount = state?.amount || 150;
-  const totalAmount = state?.totalAmount || 450;
-  const initialMembers = state?.members || ["You", "Jack", "Jane"];
-  const initialPaidCount = state?.paidCount || 0;
-  const startAllJoined = state?.allJoined || false;
-
-  const joinTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const [members, setMembers] = useState<Member[]>(
-    initialMembers.map((name, i) => ({
-      name,
-      isPaid: i < initialPaidCount,
-      isHost: i === 0,
-      hasJoined: i === 0 || startAllJoined || i < initialPaidCount,
-      justJoined: false,
-    }))
-  );
+  const [groupName, setGroupName] = useState("Fare Share");
+  const [perPersonAmount, setPerPersonAmount] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [createdBy, setCreatedBy] = useState("");
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [driverPaid, setDriverPaid] = useState(false);
+  const justJoinedTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
+  // Fetch group data on mount
   useEffect(() => {
-    members.forEach((member, i) => {
-      if (!member.hasJoined && !member.isHost) {
-        const timer = setTimeout(() => {
+    if (!groupId || !user) return;
+
+    (async () => {
+      try {
+        const data = await getGroup(groupId);
+        setGroupName(data.name);
+        setPerPersonAmount(data.per_person);
+        setTotalAmount(data.total_amount);
+        setCreatedBy(data.created_by);
+
+        const list: Member[] = data.group_members.map((gm: any) => ({
+          user_id: gm.user_id,
+          name: gm.profiles.display_name,
+          isPaid: gm.has_paid,
+          isHost: gm.user_id === data.created_by,
+          hasJoined: gm.has_joined,
+          justJoined: false,
+        }));
+        setMembers(list);
+
+        // Auto-join if I haven't yet
+        const me = data.group_members.find((gm: any) => gm.user_id === user.id);
+        if (me && !me.has_joined) {
+          await joinGroup(groupId, user.id);
           setMembers((prev) =>
-            prev.map((m, idx) =>
-              idx === i ? { ...m, hasJoined: true, justJoined: true } : m
-            )
+            prev.map((m) => (m.user_id === user.id ? { ...m, hasJoined: true } : m))
           );
-          setTimeout(() => {
-            setMembers((prev) =>
-              prev.map((m, idx) => (idx === i ? { ...m, justJoined: false } : m))
-            );
-          }, 700);
-        }, 1200 + i * 1400);
-        joinTimers.current.push(timer);
+        }
+      } catch (err) {
+        console.error("Failed to load group:", err);
+      } finally {
+        setLoading(false);
       }
-    });
-    return () => joinTimers.current.forEach(clearTimeout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    })();
+  }, [groupId, user]);
+
+  // Real-time subscription for live updates
+  useEffect(() => {
+    if (!groupId || !user) return;
+
+    const channel = supabase
+      .channel(`group-${groupId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "group_members",
+          filter: `group_id=eq.${groupId}`,
+        },
+        (payload) => {
+          const updated = payload.new as {
+            user_id: string;
+            has_joined: boolean;
+            has_paid: boolean;
+          };
+          const isMe = updated.user_id === user.id;
+
+          setMembers((prev) => {
+            const existing = prev.find((m) => m.user_id === updated.user_id);
+            if (!existing) return prev;
+
+            const wasJoined = existing.hasJoined;
+            return prev.map((m) => {
+              if (m.user_id !== updated.user_id) return m;
+              return {
+                ...m,
+                hasJoined: updated.has_joined,
+                isPaid: updated.has_paid,
+                justJoined: !isMe && !wasJoined && updated.has_joined,
+              };
+            });
+          });
+
+          // Clear justJoined flag after animation
+          if (!isMe && updated.has_joined) {
+            const timer = setTimeout(() => {
+              setMembers((prev) =>
+                prev.map((m) =>
+                  m.user_id === updated.user_id ? { ...m, justJoined: false } : m
+                )
+              );
+            }, 700);
+            justJoinedTimers.current.push(timer);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      justJoinedTimers.current.forEach(clearTimeout);
+    };
+  }, [groupId, user]);
+
+  // Confetti when all paid
+  const allPaidRef = useRef(false);
+  useEffect(() => {
+    const allPaid = members.length > 0 && members.every((m) => m.isPaid);
+    if (allPaid && !allPaidRef.current) {
+      allPaidRef.current = true;
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2500);
+    }
+  }, [members]);
 
   const paidCount = members.filter((m) => m.isPaid).length;
   const joinedCount = members.filter((m) => m.hasJoined).length;
-  const allJoined = joinedCount === members.length;
-  const allPaid = paidCount === members.length;
-  const youPaid = members.find((m) => m.name === "You")?.isPaid || false;
+  const allJoined = members.length > 0 && joinedCount === members.length;
+  const allPaid = members.length > 0 && paidCount === members.length;
+  const youPaid = members.find((m) => m.user_id === user?.id)?.isPaid || false;
   const fillPercentage = members.length > 0 ? (paidCount / members.length) * 100 : 0;
 
-  const handlePayShare = () => {
-    setMembers((prev) => prev.map((m) => (m.name === "You" ? { ...m, isPaid: true } : m)));
-    setTimeout(() => {
-      setMembers((prev) => prev.map((m) => ({ ...m, isPaid: true })));
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 2500);
-    }, 2000);
+  const handlePayShare = async () => {
+    if (!groupId || !user) return;
+    setMembers((prev) =>
+      prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: true } : m))
+    );
+    try {
+      await markPaid(groupId, user.id);
+    } catch {
+      setMembers((prev) =>
+        prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: false } : m))
+      );
+    }
   };
 
-  const handlePayDriver = () => setShowPaymentModal(true);
+  const handlePayDriver = () => setDriverPaid(true);
 
-  const handlePaymentComplete = () => {
-    setShowPaymentModal(false);
-    setDriverPaid(true);
-  };
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-full items-center justify-center">
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-full px-5 pt-10 pb-6 relative">
@@ -329,7 +208,7 @@ export default function YutoGroupScreen() {
           ← Back
         </button>
         <button
-          onClick={() => navigate(`/yuto/group/chat`, { state: { groupName } })}
+          onClick={() => navigate(`/yuto/${groupId}/chat`, { state: { groupName } })}
           className="p-2 bg-transparent border-none cursor-pointer hover:opacity-70"
         >
           <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
@@ -352,7 +231,7 @@ export default function YutoGroupScreen() {
 
       {/* Graph / Mind-map layout */}
       <div className="relative w-full max-w-[380px] mx-auto flex-1 min-h-[380px]">
-        {/* SVG layer: orbit rings + connection lines */}
+        {/* SVG layer */}
         <svg
           className="absolute inset-0 w-full h-full"
           viewBox="0 0 380 420"
@@ -369,27 +248,20 @@ export default function YutoGroupScreen() {
           />
           <circle cx="190" cy="210" r="120" fill="none" stroke="#f7f7f7" strokeWidth="0.5" />
 
-          {/* Pulse ring on center (only when not all paid) */}
           {!allPaid && (
             <>
-              <circle
-                cx="190" cy="210" r="40"
-                fill="none" stroke="#5493b3" strokeWidth="1.5" opacity="0"
-              >
+              <circle cx="190" cy="210" r="40" fill="none" stroke="#5493b3" strokeWidth="1.5" opacity="0">
                 <animate attributeName="r" from="40" to="85" dur="2s" repeatCount="indefinite" />
                 <animate attributeName="opacity" from="0.3" to="0" dur="2s" repeatCount="indefinite" />
               </circle>
-              <circle
-                cx="190" cy="210" r="40"
-                fill="none" stroke="#5493b3" strokeWidth="1" opacity="0"
-              >
+              <circle cx="190" cy="210" r="40" fill="none" stroke="#5493b3" strokeWidth="1" opacity="0">
                 <animate attributeName="r" from="40" to="85" dur="2s" begin="1s" repeatCount="indefinite" />
                 <animate attributeName="opacity" from="0.2" to="0" dur="2s" begin="1s" repeatCount="indefinite" />
               </circle>
             </>
           )}
 
-          {/* Connection ropes from center to each member */}
+          {/* Connection ropes */}
           {members.map((member, i) => {
             const angle = (i * 2 * Math.PI) / members.length - Math.PI / 2;
             const r = 155;
@@ -413,7 +285,6 @@ export default function YutoGroupScreen() {
 
             return (
               <g key={`line-${i}`}>
-                {/* Connection rope */}
                 <path
                   d={pathD}
                   fill="none"
@@ -425,41 +296,23 @@ export default function YutoGroupScreen() {
                     member.justJoined ? "rope-yank" : paid ? "" : joined ? "graph-line-flowing" : ""
                   }
                 />
-
-                {/* Glow behind paid connections */}
                 {paid && (
                   <path
                     d={`M 190 210 L ${mx} ${my}`}
-                    fill="none"
-                    stroke="#22c55e" strokeWidth={8} opacity={0.12} strokeLinecap="round"
+                    fill="none" stroke="#22c55e" strokeWidth={8} opacity={0.12} strokeLinecap="round"
                   />
                 )}
-
-                {/* Dot at member end (follows hanging position) */}
+                <circle cx={endX} cy={endY} r={paid ? 5 : joined ? 4 : 2}
+                  fill={paid ? "#22c55e" : joined ? "#d1d5db" : "#e0e0e0"} />
                 <circle
-                  cx={endX} cy={endY}
-                  r={paid ? 5 : joined ? 4 : 2}
-                  fill={paid ? "#22c55e" : joined ? "#d1d5db" : "#e0e0e0"}
-                />
-
-                {/* Dot at center end */}
-                <circle
-                  cx={190 + Math.cos(angle) * 45}
-                  cy={210 + Math.sin(angle) * 45}
-                  r={2.5}
-                  fill={paid ? "#22c55e" : joined ? "#e5e7eb" : "#f5f5f5"}
-                />
-
-                {/* Traveling dot on joined but unpaid connections */}
+                  cx={190 + Math.cos(angle) * 45} cy={210 + Math.sin(angle) * 45}
+                  r={2.5} fill={paid ? "#22c55e" : joined ? "#e5e7eb" : "#f5f5f5"} />
                 {joined && !paid && (
                   <circle r="3.5" fill="#5493b3" opacity="0.7">
-                    <animateMotion
-                      dur="1.5s"
-                      repeatCount="indefinite"
-                      begin={`${i * 0.4}s`}
-                      path={`M190,210 L${mx},${my}`}
-                    />
-                    <animate attributeName="opacity" values="0;0.8;0.8;0" dur="1.5s" repeatCount="indefinite" begin={`${i * 0.4}s`} />
+                    <animateMotion dur="1.5s" repeatCount="indefinite" begin={`${i * 0.4}s`}
+                      path={`M190,210 L${mx},${my}`} />
+                    <animate attributeName="opacity" values="0;0.8;0.8;0" dur="1.5s"
+                      repeatCount="indefinite" begin={`${i * 0.4}s`} />
                   </circle>
                 )}
               </g>
@@ -467,7 +320,7 @@ export default function YutoGroupScreen() {
           })}
         </svg>
 
-        {/* Center Yuto jar (HTML on top of SVG) */}
+        {/* Center Yuto jar */}
         <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 10 }}>
           <div
             className={`bg-white rounded-[28px] shadow-xl border-2 w-[160px] h-[195px] relative overflow-hidden transition-all duration-500 ${
@@ -480,25 +333,21 @@ export default function YutoGroupScreen() {
             />
             <div className="relative z-10 flex flex-col items-center justify-center h-full">
               <img src={imgYutoMascot} alt="Yuto" className="w-[72px] h-[72px] object-contain mb-2" />
-              <p
-                className={`text-2xl font-bold transition-colors duration-300 ${
-                  fillPercentage > 50 ? "text-white" : "text-black"
-                }`}
-              >
+              <p className={`text-2xl font-bold transition-colors duration-300 ${
+                fillPercentage > 50 ? "text-white" : "text-black"
+              }`}>
                 KSH {perPersonAmount}
               </p>
-              <p
-                className={`text-sm transition-colors duration-300 ${
-                  fillPercentage > 50 ? "text-white/80" : "text-gray-400"
-                }`}
-              >
+              <p className={`text-sm transition-colors duration-300 ${
+                fillPercentage > 50 ? "text-white/80" : "text-gray-400"
+              }`}>
                 per person
               </p>
             </div>
           </div>
         </div>
 
-        {/* Member node bubbles */}
+        {/* Member nodes */}
         {members.map((member, i) => {
           const angle = (i * 2 * Math.PI) / members.length - Math.PI / 2;
           const r = 155;
@@ -510,7 +359,7 @@ export default function YutoGroupScreen() {
 
           return (
             <div
-              key={i}
+              key={member.user_id}
               className="absolute left-1/2 top-1/2"
               style={{
                 transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y + hangOffset}px))`,
@@ -541,17 +390,17 @@ export default function YutoGroupScreen() {
                   {paid && (
                     <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full p-1">
                       <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fillRule="evenodd"
+                        <path fillRule="evenodd"
                           d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
+                          clipRule="evenodd" />
                       </svg>
                     </div>
                   )}
                 </div>
                 {joined ? (
-                  <p className="text-sm font-semibold mt-2 text-gray-700">{member.name}</p>
+                  <p className="text-sm font-semibold mt-2 text-gray-700">
+                    {member.user_id === user?.id ? "You" : member.name}
+                  </p>
                 ) : (
                   <p className="text-xs mt-2 text-gray-400 italic whitespace-nowrap">
                     Waiting for {member.name}
@@ -577,48 +426,31 @@ export default function YutoGroupScreen() {
       {/* Action button */}
       <div>
         {!allJoined ? (
-          <button
-            disabled
-            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed"
-          >
+          <button disabled
+            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
             Waiting for group to join...
           </button>
         ) : !youPaid ? (
-          <button
-            onClick={handlePayShare}
-            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale"
-          >
+          <button onClick={handlePayShare}
+            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale">
             Pay KSH {perPersonAmount.toLocaleString()}
           </button>
         ) : !allPaid ? (
-          <button
-            disabled
-            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed"
-          >
+          <button disabled
+            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
             Waiting for others...
           </button>
         ) : !driverPaid ? (
-          <button
-            onClick={handlePayDriver}
-            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale"
-          >
-            Pay Driver
+          <button onClick={handlePayDriver}
+            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale">
+            Complete Split
           </button>
         ) : (
           <button className="w-full py-5 bg-green-500 text-white rounded-full font-bold text-lg cursor-default">
-            Payment Complete ✓
+            Split Complete
           </button>
         )}
       </div>
-
-      {/* Payment modal */}
-      {showPaymentModal && (
-        <PaymentModal
-          totalAmount={totalAmount}
-          onClose={() => setShowPaymentModal(false)}
-          onComplete={handlePaymentComplete}
-        />
-      )}
     </div>
   );
 }
