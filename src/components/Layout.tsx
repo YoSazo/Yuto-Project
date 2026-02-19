@@ -4,11 +4,12 @@ import GlassNavBar from "./GlassNavBar";
 import { useAuth } from "../contexts/AuthContext";
 import { getPendingRequests } from "../lib/supabase";
 
-type NavTab = "split" | "activity" | "profile";
+type NavTab = "split" | "fareshare" | "activity" | "profile";
 
 const TAB_ROUTES: Record<string, NavTab> = {
   "/": "split",
   "/split": "split",
+  "/fareshare": "fareshare",
   "/activity": "activity",
   "/profile": "profile",
 };

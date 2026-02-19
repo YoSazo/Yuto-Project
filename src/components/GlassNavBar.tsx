@@ -1,11 +1,19 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
-type NavTab = "split" | "activity" | "profile";
+type NavTab = "split" | "fareshare" | "activity" | "profile";
 
 interface GlassNavBarProps {
   activeTab: NavTab;
   pendingCount?: number;
+}
+
+function SplitIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="-1.5 0 19 19" xmlns="http://www.w3.org/2000/svg" fill={color}>
+      <path d="M14.533 2.953H9.53a.493.493 0 0 0-.325.79l1.049 1.36.15.194L8 7.137l-2.403-1.84.15-.194 1.048-1.36a.493.493 0 0 0-.325-.79H1.467a.496.496 0 0 0-.434.683L2.276 8.39a.493.493 0 0 0 .847.113l.935-1.211.281-.366 2.638 2.02-.006 6.074a1.026 1.026 0 0 0 2.05 0l.007-6.078 2.632-2.016.282.366.934 1.211a.493.493 0 0 0 .847-.113l1.244-4.755a.496.496 0 0 0-.434-.683z" />
+    </svg>
+  );
 }
 
 function CarIcon({ color }: { color: string }) {
@@ -38,7 +46,8 @@ function PersonIcon({ color }: { color: string }) {
 }
 
 const tabs: { id: NavTab; label: string; path: string; Icon: typeof CarIcon }[] = [
-  { id: "split", label: "Split", path: "/split", Icon: CarIcon },
+  { id: "split", label: "Split", path: "/split", Icon: SplitIcon },
+  { id: "fareshare", label: "Rides", path: "/fareshare", Icon: CarIcon },
   { id: "activity", label: "Activity", path: "/activity", Icon: ClockIcon },
   { id: "profile", label: "Profile", path: "/profile", Icon: PersonIcon },
 ];
@@ -55,15 +64,15 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
 
   const getPillWidth = useCallback(() => {
     if (!containerRef.current) return 0;
-    return containerRef.current.getBoundingClientRect().width / 3 - 10;
+    return containerRef.current.getBoundingClientRect().width / 4 - 10;
   }, []);
 
   const getHoverIndex = useCallback(() => {
     if (!containerRef.current) return activeIndex;
     const w = containerRef.current.getBoundingClientRect().width;
-    const pillW = w / 3 - 10;
+    const pillW = w / 4 - 10;
     const center = dragLeft + pillW / 2;
-    return Math.min(2, Math.max(0, Math.floor(center / (w / 3))));
+    return Math.min(3, Math.max(0, Math.floor(center / (w / 4))));
   }, [dragLeft, activeIndex]);
 
   const handlePointerDown = useCallback(
@@ -74,7 +83,7 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
       const rect = container.getBoundingClientRect();
-      const currentLeft = (activeIndex / 3) * rect.width + 5;
+      const currentLeft = (activeIndex / 4) * rect.width + 5;
 
       dragStart.current = { pointerX: e.clientX, pillLeft: currentLeft };
       setDragLeft(currentLeft);
@@ -90,7 +99,7 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      const pillW = rect.width / 3 - 10;
+      const pillW = rect.width / 4 - 10;
       const delta = e.clientX - dragStart.current.pointerX;
       const newLeft = dragStart.current.pillLeft + delta;
       setDragLeft(Math.max(5, Math.min(newLeft, rect.width - pillW - 5)));
@@ -117,8 +126,8 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
         transform: "scaleY(1.03)",
       }
     : {
-        left: `calc(${activeIndex * 33.333}% + 5px)`,
-        width: "calc(33.333% - 10px)",
+        left: `calc(${activeIndex * 25}% + 5px)`,
+        width: "calc(25% - 10px)",
       };
 
   return (
