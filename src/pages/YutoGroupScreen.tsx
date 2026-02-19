@@ -174,7 +174,6 @@ export default function YutoGroupScreen() {
   const [loading, setLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
-  const [driverPaid, setDriverPaid] = useState(false);
   const [myRideAmount, setMyRideAmount] = useState("");
   const [isSubmittingRide, setIsSubmittingRide] = useState(false);
   const [rideSubmitError, setRideSubmitError] = useState("");
@@ -353,7 +352,6 @@ export default function YutoGroupScreen() {
   }, [showPayModal, groupId, user]);
 
   const handlePayShare = () => setShowPayModal(true);
-  const handlePayDriver = () => setDriverPaid(true);
 
   const myRideSubmitted = members.find((m) => m.user_id === user?.id)?.rideAmount !== null;
   const allRidesSubmitted = groupType === "multi" && members.length > 0 && members.every((m) => m.rideAmount !== null);
@@ -483,7 +481,7 @@ export default function YutoGroupScreen() {
 
           {/* Connection ropes */}
           {members.map((member, i) => {
-            const angle = (i * 2 * Math.PI) / members.length - Math.PI / 2;
+            const angle = (i * 2 * Math.PI) / members.length + Math.PI / 4;
             const r = 155;
             const mx = 190 + Math.cos(angle) * r;
             const my = 210 + Math.sin(angle) * r;
@@ -569,7 +567,7 @@ export default function YutoGroupScreen() {
 
         {/* Member nodes */}
         {members.map((member, i) => {
-          const angle = (i * 2 * Math.PI) / members.length - Math.PI / 2;
+          const angle = (i * 2 * Math.PI) / members.length + Math.PI / 4;
           const r = 155;
           const x = Math.cos(angle) * r;
           const y = Math.sin(angle) * r;
@@ -634,9 +632,7 @@ export default function YutoGroupScreen() {
 
       {/* Status text */}
       <p className="text-center text-base text-gray-500 mt-2 mb-4">
-        {driverPaid
-          ? "Driver paid! You're all set"
-          : allPaid
+        {allPaid
           ? "Everyone has paid!"
           : !allJoined
           ? `${joinedCount}/${members.length} joined`
@@ -696,14 +692,9 @@ export default function YutoGroupScreen() {
             className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
             Waiting for others...
           </button>
-        ) : !driverPaid ? (
-          <button onClick={handlePayDriver}
-            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale">
-            Complete Split
-          </button>
         ) : (
           <button className="w-full py-5 bg-green-500 text-white rounded-full font-bold text-lg cursor-default">
-            Split Complete
+            ✓ Split Complete
           </button>
         )}
       </div>
