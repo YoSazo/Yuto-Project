@@ -42,43 +42,57 @@ function Confetti() {
   );
 }
 
+type PaymentTab = "buygoods" | "paybill" | "phone";
+
 function MpesaModal({
   amount,
   groupId,
   userId,
+  title,
+  ctaLabel,
   onClose,
 }: {
   amount: number;
   groupId: string;
   userId: string;
+  title: string;
+  ctaLabel: string;
   onClose: () => void;
 }) {
+  const [tab, setTab] = useState<PaymentTab>("phone");
   const [phone, setPhone] = useState("254");
+  const [tillNumber, setTillNumber] = useState("");
+  const [businessNo, setBusinessNo] = useState("");
+  const [accountNo, setAccountNo] = useState("");
   const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">("input");
   const [error, setError] = useState("");
 
-  const handlePay = async () => {
-    if (phone.length < 12) {
-      setError("Enter a valid phone number (e.g. 254712345678)");
-      return;
-    }
+  const isValid = () => {
+    if (tab === "phone") return phone.length >= 12;
+    if (tab === "buygoods") return tillNumber.length >= 4;
+    if (tab === "paybill") return businessNo.length >= 4 && accountNo.length >= 1;
+    return false;
+  };
 
+  const handlePay = async () => {
     setStep("sending");
     setError("");
-
     try {
       const res = await fetch("/api/charge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone_number: phone,
+          phone_number: tab === "phone" ? phone : phone,
           amount,
           group_id: groupId,
           user_id: userId,
+          payment_type: tab,
+          till_number: tab === "buygoods" ? tillNumber : undefined,
+          business_no: tab === "paybill" ? businessNo : undefined,
+          account_no: tab === "paybill" ? accountNo : undefined,
         }),
       });
       const data = await res.json();
-
       if (data.success) {
         setStep("waiting");
       } else {
@@ -91,50 +105,93 @@ function MpesaModal({
     }
   };
 
+  const tabClass = (t: PaymentTab) =>
+    `px-4 py-2 rounded-full text-sm font-semibold border transition-all cursor-pointer ${
+      tab === t ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
+    }`;
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
       <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
         {step === "input" || step === "error" ? (
           <>
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="font-bold text-xl text-black">Pay with M-PESA</h2>
-              <button
-                onClick={onClose}
-                className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer"
-              >
-                ✕
-              </button>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="font-bold text-xl text-black">{title}</h2>
+              <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer">✕</button>
             </div>
 
             <p className="text-center text-sm text-gray-500 mb-5">
-              Amount: <span className="font-bold text-black">KSH {amount.toLocaleString()}</span>
+              Total: <span className="font-bold text-black">KSH {amount.toLocaleString()}</span>
             </p>
 
-            <div className="mb-5">
-              <label className="text-xs text-gray-500 mb-1.5 block">M-PESA Phone Number</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                placeholder="254712345678"
-                maxLength={12}
-                className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
-              />
-              <p className="text-xs text-gray-400 mt-1.5 ml-2">Format: 254 followed by your number</p>
+            {/* Tabs */}
+            <div className="flex gap-2 mb-5">
+              <button className={tabClass("buygoods")} onClick={() => setTab("buygoods")}>Buy Goods</button>
+              <button className={tabClass("paybill")} onClick={() => setTab("paybill")}>PayBill</button>
+              <button className={tabClass("phone")} onClick={() => setTab("phone")}>Phone</button>
             </div>
+
+            {/* Tab content */}
+            {tab === "phone" && (
+              <div className="mb-5">
+                <label className="text-xs text-gray-500 mb-1.5 block">M-PESA Phone Number</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                  placeholder="e.g. 254712345678"
+                  maxLength={12}
+                  className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+                />
+              </div>
+            )}
+            {tab === "buygoods" && (
+              <div className="mb-5">
+                <label className="text-xs text-gray-500 mb-1.5 block">Enter Till Number</label>
+                <input
+                  type="tel"
+                  value={tillNumber}
+                  onChange={(e) => setTillNumber(e.target.value.replace(/\D/g, ""))}
+                  placeholder="e.g. 123456"
+                  className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+                />
+              </div>
+            )}
+            {tab === "paybill" && (
+              <div className="mb-5 flex flex-col gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1.5 block">Enter Business No</label>
+                  <input
+                    type="tel"
+                    value={businessNo}
+                    onChange={(e) => setBusinessNo(e.target.value.replace(/\D/g, ""))}
+                    placeholder="e.g. 247247"
+                    className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1.5 block">Enter Account No</label>
+                  <input
+                    type="text"
+                    value={accountNo}
+                    onChange={(e) => setAccountNo(e.target.value)}
+                    placeholder="e.g. 0712345678"
+                    className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+                  />
+                </div>
+              </div>
+            )}
 
             {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
 
             <button
               onClick={handlePay}
-              disabled={phone.length < 12}
+              disabled={!isValid()}
               className={`w-full h-12 rounded-full font-bold text-base transition-colors ${
-                phone.length >= 12
-                  ? "bg-black text-white hover:bg-gray-800"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                isValid() ? "bg-black text-white hover:bg-gray-800" : "bg-gray-200 text-gray-400 cursor-not-allowed"
               }`}
             >
-              Pay KSH {amount.toLocaleString()}
+              {ctaLabel}
             </button>
           </>
         ) : step === "sending" ? (
@@ -174,6 +231,7 @@ export default function YutoGroupScreen() {
   const [loading, setLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
+  const [showPayDriverModal, setShowPayDriverModal] = useState(false);
   const [myRideAmount, setMyRideAmount] = useState("");
   const [isSubmittingRide, setIsSubmittingRide] = useState(false);
   const [rideSubmitError, setRideSubmitError] = useState("");
@@ -553,18 +611,24 @@ export default function YutoGroupScreen() {
               className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-500 to-green-400 transition-all duration-1000 ease-out"
               style={{ height: `${fillPercentage}%` }}
             />
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+            <div className="relative z-10 flex flex-col items-center justify-center h-full px-2">
               <img src={imgYutoMascot} alt="Yuto" className="w-[72px] h-[72px] object-contain mb-2" />
-              <p className={`text-2xl font-bold transition-colors duration-300 ${
-                fillPercentage > 50 ? "text-white" : "text-black"
-              }`}>
-                KSH {perPersonAmount}
-              </p>
-              <p className={`text-sm transition-colors duration-300 ${
-                fillPercentage > 50 ? "text-white/80" : "text-gray-400"
-              }`}>
-                per person
-              </p>
+              {allPaid ? (
+                <>
+                  <p className="text-sm font-bold text-white text-center leading-tight">Yuto is holding</p>
+                  <p className="text-sm font-bold text-white text-center leading-tight">your money! 🎉</p>
+                  <p className="text-xs text-white/80 mt-1">KSH {totalAmount.toLocaleString()} secured</p>
+                </>
+              ) : (
+                <>
+                  <p className={`text-2xl font-bold transition-colors duration-300 ${fillPercentage > 50 ? "text-white" : "text-black"}`}>
+                    KSH {perPersonAmount}
+                  </p>
+                  <p className={`text-sm transition-colors duration-300 ${fillPercentage > 50 ? "text-white/80" : "text-gray-400"}`}>
+                    per person
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -696,6 +760,12 @@ export default function YutoGroupScreen() {
             className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
             Waiting for others...
           </button>
+        ) : user?.id === createdBy ? (
+          <button
+            onClick={() => setShowPayDriverModal(true)}
+            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale">
+            Pay Driver 💳
+          </button>
         ) : (
           <button className="w-full py-5 bg-green-500 text-white rounded-full font-bold text-lg cursor-default">
             ✓ Split Complete
@@ -703,13 +773,27 @@ export default function YutoGroupScreen() {
         )}
       </div>
 
-      {/* M-PESA Payment Modal */}
+      {/* M-PESA Payment Modal — paying your split */}
       {showPayModal && groupId && user && (
         <MpesaModal
           amount={perPersonAmount}
           groupId={groupId}
           userId={user.id}
+          title="Pay Now"
+          ctaLabel={`Pay KSH ${perPersonAmount.toLocaleString()}`}
           onClose={() => setShowPayModal(false)}
+        />
+      )}
+
+      {/* Pay Driver Modal — creator pays out after all paid */}
+      {showPayDriverModal && groupId && user && (
+        <MpesaModal
+          amount={totalAmount}
+          groupId={groupId}
+          userId={user.id}
+          title="Pay Driver"
+          ctaLabel={`Pay Driver KSH ${totalAmount.toLocaleString()}`}
+          onClose={() => setShowPayDriverModal(false)}
         />
       )}
     </div>
