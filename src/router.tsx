@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import FareShareScreen from "./pages/FareShareScreen";
+import SplitScreen from "./pages/SplitScreen";
 import YourYutosScreen from "./pages/YourYutosScreen";
 import ProfileScreen from "./pages/ProfileScreen";
 import YutoGroupScreen from "./pages/YutoGroupScreen";
@@ -22,7 +23,8 @@ export const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { path: "/", element: <Navigate to="/split" replace /> },
-      { path: "/split", element: <FareShareScreen /> },
+      { path: "/split", element: <SplitScreen /> },
+      { path: "/fareshare", element: <FareShareScreen /> },
       { path: "/activity", element: <YourYutosScreen /> },
       { path: "/profile", element: <ProfileScreen /> },
       { path: "/friends", element: <FriendsScreen /> },
