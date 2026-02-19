@@ -6,7 +6,26 @@ import {
   signIn as supaSignIn,
   signOut as supaSignOut,
   getProfile,
+  savePushToken,
 } from "../lib/supabase";
+
+async function requestPushPermission(userId: string) {
+  try {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+    const reg = await navigator.serviceWorker.ready;
+    const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    if (!VAPID_PUBLIC_KEY) return;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: VAPID_PUBLIC_KEY,
+    });
+    await savePushToken(userId, JSON.stringify(sub));
+  } catch {
+    // Push not supported or user denied
+  }
+}
 
 export interface Profile {
   id: string;
@@ -66,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(u);
       if (u) {
         fetchProfileWithRetry(u.id).then(setProfile);
+        requestPushPermission(u.id);
       } else {
         setProfile(null);
       }

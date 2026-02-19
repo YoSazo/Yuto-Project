@@ -235,6 +235,15 @@ export async function markPaid(groupId: string, userId: string) {
   if (error) throw error;
 }
 
+// ─── Push Notifications ──────────────────────────────
+
+export async function savePushToken(userId: string, token: string) {
+  const { error } = await supabase
+    .from("push_tokens")
+    .upsert({ user_id: userId, token, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  if (error) throw error;
+}
+
 // ─── Waitlist (existing) ─────────────────────────────
 
 export async function addToWaitlist(phone: string, email?: string) {

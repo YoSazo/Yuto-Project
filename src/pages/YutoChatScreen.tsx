@@ -1,43 +1,96 @@
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase";
 
 interface Message {
-  id: number;
-  sender: string;
-  text: string;
-  isMe: boolean;
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles: {
+    display_name: string;
+  };
 }
 
-const initialMessages: Message[] = [
-  { id: 1, sender: "Jack", text: "Hey everyone! Ready for the ride?", isMe: false },
-  { id: 2, sender: "Jane", text: "Yes! On my way now", isMe: false },
-  { id: 3, sender: "Mike", text: "I'm at the pickup point", isMe: false },
-  { id: 4, sender: "You", text: "Perfect, driver is 3 min away", isMe: true },
-  { id: 5, sender: "Jack", text: "Cool, see you there!", isMe: false },
-  { id: 6, sender: "Jane", text: "Almost there 👍", isMe: false },
-];
-
-const members = [
-  { name: "Jack", initial: "J" },
-  { name: "Jane", initial: "Ja" },
-  { name: "Mike", initial: "M" },
-];
-
 export default function YutoChatScreen() {
-  const location = useLocation();
+  const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const groupName = (location.state as { groupName?: string })?.groupName || "Fare Share";
 
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = () => {
-    if (!inputText.trim()) return;
-    setMessages((prev) => [
-      ...prev,
-      { id: prev.length + 1, sender: "You", text: inputText.trim(), isMe: true },
-    ]);
+  // Load messages
+  useEffect(() => {
+    if (!groupId) return;
+
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("id, user_id, content, created_at, profiles(display_name)")
+        .eq("group_id", groupId)
+        .order("created_at", { ascending: true });
+
+      if (!error && data) setMessages(data as Message[]);
+      setLoading(false);
+    };
+
+    load();
+
+    // Realtime subscription
+    const channel = supabase
+      .channel(`chat-${groupId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `group_id=eq.${groupId}`,
+        },
+        async (payload) => {
+          // Fetch full message with profile
+          const { data } = await supabase
+            .from("messages")
+            .select("id, user_id, content, created_at, profiles(display_name)")
+            .eq("id", payload.new.id)
+            .single();
+          if (data) setMessages((prev) => [...prev, data as Message]);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [groupId]);
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!inputText.trim() || !groupId || !user || sending) return;
+    const text = inputText.trim();
     setInputText("");
+    setSending(true);
+
+    const { error } = await supabase.from("messages").insert({
+      group_id: groupId,
+      user_id: user.id,
+      content: text,
+    });
+
+    if (error) {
+      console.error("Failed to send message:", error);
+      setInputText(text); // restore if failed
+    }
+    setSending(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -47,9 +100,9 @@ export default function YutoChatScreen() {
     }
   };
 
-  const getInitial = (sender: string) => {
-    const m = members.find((m) => m.name === sender);
-    return m?.initial || sender.charAt(0);
+  const formatTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -74,27 +127,50 @@ export default function YutoChatScreen() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="flex flex-col gap-3">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex items-end gap-2.5 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}
-            >
-              {!msg.isMe && (
-                <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
-                  {getInitial(msg.sender)}
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-400 text-sm">Loading messages...</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-2">
+            <p className="text-gray-400 text-sm">No messages yet</p>
+            <p className="text-gray-300 text-xs">Say hi to the group! 👋</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {messages.map((msg) => {
+              const isMe = msg.user_id === user?.id;
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex items-end gap-2.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                >
+                  {!isMe && (
+                    <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+                      {msg.profiles?.display_name?.charAt(0) || "?"}
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1">
+                    {!isMe && (
+                      <p className="text-xs text-gray-400 ml-1">{msg.profiles?.display_name}</p>
+                    )}
+                    <div
+                      className={`max-w-[240px] px-4 py-2.5 rounded-2xl ${
+                        isMe ? "bg-black text-white" : "bg-gray-100 text-black"
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed">{msg.content}</p>
+                    </div>
+                    <p className={`text-[10px] text-gray-300 ${isMe ? "text-right" : "text-left"} mx-1`}>
+                      {formatTime(msg.created_at)}
+                    </p>
+                  </div>
                 </div>
-              )}
-              <div
-                className={`max-w-[240px] px-4 py-2.5 rounded-2xl ${
-                  msg.isMe ? "bg-black text-white" : "bg-gray-100 text-black"
-                }`}
-              >
-                <p className="text-sm leading-relaxed">{msg.text}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+        )}
       </div>
 
       {/* Input */}
@@ -110,7 +186,10 @@ export default function YutoChatScreen() {
           />
           <button
             onClick={handleSend}
-            className="w-11 h-11 bg-black rounded-full flex items-center justify-center border-none cursor-pointer hover:bg-gray-800 transition-colors flex-shrink-0"
+            disabled={!inputText.trim() || sending}
+            className={`w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer transition-colors flex-shrink-0 ${
+              inputText.trim() ? "bg-black hover:bg-gray-800" : "bg-gray-200 cursor-not-allowed"
+            }`}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
               <path d="M22 2L11 13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
