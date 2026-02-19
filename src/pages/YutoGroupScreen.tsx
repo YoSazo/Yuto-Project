@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getGroup, joinGroup } from "../lib/supabase";
+import { supabase, getGroup, joinGroup, submitRideAmount } from "../lib/supabase";
 
 interface Member {
   user_id: string;
@@ -11,6 +11,7 @@ interface Member {
   isHost: boolean;
   hasJoined: boolean;
   justJoined: boolean;
+  rideAmount: number | null;
 }
 
 function Confetti() {
@@ -168,11 +169,15 @@ export default function YutoGroupScreen() {
   const [perPersonAmount, setPerPersonAmount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
   const [createdBy, setCreatedBy] = useState("");
+  const [groupType, setGroupType] = useState<"single" | "multi">("single");
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [driverPaid, setDriverPaid] = useState(false);
+  const [myRideAmount, setMyRideAmount] = useState("");
+  const [isSubmittingRide, setIsSubmittingRide] = useState(false);
+  const [rideSubmitError, setRideSubmitError] = useState("");
   const justJoinedTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Fetch group data on mount
@@ -186,6 +191,7 @@ export default function YutoGroupScreen() {
         setPerPersonAmount(data.per_person);
         setTotalAmount(data.total_amount);
         setCreatedBy(data.created_by);
+        setGroupType(data.group_type || "single");
 
         const list: Member[] = data.group_members.map((gm: any) => ({
           user_id: gm.user_id,
@@ -194,7 +200,12 @@ export default function YutoGroupScreen() {
           isHost: gm.user_id === data.created_by,
           hasJoined: gm.has_joined,
           justJoined: false,
+          rideAmount: gm.ride_amount ?? null,
         }));
+
+        // Pre-fill my ride amount if already submitted
+        const me = data.group_members.find((gm: any) => gm.user_id === user.id);
+        if (me?.ride_amount) setMyRideAmount(String(me.ride_amount));
         setMembers(list);
 
         // Auto-join if I haven't yet
@@ -232,6 +243,7 @@ export default function YutoGroupScreen() {
             user_id: string;
             has_joined: boolean;
             has_paid: boolean;
+            ride_amount: number | null;
           };
           const isMe = updated.user_id === user.id;
 
@@ -240,15 +252,27 @@ export default function YutoGroupScreen() {
             if (!existing) return prev;
 
             const wasJoined = existing.hasJoined;
-            return prev.map((m) => {
+            const newMembers = prev.map((m) => {
               if (m.user_id !== updated.user_id) return m;
               return {
                 ...m,
                 hasJoined: updated.has_joined,
                 isPaid: updated.has_paid,
                 justJoined: !isMe && !wasJoined && updated.has_joined,
+                rideAmount: updated.ride_amount ?? m.rideAmount,
               };
             });
+
+            // Recalculate totals for multi-ride when ride_amount updates
+            if (updated.ride_amount !== null) {
+              const submitted = newMembers.filter((m) => m.rideAmount !== null);
+              const newTotal = submitted.reduce((sum, m) => sum + (m.rideAmount || 0), 0);
+              const newPerPerson = newMembers.length > 0 ? Math.ceil(newTotal / newMembers.length) : 0;
+              setTotalAmount(newTotal);
+              setPerPersonAmount(newPerPerson);
+            }
+
+            return newMembers;
           });
 
           // Clear justJoined flag after animation
@@ -330,6 +354,34 @@ export default function YutoGroupScreen() {
 
   const handlePayShare = () => setShowPayModal(true);
   const handlePayDriver = () => setDriverPaid(true);
+
+  const myRideSubmitted = members.find((m) => m.user_id === user?.id)?.rideAmount !== null;
+  const allRidesSubmitted = groupType === "multi" && members.length > 0 && members.every((m) => m.rideAmount !== null);
+
+  const handleSubmitRideAmount = async () => {
+    if (!groupId || !user || !myRideAmount || parseInt(myRideAmount) <= 0) return;
+    setIsSubmittingRide(true);
+    setRideSubmitError("");
+    try {
+      await submitRideAmount(groupId, user.id, parseInt(myRideAmount));
+      setMembers((prev) =>
+        prev.map((m) => m.user_id === user.id ? { ...m, rideAmount: parseInt(myRideAmount) } : m)
+      );
+      // Recalculate totals immediately
+      const updatedMembers = members.map((m) =>
+        m.user_id === user.id ? { ...m, rideAmount: parseInt(myRideAmount) } : m
+      );
+      const submitted = updatedMembers.filter((m) => m.rideAmount !== null);
+      const newTotal = submitted.reduce((sum, m) => sum + (m.rideAmount || 0), 0);
+      const newPerPerson = updatedMembers.length > 0 ? Math.ceil(newTotal / updatedMembers.length) : 0;
+      setTotalAmount(newTotal);
+      setPerPersonAmount(newPerPerson);
+    } catch (err) {
+      setRideSubmitError(err instanceof Error ? err.message : "Failed to submit. Try again.");
+    } finally {
+      setIsSubmittingRide(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -564,6 +616,8 @@ export default function YutoGroupScreen() {
           ? "Everyone has paid!"
           : !allJoined
           ? `${joinedCount}/${members.length} joined`
+          : groupType === "multi" && !allRidesSubmitted
+          ? `${members.filter((m) => m.rideAmount !== null).length}/${members.length} fares submitted`
           : `${paidCount}/${members.length} have paid`}
       </p>
 
@@ -573,6 +627,42 @@ export default function YutoGroupScreen() {
           <button disabled
             className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
             Waiting for group to join...
+          </button>
+        ) : groupType === "multi" && !myRideSubmitted ? (
+          // Multi-ride: enter your fare first
+          <div className="flex flex-col gap-3">
+            <p className="text-center text-sm font-semibold text-gray-500">Enter your ride fare</p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 flex items-center border-2 border-gray-200 rounded-full px-5 h-14 focus-within:border-black transition-colors">
+                <span className="text-sm text-gray-400 mr-2 font-medium">KSH</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={myRideAmount}
+                  onChange={(e) => setMyRideAmount(e.target.value.replace(/\D/g, ""))}
+                  placeholder="0"
+                  className="flex-1 text-lg font-bold bg-transparent border-none outline-none text-black"
+                />
+              </div>
+              <button
+                onClick={handleSubmitRideAmount}
+                disabled={!myRideAmount || parseInt(myRideAmount) <= 0 || isSubmittingRide}
+                className={`h-14 px-6 rounded-full font-bold text-base transition-all tap-scale ${
+                  myRideAmount && parseInt(myRideAmount) > 0 && !isSubmittingRide
+                    ? "bg-black text-white"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                {isSubmittingRide ? "..." : "Submit"}
+              </button>
+            </div>
+            {rideSubmitError && <p className="text-red-500 text-sm text-center">{rideSubmitError}</p>}
+          </div>
+        ) : groupType === "multi" && myRideSubmitted && !allRidesSubmitted ? (
+          // Multi-ride: waiting for others to submit their fare
+          <button disabled
+            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
+            Waiting for fares... ({members.filter((m) => m.rideAmount !== null).length}/{members.length} submitted)
           </button>
         ) : !youPaid ? (
           <button onClick={handlePayShare}

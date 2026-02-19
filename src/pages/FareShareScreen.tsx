@@ -10,9 +10,12 @@ interface Friend {
   display_name: string;
 }
 
+type RideType = "single" | "multi" | null;
+
 export default function FareShareScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [rideType, setRideType] = useState<RideType>(null);
   const [fareAmount, setFareAmount] = useState("");
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -31,7 +34,9 @@ export default function FareShareScreen() {
 
   const totalPeople = selectedFriends.length + 1;
   const splitAmount = fareAmount ? Math.ceil(parseInt(fareAmount) / totalPeople) : 0;
-  const isValid = fareAmount && parseInt(fareAmount) > 0 && selectedFriends.length > 0;
+  const isValidSingle = rideType === "single" && fareAmount && parseInt(fareAmount) > 0 && selectedFriends.length > 0;
+  const isValidMulti = rideType === "multi" && selectedFriends.length > 0;
+  const isValid = isValidSingle || isValidMulti;
 
   const toggleFriend = (id: string) => {
     setSelectedFriends((prev) =>
@@ -46,10 +51,11 @@ export default function FareShareScreen() {
     try {
       const group = await createGroup(
         "Fare Share",
-        parseInt(fareAmount),
-        splitAmount,
+        rideType === "single" ? parseInt(fareAmount) : 0,
+        rideType === "single" ? splitAmount : 0,
         user.id,
-        [user.id, ...selectedFriends]
+        [user.id, ...selectedFriends],
+        rideType as "single" | "multi"
       );
       navigate(`/yuto/${group.id}`);
     } catch (err) {
@@ -60,33 +66,97 @@ export default function FareShareScreen() {
     }
   };
 
+  // ── Step 1: Pick ride type ───────────────────────────
+  if (rideType === null) {
+    return (
+      <div className="flex flex-col min-h-full px-6 pt-14">
+        <div className="flex items-center gap-3 mb-10">
+          <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
+          <span className="text-xl font-bold text-black">Yuto</span>
+        </div>
+
+        <h2 className="text-2xl font-bold text-black mb-2">How are you riding?</h2>
+        <p className="text-sm text-gray-400 mb-8">Choose how your group is getting there</p>
+
+        <div className="flex flex-col gap-4">
+          <button
+            onClick={() => setRideType("single")}
+            className="w-full p-5 rounded-2xl border-2 border-gray-200 text-left hover:border-black transition-all tap-scale bg-white"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl">🚗</div>
+              <div>
+                <p className="font-bold text-base text-black">Same ride</p>
+                <p className="text-sm text-gray-400 mt-0.5">One bolt, splitting the cost</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setRideType("multi")}
+            className="w-full p-5 rounded-2xl border-2 border-gray-200 text-left hover:border-black transition-all tap-scale bg-white"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl">🚕</div>
+              <div>
+                <p className="font-bold text-base text-black">Separate rides</p>
+                <p className="text-sm text-gray-400 mt-0.5">Everyone takes their own ride, split the total fairly</p>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Step 2: Single or Multi ride form ───────────────
   return (
     <div className="flex flex-col min-h-full px-6 pt-14">
       <div className="flex items-center gap-3 mb-8">
+        <button
+          onClick={() => { setRideType(null); setFareAmount(""); setSelectedFriends([]); setError(""); }}
+          className="text-gray-400 hover:text-black bg-transparent border-none cursor-pointer text-base mr-1"
+        >
+          ←
+        </button>
         <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
-        <span className="text-xl font-bold text-black">Yuto</span>
-      </div>
-
-      <div className="flex flex-col items-center py-6">
-        <span className="text-sm font-medium text-gray-400 tracking-wider uppercase mb-2">
-          KSH
+        <span className="text-xl font-bold text-black">
+          {rideType === "single" ? "Same Ride" : "Separate Rides"}
         </span>
-        <input
-          type="text"
-          inputMode="numeric"
-          value={fareAmount}
-          onChange={(e) => {
-            const val = e.target.value.replace(/\D/g, "");
-            if (val.length <= 6) setFareAmount(val);
-          }}
-          placeholder="0"
-          className="text-[56px] font-bold text-center text-black bg-transparent border-none outline-none w-full placeholder-gray-200"
-          style={{ caretColor: "#5493b3" }}
-        />
-        <div className="w-16 h-0.5 bg-gray-200 rounded-full mt-1" />
       </div>
 
-      <div className="mt-6">
+      {rideType === "single" && (
+        <div className="flex flex-col items-center py-6">
+          <span className="text-sm font-medium text-gray-400 tracking-wider uppercase mb-2">
+            KSH
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={fareAmount}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, "");
+              if (val.length <= 6) setFareAmount(val);
+            }}
+            placeholder="0"
+            className="text-[56px] font-bold text-center text-black bg-transparent border-none outline-none w-full placeholder-gray-200"
+            style={{ caretColor: "#5493b3" }}
+          />
+          <div className="w-16 h-0.5 bg-gray-200 rounded-full mt-1" />
+        </div>
+      )}
+
+      {rideType === "multi" && (
+        <div className="flex flex-col items-center py-6">
+          <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-3">
+            <span className="text-3xl">🚕</span>
+          </div>
+          <p className="text-base font-semibold text-black text-center">Everyone enters their own fare</p>
+          <p className="text-sm text-gray-400 text-center mt-1">Once the group is created, each person enters what their ride cost. The total gets split equally.</p>
+        </div>
+      )}
+
+      <div className="mt-4">
         <p className="font-semibold text-sm text-gray-500 mb-3">Split with</p>
         {friends.length === 0 ? (
           <div className="text-center py-6">
@@ -127,7 +197,7 @@ export default function FareShareScreen() {
         )}
       </div>
 
-      {isValid && (
+      {isValidSingle && (
         <div className="mt-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full">
             <span className="text-sm text-gray-500">Each person pays</span>
@@ -154,9 +224,13 @@ export default function FareShareScreen() {
         >
           {isCreating
             ? "Creating..."
-            : isValid
+            : isValidSingle
             ? `Split KSH ${splitAmount.toLocaleString()} each`
-            : "Enter fare & select friends"}
+            : isValidMulti
+            ? "Create Split"
+            : rideType === "single"
+            ? "Enter fare & select friends"
+            : "Select friends to split with"}
         </button>
       </div>
     </div>

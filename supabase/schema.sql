@@ -28,10 +28,11 @@ create table if not exists friendships (
 create table if not exists groups (
   id uuid default gen_random_uuid() primary key,
   name text not null,
-  total_amount integer not null,
-  per_person integer not null,
+  total_amount integer not null default 0,
+  per_person integer not null default 0,
   created_by uuid references profiles(id) on delete cascade not null,
   status text check (status in ('active', 'completed')) default 'active',
+  group_type text check (group_type in ('single', 'multi')) default 'single',
   created_at timestamptz default now()
 );
 
@@ -43,6 +44,7 @@ create table if not exists group_members (
   has_paid boolean default false,
   joined_at timestamptz,
   paid_at timestamptz,
+  ride_amount integer default null,
   unique(group_id, user_id)
 );
 
@@ -108,8 +110,11 @@ create policy "Members can view their groups" on groups
   for select using (id in (select auth_user_group_ids()));
 create policy "Users can create groups" on groups
   for insert with check (created_by = auth.uid());
-create policy "Creator can update group" on groups
-  for update using (created_by = auth.uid());
+create policy "Members can update group totals" on groups
+  for update using (
+    created_by = auth.uid()
+    or id in (select auth_user_group_ids())
+  );
 
 -- Group members: members can view co-members, auth users can add, users update own
 create policy "Members can view group members" on group_members
