@@ -204,8 +204,8 @@ export default function YutoGroupScreen() {
         }));
 
         // Pre-fill my ride amount if already submitted
-        const me = data.group_members.find((gm: any) => gm.user_id === user.id);
-        if (me?.ride_amount) setMyRideAmount(String(me.ride_amount));
+        const myMembership = data.group_members.find((gm: any) => gm.user_id === user.id);
+        if (myMembership?.ride_amount) setMyRideAmount(String(myMembership.ride_amount));
         setMembers(list);
 
         // Auto-join if I haven't yet
