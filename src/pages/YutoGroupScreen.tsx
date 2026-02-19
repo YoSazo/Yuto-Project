@@ -295,6 +295,27 @@ export default function YutoGroupScreen() {
     if (youPaid && showPayModal) setShowPayModal(false);
   }, [youPaid, showPayModal]);
 
+  // Polling fallback: if modal is open in "waiting" state, poll every 4s to check if payment went through
+  useEffect(() => {
+    if (!showPayModal || !groupId || !user) return;
+    const interval = setInterval(async () => {
+      try {
+        const data = await getGroup(groupId);
+        const me = data.group_members.find((gm: any) => gm.user_id === user.id);
+        if (me?.has_paid) {
+          setMembers((prev) =>
+            prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: true } : m))
+          );
+          setShowPayModal(false);
+          clearInterval(interval);
+        }
+      } catch {
+        // silently ignore poll errors
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [showPayModal, groupId, user]);
+
   const handlePayShare = () => setShowPayModal(true);
   const handlePayDriver = () => setDriverPaid(true);
 
