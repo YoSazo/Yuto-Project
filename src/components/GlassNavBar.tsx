@@ -131,7 +131,14 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
       };
 
   return (
-    <div ref={containerRef} className="relative h-[60px] w-full">
+    <div
+      ref={containerRef}
+      className="relative h-[60px] w-full touch-none"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => setIsDragging(false)}
+    >
       {/* Glass background */}
       <div
         className="absolute inset-0 rounded-full overflow-hidden border border-gray-200"
@@ -143,14 +150,10 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
         }}
       />
 
-      {/* Sliding pill — draggable */}
+      {/* Sliding pill */}
       <div
-        className="absolute top-[5px] bottom-[5px] rounded-full bg-black z-20 touch-none transition-all duration-300 ease-out"
+        className="absolute top-[5px] bottom-[5px] rounded-full bg-black z-20 transition-all duration-300 ease-out"
         style={pillStyle}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => setIsDragging(false)}
       />
 
       {/* Tab buttons — z-30 so icons render on top of the pill */}
