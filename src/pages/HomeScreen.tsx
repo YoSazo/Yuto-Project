@@ -164,7 +164,7 @@ export default function HomeScreen() {
             <p className="text-gray-600 font-bold text-lg">KSH {brokest.total_paid.toLocaleString()}</p>
             <p className="text-gray-400 text-xs">@{brokest.username}</p>
             <span className="inline-block mt-2 text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-              Tumeshangaa this brokeness 😭
+              Tumeshangaa this brokeness
             </span>
           </div>
         )}
