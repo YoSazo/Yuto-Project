@@ -164,6 +164,19 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
         {tabs.map((tab, i) => {
           const isLit = i === visualIndex;
           const color = isLit ? "#fff" : "#9ca3af";
+
+          // Water lens magnification — calculate proximity of pill center to this tab center
+          const pillCenter = isDragging
+            ? dragLeft + getPillWidth() / 2
+            : (activeIndex * 25 + 12.5) / 100 * (containerRef.current?.getBoundingClientRect().width || 0);
+          const tabCenter = containerRef.current
+            ? (i * 25 + 12.5) / 100 * containerRef.current.getBoundingClientRect().width
+            : 0;
+          const distance = Math.abs(pillCenter - tabCenter);
+          const maxDist = containerRef.current ? containerRef.current.getBoundingClientRect().width / 4 : 80;
+          const proximity = Math.max(0, 1 - distance / maxDist);
+          const scale = 1 + proximity * 0.35;
+
           return (
             <button
               key={tab.id}
@@ -172,7 +185,10 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
                 isLit && !isDragging ? "pointer-events-none" : ""
               }`}
             >
-              <div className="relative">
+              <div
+                className="relative transition-transform duration-150 ease-out"
+                style={{ transform: `scale(${scale})` }}
+              >
                 <tab.Icon color={color} />
                 {tab.id === "profile" && pendingCount > 0 && (
                   <div className="absolute -top-1 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
