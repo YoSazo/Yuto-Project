@@ -7,7 +7,7 @@ import { getPendingRequests } from "../lib/supabase";
 type NavTab = "split" | "fareshare" | "home" | "activity" | "profile";
 
 const TAB_ROUTES: Record<string, NavTab> = {
-  "/": "split",
+  "/": "home",
   "/split": "split",
   "/fareshare": "fareshare",
   "/home": "home",

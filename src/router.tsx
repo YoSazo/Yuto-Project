@@ -24,7 +24,7 @@ export const router = createBrowserRouter([
   {
     element: <Layout />,
     children: [
-      { path: "/", element: <Navigate to="/split" replace /> },
+      { path: "/", element: <Navigate to="/home" replace /> },
       { path: "/split", element: <SplitScreen /> },
       { path: "/fareshare", element: <FareShareScreen /> },
       { path: "/activity", element: <YourYutosScreen /> },
