@@ -219,6 +219,36 @@ create policy "Users can leave plans" on plan_members
 create index if not exists idx_plans_creator on plans(creator_id);
 create index if not exists idx_plan_members_plan on plan_members(plan_id);
 
+-- ─── Plan Updates ─────────────────────────────────────
+
+create table if not exists plan_updates (
+  id uuid default gen_random_uuid() primary key,
+  plan_id uuid references plans(id) on delete cascade not null,
+  creator_id uuid references profiles(id) on delete cascade not null,
+  content text not null,
+  created_at timestamptz default now()
+);
+
+alter table plan_updates enable row level security;
+
+create policy "Friends can view plan updates" on plan_updates
+  for select using (
+    creator_id = auth.uid()
+    or plan_id in (
+      select id from plans where creator_id = auth.uid()
+      union
+      select plan_id from plan_members where user_id = auth.uid()
+    )
+  );
+
+create policy "Creator can insert plan updates" on plan_updates
+  for insert with check (creator_id = auth.uid());
+
+create policy "Creator can delete plan updates" on plan_updates
+  for delete using (creator_id = auth.uid());
+
+create index if not exists idx_plan_updates_plan on plan_updates(plan_id, created_at);
+
 -- ─── Realtime ────────────────────────────────────────
 
 alter publication supabase_realtime add table group_members;

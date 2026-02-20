@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getPlans, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan } from "../lib/supabase";
+import { supabase, getPlans, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 
 interface LeaderboardEntry {
@@ -28,6 +28,17 @@ interface PlanMember {
   profiles: {
     id: string;
     username: string;
+    display_name: string;
+    avatar_url: string | null;
+  };
+}
+
+interface PlanUpdate {
+  id: string;
+  content: string;
+  created_at: string;
+  creator_id: string;
+  profiles: {
     display_name: string;
     avatar_url: string | null;
   };
@@ -70,6 +81,11 @@ export default function HomeScreen() {
   const [planSlots, setPlanSlots] = useState("");
   const [isPosting, setIsPosting] = useState(false);
 
+  // Plan updates state
+  const [planUpdates, setPlanUpdates] = useState<Record<string, PlanUpdate[]>>({});
+  const [updateInputs, setUpdateInputs] = useState<Record<string, string>>({});
+  const [postingUpdate, setPostingUpdate] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     if (!user) return;
     loadData();
@@ -88,8 +104,46 @@ export default function HomeScreen() {
     if (!user) return;
     try {
       const data = await getPlans(user.id);
-      setPlans((data as Plan[]) || []);
+      const planList = (data as Plan[]) || [];
+      setPlans(planList);
+      // Load updates for all plans
+      const updatesMap: Record<string, PlanUpdate[]> = {};
+      await Promise.all(planList.map(async (plan) => {
+        try {
+          const updates = await getPlanUpdates(plan.id);
+          updatesMap[plan.id] = (updates as PlanUpdate[]) || [];
+        } catch { /* ignore */ }
+      }));
+      setPlanUpdates(updatesMap);
     } catch { /* ignore */ }
+  };
+
+  const handlePostUpdate = async (planId: string) => {
+    const content = updateInputs[planId]?.trim();
+    if (!content || !user) return;
+    setPostingUpdate((prev) => ({ ...prev, [planId]: true }));
+    try {
+      await addPlanUpdate(planId, user.id, content);
+      setUpdateInputs((prev) => ({ ...prev, [planId]: "" }));
+      // Notify plan members
+      const plan = plans.find((p) => p.id === planId);
+      if (plan) {
+        const memberIds = plan.plan_members.map((m) => m.user_id);
+        await Promise.all(memberIds.map((memberId) =>
+          fetch("/api/notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: memberId,
+              title: "Yuto 📋",
+              body: `${profile?.display_name} posted an update: ${content.slice(0, 60)}`,
+            }),
+          }).catch(() => {})
+        ));
+      }
+      await loadPlans();
+    } catch (err) { console.error(err); }
+    setPostingUpdate((prev) => ({ ...prev, [planId]: false }));
   };
 
   const loadData = async () => {
@@ -306,10 +360,64 @@ export default function HomeScreen() {
                       )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+
+                  {/* Thread updates */}
+                  {((planUpdates[plan.id] || []).length > 0 || isMine) && (
+                    <div className="ml-4 mt-1">
+                      {(planUpdates[plan.id] || []).map((update) => (
+                        <div key={update.id} className="flex gap-2 mt-2">
+                          <div className="flex flex-col items-center w-5 flex-shrink-0">
+                            <div className="w-px bg-gray-200 h-3" />
+                            <div className="w-px bg-gray-200 flex-1" />
+                          </div>
+                          <div className="flex-1 pb-2">
+                            <div className="flex items-start gap-2">
+                              <UserAvatar name={update.profiles.display_name} avatarUrl={update.profiles.avatar_url} size="sm" className="!w-7 !h-7 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-sm px-3 py-2">
+                                <p className="text-sm text-black">{update.content}</p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{new Date(update.created_at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Update input — creator only */}
+                      {isMine && (
+                        <div className="flex gap-2 mt-2">
+                          <div className="flex flex-col items-center w-5 flex-shrink-0">
+                            <div className="w-px bg-gray-200 h-3" />
+                          </div>
+                          <div className="flex-1 flex gap-2 items-center pb-2">
+                            <UserAvatar name={profile?.display_name || ""} avatarUrl={profile?.avatar_url} size="sm" className="!w-7 !h-7 flex-shrink-0" />
+                            <input
+                              type="text"
+                              value={updateInputs[plan.id] || ""}
+                              onChange={(e) => setUpdateInputs((prev) => ({ ...prev, [plan.id]: e.target.value }))}
+                              onKeyDown={(e) => e.key === "Enter" && handlePostUpdate(plan.id)}
+                              placeholder="Add an update..."
+                              className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 text-sm focus:outline-none focus:border-black transition-colors"
+                              maxLength={200}
+                            />
+                            {updateInputs[plan.id]?.trim() && (
+                              <button
+                                onClick={() => handlePostUpdate(plan.id)}
+                                disabled={postingUpdate[plan.id]}
+                                className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center text-sm flex-shrink-0"
+                              >
+                                ↑
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         </>
       ) : (
         <>

@@ -335,6 +335,28 @@ export async function deletePlan(planId: string) {
   if (error) throw error;
 }
 
+export async function addPlanUpdate(planId: string, creatorId: string, content: string) {
+  const { error } = await supabase
+    .from("plan_updates")
+    .insert({ plan_id: planId, creator_id: creatorId, content });
+  if (error) throw error;
+}
+
+export async function getPlanUpdates(planId: string) {
+  const { data, error } = await supabase
+    .from("plan_updates")
+    .select("id, content, created_at, creator_id, profiles(display_name, avatar_url)")
+    .eq("plan_id", planId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function deletePlanUpdate(updateId: string) {
+  const { error } = await supabase.from("plan_updates").delete().eq("id", updateId);
+  if (error) throw error;
+}
+
 // ─── Push Notifications ──────────────────────────────
 
 export async function savePushToken(userId: string, token: string) {
