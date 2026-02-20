@@ -47,7 +47,7 @@ export async function getProfile(userId: string) {
 export async function searchProfiles(query: string, currentUserId: string) {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, username, display_name")
+    .select("id, username, display_name, avatar_url")
     .ilike("username", `%${query}%`)
     .neq("id", currentUserId)
     .limit(20);
@@ -62,8 +62,8 @@ export async function getFriends(userId: string) {
     .from("friendships")
     .select(
       `id, requester_id, addressee_id, status,
-       requester:profiles!friendships_requester_id_fkey(id, username, display_name),
-       addressee:profiles!friendships_addressee_id_fkey(id, username, display_name)`
+       requester:profiles!friendships_requester_id_fkey(id, username, display_name, avatar_url),
+       addressee:profiles!friendships_addressee_id_fkey(id, username, display_name, avatar_url)`
     )
     .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
     .eq("status", "accepted");
@@ -76,7 +76,7 @@ export async function getPendingRequests(userId: string) {
     .from("friendships")
     .select(
       `id, requester_id, created_at,
-       requester:profiles!friendships_requester_id_fkey(id, username, display_name)`
+       requester:profiles!friendships_requester_id_fkey(id, username, display_name, avatar_url)`
     )
     .eq("addressee_id", userId)
     .eq("status", "pending");
