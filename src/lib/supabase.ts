@@ -289,11 +289,28 @@ export async function createPlan(
   return data;
 }
 
-export async function joinPlan(planId: string, userId: string) {
+export async function joinPlan(planId: string, userId: string, joinerName: string, creatorId: string) {
   const { error } = await supabase
     .from("plan_members")
     .insert({ plan_id: planId, user_id: userId });
   if (error) throw error;
+
+  // Notify plan creator
+  if (creatorId !== userId) {
+    try {
+      await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: creatorId,
+          title: "Yuto 🎉",
+          body: `${joinerName} joined your Yuto!`,
+        }),
+      });
+    } catch {
+      // Notification failure shouldn't block join
+    }
+  }
 }
 
 export async function leavePlan(planId: string, userId: string) {
