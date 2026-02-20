@@ -51,7 +51,7 @@ interface Plan {
 }
 
 export default function HomeScreen() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"friends" | "leaderboard">("friends");
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -152,7 +152,7 @@ export default function HomeScreen() {
       if (isMember) {
         await leavePlan(plan.id, user.id);
       } else {
-        await joinPlan(plan.id, user.id);
+        await joinPlan(plan.id, user.id, profile?.display_name || "Someone", plan.creator_id);
       }
       await loadPlans();
     } catch (err) { console.error(err); }
@@ -433,12 +433,14 @@ export default function HomeScreen() {
       )}
 
       {/* Floating compose button */}
-      <button
-        onClick={() => setShowCompose(true)}
-        className="fixed bottom-36 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
-      >
-        <span className="text-lg">+</span> Post a Plan
-      </button>
+      {activeTab === "friends" && (
+        <button
+          onClick={() => setShowCompose(true)}
+          className="fixed bottom-36 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
+        >
+          <span className="text-lg">+</span> Post a Plan
+        </button>
+      )}
     </div>
   );
 }

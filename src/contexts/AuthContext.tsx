@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(p);
           setLoading(false);
         });
+        requestPushPermission(u.id);
       } else {
         setLoading(false);
       }
