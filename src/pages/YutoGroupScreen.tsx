@@ -850,7 +850,7 @@ export default function YutoGroupScreen() {
           <button
             onClick={() => setShowPayDriverModal(true)}
             className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale">
-            Pay Driver 💳
+            {groupType === "single" && groupName !== "Fare Share" ? "Pay Now" : "Pay Driver"}
           </button>
         ) : (
           <button className="w-full py-5 bg-green-500 text-white rounded-full font-bold text-lg cursor-default">

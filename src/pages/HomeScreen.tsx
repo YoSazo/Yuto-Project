@@ -4,6 +4,7 @@ import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, getPlans, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
+import { Trash2, Flame, Trophy, TrendingDown, ClipboardList, Rocket, UserCheck, Send } from "lucide-react";
 
 interface LeaderboardEntry {
   user_id: string;
@@ -263,13 +264,17 @@ export default function HomeScreen() {
           onClick={() => setActiveTab("friends")}
           className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "friends" ? "text-black" : "text-gray-400"}`}
         >
-          Plans 📋
+          <span className="flex items-center justify-center gap-1.5">
+            <ClipboardList size={14} /> Plans
+          </span>
         </button>
         <button
           onClick={() => setActiveTab("leaderboard")}
           className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "leaderboard" ? "text-black" : "text-gray-400"}`}
         >
-          Leaderboard 🏆
+          <span className="flex items-center justify-center gap-1.5">
+            <Trophy size={14} /> Leaderboard
+          </span>
         </button>
       </div>
 
@@ -282,7 +287,7 @@ export default function HomeScreen() {
             </div>
           ) : plans.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <p className="text-4xl mb-3">📋</p>
+              <ClipboardList size={48} className="text-gray-300 mb-3" />
               <p className="font-bold text-black text-lg">The board is empty</p>
               <p className="text-gray-400 text-sm mt-1">Post a plan and see who's in</p>
             </div>
@@ -307,7 +312,7 @@ export default function HomeScreen() {
                         <p className="text-xs text-gray-400">{new Date(plan.created_at).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" })}</p>
                       </div>
                       {isMine && (
-                        <button onClick={() => handleDelete(plan.id)} className="text-gray-300 hover:text-red-400 text-lg transition-colors">🗑</button>
+                        <button onClick={() => handleDelete(plan.id)} className="text-gray-300 hover:text-red-400 transition-colors"><Trash2 size={16} /></button>
                       )}
                     </div>
 
@@ -348,7 +353,7 @@ export default function HomeScreen() {
                           onClick={() => handleJoin(plan)}
                           className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${isMember ? "bg-gray-100 text-gray-600" : "bg-black text-white"}`}
                         >
-                          {isMember ? "Leave" : "I'm in ✋"}
+                          {isMember ? "Leave" : <span className="flex items-center justify-center gap-1.5"><UserCheck size={15} /> I'm in</span>}
                         </button>
                       )}
                       {canYutoIt && (
@@ -356,7 +361,7 @@ export default function HomeScreen() {
                           onClick={() => handleYutoIt(plan)}
                           className="flex-1 py-2.5 bg-green-500 text-white rounded-xl font-bold text-sm hover:bg-green-600 transition-colors"
                         >
-                          Yuto it! 🚀
+                          <span className="flex items-center justify-center gap-1.5"><Rocket size={15} /> Yuto it!</span>
                         </button>
                       )}
                     </div>
@@ -431,14 +436,14 @@ export default function HomeScreen() {
           <div className="flex gap-3 mb-5">
             {bestGroupName && (
               <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                <p className="text-gray-500 font-bold text-xs mb-2">🔥 Most Active</p>
+                <p className="text-gray-500 font-bold text-xs mb-2 flex items-center gap-1"><Flame size={12} /> Most Active</p>
                 <p className="font-bold text-black text-sm truncate">{bestGroupName}</p>
                 <p className="text-gray-600 font-bold text-lg">KSH {bestGroupTotal?.toLocaleString()}</p>
               </div>
             )}
             {brokest && (
               <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                <p className="text-gray-500 font-bold text-xs mb-2">💸 Watu Broke</p>
+                <p className="text-gray-500 font-bold text-xs mb-2 flex items-center gap-1"><TrendingDown size={12} /> Watu Broke</p>
                 <div className="flex items-center gap-2 mb-1">
                   <UserAvatar name={brokest.display_name} avatarUrl={brokest.avatar_url} size="sm" />
                   <p className="font-bold text-black text-sm truncate">{brokest.display_name}</p>
@@ -455,7 +460,7 @@ export default function HomeScreen() {
           {/* Kenyan Leaderboard */}
           <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden mb-6">
             <div className="px-4 py-4 border-b border-gray-50">
-              <p className="font-bold text-black">🏆 Watu Pesa | Kenya Leaderboard</p>
+              <p className="font-bold text-black flex items-center gap-2"><Trophy size={16} /> Watu Pesa | Kenya Leaderboard</p>
               <p className="text-xs text-gray-400 mt-0.5">Ranked by KSH paid</p>
             </div>
             {leaderboard.map((entry) => {
@@ -528,7 +533,7 @@ export default function HomeScreen() {
               disabled={!planTitle.trim() || isPosting}
               className="w-full py-4 bg-black text-white rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
             >
-              {isPosting ? "Posting..." : "Post Plan 📋"}
+              {isPosting ? "Posting..." : <span className="flex items-center justify-center gap-2"><Send size={16} /> Post Plan</span>}
             </button>
           </div>
         </div>
@@ -540,7 +545,7 @@ export default function HomeScreen() {
           onClick={() => setShowCompose(true)}
           className="fixed bottom-36 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
         >
-          <span className="text-lg">+</span> Post a Plan
+          <Send size={16} /> Post a Plan
         </button>
       )}
     </div>

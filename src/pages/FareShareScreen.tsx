@@ -4,6 +4,7 @@ import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.
 import { useAuth } from "../contexts/AuthContext";
 import { getFriends, createGroup } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
+import { Car } from "lucide-react";
 
 interface Friend {
   id: string;
@@ -85,7 +86,7 @@ export default function FareShareScreen() {
             className="w-full p-5 rounded-2xl border-2 border-gray-200 text-left hover:border-black transition-all tap-scale bg-white"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl">🚗</div>
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-gray-600"><Car size={24} /></div>
               <div>
                 <p className="font-bold text-base text-black">Same ride</p>
                 <p className="text-sm text-gray-400 mt-0.5">One bolt, splitting the cost</p>
