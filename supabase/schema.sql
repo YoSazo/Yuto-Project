@@ -157,6 +157,68 @@ alter table push_tokens enable row level security;
 create policy "Users can manage own push token" on push_tokens
   for all using (user_id = auth.uid());
 
+-- ─── Plans (The Board) ───────────────────────────────
+
+create table if not exists plans (
+  id uuid default gen_random_uuid() primary key,
+  creator_id uuid references profiles(id) on delete cascade not null,
+  title text not null,
+  amount integer default null,
+  slots integer default null,
+  created_at timestamptz default now(),
+  expires_at timestamptz default null,
+  yuto_group_id uuid references groups(id) on delete set null default null,
+  status text check (status in ('open', 'completed', 'expired')) default 'open'
+);
+
+alter table plans enable row level security;
+
+create policy "Friends can view plans" on plans
+  for select using (
+    creator_id = auth.uid()
+    or creator_id in (
+      select case
+        when requester_id = auth.uid() then addressee_id
+        else requester_id
+      end
+      from friendships
+      where (requester_id = auth.uid() or addressee_id = auth.uid())
+      and status = 'accepted'
+    )
+  );
+
+create policy "Users can create plans" on plans
+  for insert with check (creator_id = auth.uid());
+
+create policy "Creator can update plan" on plans
+  for update using (creator_id = auth.uid());
+
+create policy "Creator can delete plan" on plans
+  for delete using (creator_id = auth.uid());
+
+-- Plan joins
+create table if not exists plan_members (
+  id uuid default gen_random_uuid() primary key,
+  plan_id uuid references plans(id) on delete cascade not null,
+  user_id uuid references profiles(id) on delete cascade not null,
+  joined_at timestamptz default now(),
+  unique(plan_id, user_id)
+);
+
+alter table plan_members enable row level security;
+
+create policy "Anyone can view plan members" on plan_members
+  for select using (true);
+
+create policy "Users can join plans" on plan_members
+  for insert with check (user_id = auth.uid());
+
+create policy "Users can leave plans" on plan_members
+  for delete using (user_id = auth.uid());
+
+create index if not exists idx_plans_creator on plans(creator_id);
+create index if not exists idx_plan_members_plan on plan_members(plan_id);
+
 -- ─── Realtime ────────────────────────────────────────
 
 alter publication supabase_realtime add table group_members;

@@ -258,6 +258,66 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
   return avatarUrl;
 }
 
+// ─── Plans ───────────────────────────────────────────
+
+export async function getPlans(userId: string) {
+  const { data, error } = await supabase
+    .from("plans")
+    .select(`
+      *,
+      creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url),
+      plan_members(id, user_id, profiles(id, username, display_name, avatar_url))
+    `)
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function createPlan(
+  creatorId: string,
+  title: string,
+  amount: number | null,
+  slots: number | null
+) {
+  const { data, error } = await supabase
+    .from("plans")
+    .insert({ creator_id: creatorId, title, amount, slots })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function joinPlan(planId: string, userId: string) {
+  const { error } = await supabase
+    .from("plan_members")
+    .insert({ plan_id: planId, user_id: userId });
+  if (error) throw error;
+}
+
+export async function leavePlan(planId: string, userId: string) {
+  const { error } = await supabase
+    .from("plan_members")
+    .delete()
+    .eq("plan_id", planId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function yutoItPlan(planId: string, creatorId: string, title: string, amount: number, memberIds: string[]) {
+  // Create the group
+  const group = await createGroup(title, amount, Math.ceil(amount / memberIds.length), creatorId, memberIds);
+  // Mark plan as completed
+  await supabase.from("plans").update({ status: "completed", yuto_group_id: group.id }).eq("id", planId);
+  return group;
+}
+
+export async function deletePlan(planId: string) {
+  const { error } = await supabase.from("plans").delete().eq("id", planId);
+  if (error) throw error;
+}
+
 // ─── Push Notifications ──────────────────────────────
 
 export async function savePushToken(userId: string, token: string) {
