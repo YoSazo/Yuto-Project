@@ -7,6 +7,7 @@ import { supabase, getGroup, joinGroup, submitRideAmount } from "../lib/supabase
 interface Member {
   user_id: string;
   name: string;
+  avatarUrl: string | null;
   isPaid: boolean;
   isHost: boolean;
   hasJoined: boolean;
@@ -333,6 +334,7 @@ export default function YutoGroupScreen() {
         const list: Member[] = data.group_members.map((gm: any) => ({
           user_id: gm.user_id,
           name: gm.profiles.display_name,
+          avatarUrl: gm.profiles.avatar_url ?? null,
           isPaid: gm.has_paid,
           isHost: gm.user_id === data.created_by,
           hasJoined: gm.has_joined,
@@ -743,7 +745,7 @@ export default function YutoGroupScreen() {
               >
                 <div className={`relative ${paid ? "node-glow" : ""}`}>
                   <div
-                    className={`w-[76px] h-[76px] rounded-full flex items-center justify-center font-bold text-2xl border-[3px] transition-colors duration-500 ${
+                    className={`w-[76px] h-[76px] rounded-full flex items-center justify-center font-bold text-2xl border-[3px] transition-colors duration-500 overflow-hidden ${
                       paid
                         ? "bg-black border-green-500 text-white shadow-xl shadow-green-500/25"
                         : joined
@@ -751,7 +753,11 @@ export default function YutoGroupScreen() {
                         : "bg-gray-100 border-gray-200 text-gray-300 shadow-sm"
                     }`}
                   >
-                    {member.name.charAt(0)}
+                    {member.avatarUrl ? (
+                      <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
+                    ) : (
+                      member.name.charAt(0).toUpperCase()
+                    )}
                   </div>
                   {paid && (
                     <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full p-1">

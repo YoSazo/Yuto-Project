@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
 import { getFriends, createGroup } from "../lib/supabase";
+import UserAvatar from "../components/UserAvatar";
 
 interface Friend {
   id: string;
@@ -182,13 +183,7 @@ export default function FareShareScreen() {
                       : "bg-white border-gray-200 text-black"
                   }`}
                 >
-                  <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                      selected ? "bg-white text-black" : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {friend.display_name.charAt(0)}
-                  </div>
+                  <UserAvatar name={friend.display_name} avatarUrl={friend.avatar_url} size="sm" className={selected ? "ring-2 ring-white" : ""} />
                   <span className="font-medium text-sm">{friend.display_name}</span>
                 </button>
               );
