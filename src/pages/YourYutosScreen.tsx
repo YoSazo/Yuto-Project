@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { getMyGroups } from "../lib/supabase";
+import { getMyGroups, supabase } from "../lib/supabase";
 
 interface GroupMember {
   user_id: string;
@@ -33,7 +33,7 @@ function timeAgo(dateStr: string) {
   return `${days}d ago`;
 }
 
-function YutoCard({ group, onClick }: { group: GroupData; onClick: () => void }) {
+function YutoCard({ group, onClick, onDelete }: { group: GroupData; onClick: () => void; onDelete?: () => void }) {
   const members = group.group_members;
   const paidCount = members.filter((m) => m.has_paid).length;
   const progress = members.length > 0 ? (paidCount / members.length) * 100 : 0;
@@ -51,13 +51,28 @@ function YutoCard({ group, onClick }: { group: GroupData; onClick: () => void })
             KSH {group.per_person.toLocaleString()} each · {members.length} people
           </p>
         </div>
-        <span
-          className={`text-xs font-semibold px-3 py-1 rounded-full ml-3 flex-shrink-0 ${
-            isActive ? "bg-black text-white" : "bg-gray-100 text-gray-500"
-          }`}
-        >
-          {isActive ? "Active" : "Done"}
-        </span>
+        <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+          <span
+            className={`text-xs font-semibold px-3 py-1 rounded-full ${
+              isActive ? "bg-black text-white" : "bg-gray-100 text-gray-500"
+            }`}
+          >
+            {isActive ? "Active" : "Done"}
+          </span>
+          {!isActive && onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 transition-colors border-none cursor-pointer"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4h6v2" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {isActive && (
@@ -112,11 +127,20 @@ export default function YourYutosScreen() {
   const activeGroups = groups.filter((g) => g.status === "active");
   const completedGroups = groups.filter((g) => g.status === "completed");
 
+  const handleDelete = async (groupId: string) => {
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+    try {
+      await supabase.from("groups").delete().eq("id", groupId);
+    } catch (err) {
+      console.error("Failed to delete group:", err);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-full px-6 pt-14">
       <div className="flex items-center gap-3 mb-8">
         <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
-        <span className="text-2xl font-bold text-black">Activity</span>
+        <span className="text-2xl font-bold text-black">Your Yuto's</span>
       </div>
 
       {loading ? (
@@ -153,6 +177,7 @@ export default function YourYutosScreen() {
                     key={g.id}
                     group={g}
                     onClick={() => navigate(`/yuto/${g.id}`)}
+                    onDelete={() => handleDelete(g.id)}
                   />
                 ))}
               </div>
