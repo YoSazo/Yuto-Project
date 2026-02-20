@@ -118,7 +118,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto pb-28 px-5 pt-6">
+    <div className="flex flex-col min-h-full overflow-y-auto pb-36 px-5 pt-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
@@ -171,7 +171,7 @@ export default function HomeScreen() {
       </div>
 
       {/* Global Leaderboard */}
-      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden mb-6">
         <div className="px-4 py-3 border-b border-gray-100">
           <p className="font-bold text-black">🏆 Watu Pesa | Kenya Leaderboard</p>
           <p className="text-xs text-gray-400 mt-0.5">Ranked by KSH paid</p>
@@ -186,7 +186,7 @@ export default function HomeScreen() {
             return (
               <div
                 key={entry.user_id}
-                className={`flex items-center gap-3 px-4 py-4 border-b border-gray-50 last:border-0 last:pb-5 ${isMe ? "bg-green-50" : ""}`}
+                className={`flex items-center gap-3 px-4 py-4 border-b border-gray-50 last:border-0 ${isMe ? "bg-green-50" : ""}`}
               >
                 {/* Rank */}
                 <div className="w-8 text-center font-bold text-sm">
