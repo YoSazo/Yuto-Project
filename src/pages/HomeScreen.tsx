@@ -297,7 +297,8 @@ export default function HomeScreen() {
                 const canYutoIt = isMine && plan.amount && plan.plan_members.length > 0;
 
                 return (
-                  <div key={plan.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                  <div key={plan.id}>
+                  <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                     {/* Creator */}
                     <div className="flex items-center gap-2 mb-3">
                       <UserAvatar name={plan.creator.display_name} avatarUrl={plan.creator.avatar_url} size="sm" />
@@ -360,7 +361,6 @@ export default function HomeScreen() {
                       )}
                     </div>
                   </div>
-
                   {/* Thread updates */}
                   {((planUpdates[plan.id] || []).length > 0 || isMine) && (
                     <div className="ml-4 mt-1">
@@ -413,7 +413,7 @@ export default function HomeScreen() {
                       )}
                     </div>
                   )}
-                </div>
+                  </div>
               );
             })}
           </div>
