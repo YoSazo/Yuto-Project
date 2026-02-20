@@ -435,7 +435,7 @@ export default function HomeScreen() {
       {/* Floating compose button */}
       <button
         onClick={() => setShowCompose(true)}
-        className="fixed bottom-24 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
+        className="fixed bottom-36 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
       >
         <span className="text-lg">+</span> Post a Plan
       </button>
