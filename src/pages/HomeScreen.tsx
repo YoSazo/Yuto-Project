@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
@@ -31,6 +32,7 @@ interface BrokestEntry {
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<LeaderEntry[]>([]);
   const [myRank, setMyRank] = useState<number | null>(null);
   const [myTotalPaid, setMyTotalPaid] = useState(0);
@@ -186,7 +188,8 @@ export default function HomeScreen() {
             return (
               <div
                 key={entry.user_id}
-                className={`flex items-center gap-3 px-4 py-4 border-b border-gray-50 last:border-0 ${isMe ? "bg-green-50" : ""}`}
+                onClick={() => navigate(`/user/${entry.username}`)}
+                className={`flex items-center gap-3 px-4 py-4 border-b border-gray-50 last:border-0 cursor-pointer active:bg-gray-50 transition-colors ${isMe ? "bg-green-50" : ""}`}
               >
                 {/* Rank */}
                 <div className="w-8 text-center font-bold text-sm">
