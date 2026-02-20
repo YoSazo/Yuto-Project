@@ -21,13 +21,21 @@ interface GroupEntry {
   created_at: string;
 }
 
+interface BrokestEntry {
+  user_id: string;
+  display_name: string;
+  username: string;
+  avatar_url: string | null;
+  total_paid: number;
+}
+
 export default function HomeScreen() {
   const { user } = useAuth();
   const [leaderboard, setLeaderboard] = useState<LeaderEntry[]>([]);
   const [myRank, setMyRank] = useState<number | null>(null);
   const [myTotalPaid, setMyTotalPaid] = useState(0);
   const [bestGroup, setBestGroup] = useState<GroupEntry | null>(null);
-  const [brokestGroup, setBrokestGroup] = useState<GroupEntry | null>(null);
+  const [brokest, setBrokest] = useState<BrokestEntry | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,13 +63,24 @@ export default function HomeScreen() {
           setMyRank(myEntry.rank);
           setMyTotalPaid(myEntry.total_paid);
         }
+        // Brokest person — last on the leaderboard with at least some activity
+        const withActivity = ranked.filter((e: any) => e.total_paid > 0);
+        if (withActivity.length > 0) {
+          const last = withActivity[withActivity.length - 1];
+          setBrokest({
+            user_id: last.user_id,
+            display_name: last.display_name,
+            username: last.username,
+            avatar_url: last.avatar_url,
+            total_paid: last.total_paid,
+          });
+        }
       }
 
       // Best group — highest total_amount completed
       const { data: bestGroups } = await supabase
-        .from("groups")
-        .select("id, name, total_amount, created_at, group_members(count)")
-        .eq("status", "completed")
+        .from("public_groups")
+        .select("id, name, total_amount, created_at, member_count")
         .order("total_amount", { ascending: false })
         .limit(1);
 
@@ -71,29 +90,11 @@ export default function HomeScreen() {
           id: g.id,
           name: g.name,
           total_amount: g.total_amount,
-          member_count: (g.group_members as any)?.[0]?.count || 0,
+          member_count: g.member_count || 0,
           created_at: g.created_at,
         });
       }
 
-      // Brokest group — lowest total_amount completed
-      const { data: brokeGroups } = await supabase
-        .from("groups")
-        .select("id, name, total_amount, created_at, group_members(count)")
-        .eq("status", "completed")
-        .order("total_amount", { ascending: true })
-        .limit(1);
-
-      if (brokeGroups && brokeGroups.length > 0) {
-        const g = brokeGroups[0];
-        setBrokestGroup({
-          id: g.id,
-          name: g.name,
-          total_amount: g.total_amount,
-          member_count: (g.group_members as any)?.[0]?.count || 0,
-          created_at: g.created_at,
-        });
-      }
     } catch (err) {
       console.error("Failed to load home data:", err);
     } finally {
@@ -153,12 +154,15 @@ export default function HomeScreen() {
             <p className="text-gray-400 text-xs">{bestGroup.member_count} people</p>
           </div>
         )}
-        {brokestGroup && (
+        {brokest && (
           <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-            <p className="text-gray-500 font-bold text-xs mb-2">💸 Brokest Group</p>
-            <p className="font-bold text-black text-sm truncate">{brokestGroup.name}</p>
-            <p className="text-gray-600 font-bold text-lg">KSH {brokestGroup.total_amount.toLocaleString()}</p>
-            <p className="text-gray-400 text-xs">{brokestGroup.member_count} people</p>
+            <p className="text-gray-500 font-bold text-xs mb-2">💸 Brokest</p>
+            <div className="flex items-center gap-2 mb-1">
+              <UserAvatar name={brokest.display_name} avatarUrl={brokest.avatar_url} size="sm" />
+              <p className="font-bold text-black text-sm truncate">{brokest.display_name}</p>
+            </div>
+            <p className="text-gray-600 font-bold text-lg">KSH {brokest.total_paid.toLocaleString()}</p>
+            <p className="text-gray-400 text-xs">@{brokest.username}</p>
           </div>
         )}
       </div>
