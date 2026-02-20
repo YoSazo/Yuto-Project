@@ -186,7 +186,7 @@ export default function HomeScreen() {
             return (
               <div
                 key={entry.user_id}
-                className={`flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0 ${isMe ? "bg-green-50" : ""}`}
+                className={`flex items-center gap-3 px-4 py-4 border-b border-gray-50 last:border-0 last:pb-5 ${isMe ? "bg-green-50" : ""}`}
               >
                 {/* Rank */}
                 <div className="w-8 text-center font-bold text-sm">
