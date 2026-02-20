@@ -48,7 +48,7 @@ function PersonIcon({ color }: { color: string }) {
 const tabs: { id: NavTab; label: string; path: string; Icon: typeof CarIcon }[] = [
   { id: "split", label: "Split", path: "/split", Icon: SplitIcon },
   { id: "fareshare", label: "Rides", path: "/fareshare", Icon: CarIcon },
-  { id: "activity", label: "Activity", path: "/activity", Icon: ClockIcon },
+  { id: "activity", label: "Yuto's", path: "/activity", Icon: ClockIcon },
   { id: "profile", label: "Profile", path: "/profile", Icon: PersonIcon },
 ];
 
