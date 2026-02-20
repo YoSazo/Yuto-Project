@@ -37,47 +37,20 @@ export default function HomeScreen() {
 
   const loadData = async () => {
     try {
-      // Get global leaderboard — sum of per_person paid per user across completed groups
-      const { data: members } = await supabase
-        .from("group_members")
-        .select("user_id, has_paid, groups(per_person, status), profiles(id, display_name, username, avatar_url)")
-        .eq("has_paid", true);
+      // Kenyan Leaderboard — use public view that bypasses RLS
+      const { data: board } = await supabase
+        .from("leaderboard")
+        .select("user_id, display_name, username, avatar_url, total_paid")
+        .order("total_paid", { ascending: false })
+        .limit(50);
 
-      if (members) {
-        // Aggregate by user
-        const userTotals = new Map<string, { display_name: string; username: string; avatar_url: string | null; total: number }>();
-        members.forEach((m: any) => {
-          if (!m.profiles || !m.groups) return;
-          const uid = m.user_id;
-          const perPerson = m.groups.per_person || 0;
-          const existing = userTotals.get(uid);
-          if (existing) {
-            existing.total += perPerson;
-          } else {
-            userTotals.set(uid, {
-              display_name: m.profiles.display_name,
-              username: m.profiles.username,
-              avatar_url: m.profiles.avatar_url,
-              total: perPerson,
-            });
-          }
-        });
-
-        // Sort and rank
-        const sorted = Array.from(userTotals.entries())
-          .sort((a, b) => b[1].total - a[1].total)
-          .map(([uid, data], i) => ({
-            user_id: uid,
-            display_name: data.display_name,
-            username: data.username,
-            avatar_url: data.avatar_url,
-            total_paid: data.total,
-            rank: i + 1,
-          }));
-
-        setLeaderboard(sorted.slice(0, 10));
-
-        const myEntry = sorted.find((e) => e.user_id === user!.id);
+      if (board) {
+        const ranked = board.map((entry: any, i: number) => ({
+          ...entry,
+          rank: i + 1,
+        }));
+        setLeaderboard(ranked.slice(0, 10));
+        const myEntry = ranked.find((e: any) => e.user_id === user!.id);
         if (myEntry) {
           setMyRank(myEntry.rank);
           setMyTotalPaid(myEntry.total_paid);
@@ -85,40 +58,40 @@ export default function HomeScreen() {
       }
 
       // Best group — highest total_amount completed
-      const { data: groups } = await supabase
+      const { data: bestGroups } = await supabase
         .from("groups")
         .select("id, name, total_amount, created_at, group_members(count)")
         .eq("status", "completed")
         .order("total_amount", { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (groups) {
+      if (bestGroups && bestGroups.length > 0) {
+        const g = bestGroups[0];
         setBestGroup({
-          id: groups.id,
-          name: groups.name,
-          total_amount: groups.total_amount,
-          member_count: (groups.group_members as any)?.[0]?.count || 0,
-          created_at: groups.created_at,
+          id: g.id,
+          name: g.name,
+          total_amount: g.total_amount,
+          member_count: (g.group_members as any)?.[0]?.count || 0,
+          created_at: g.created_at,
         });
       }
 
-      // Brokest group — lowest total_amount completed with at least 2 members
+      // Brokest group — lowest total_amount completed
       const { data: brokeGroups } = await supabase
         .from("groups")
         .select("id, name, total_amount, created_at, group_members(count)")
         .eq("status", "completed")
         .order("total_amount", { ascending: true })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (brokeGroups) {
+      if (brokeGroups && brokeGroups.length > 0) {
+        const g = brokeGroups[0];
         setBrokestGroup({
-          id: brokeGroups.id,
-          name: brokeGroups.name,
-          total_amount: brokeGroups.total_amount,
-          member_count: (brokeGroups.group_members as any)?.[0]?.count || 0,
-          created_at: brokeGroups.created_at,
+          id: g.id,
+          name: g.name,
+          total_amount: g.total_amount,
+          member_count: (g.group_members as any)?.[0]?.count || 0,
+          created_at: g.created_at,
         });
       }
     } catch (err) {
@@ -154,7 +127,7 @@ export default function HomeScreen() {
       {/* My Rank Card */}
       <div className="bg-black rounded-2xl p-5 mb-5 flex items-center justify-between">
         <div>
-          <p className="text-white/60 text-sm mb-1">Your global rank</p>
+          <p className="text-white/60 text-sm mb-1">Your Kenyan rank</p>
           <p className="text-white font-bold text-4xl">
             {myRank ? getRankEmoji(myRank) : "—"}
           </p>
@@ -193,7 +166,7 @@ export default function HomeScreen() {
       {/* Global Leaderboard */}
       <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100">
-          <p className="font-bold text-black">🏆 Global Leaderboard</p>
+          <p className="font-bold text-black">🏆 Kenyan Leaderboard</p>
           <p className="text-xs text-gray-400 mt-0.5">Ranked by KSH paid</p>
         </div>
         {leaderboard.length === 0 ? (
