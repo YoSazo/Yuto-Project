@@ -156,13 +156,16 @@ export default function HomeScreen() {
         )}
         {brokest && (
           <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-            <p className="text-gray-500 font-bold text-xs mb-2">💸 Brokest</p>
+            <p className="text-gray-500 font-bold text-xs mb-2">💸 Watu Broke</p>
             <div className="flex items-center gap-2 mb-1">
               <UserAvatar name={brokest.display_name} avatarUrl={brokest.avatar_url} size="sm" />
               <p className="font-bold text-black text-sm truncate">{brokest.display_name}</p>
             </div>
             <p className="text-gray-600 font-bold text-lg">KSH {brokest.total_paid.toLocaleString()}</p>
             <p className="text-gray-400 text-xs">@{brokest.username}</p>
+            <span className="inline-block mt-2 text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+              Tumeshangaa this brokeness 😭
+            </span>
           </div>
         )}
       </div>
@@ -170,7 +173,7 @@ export default function HomeScreen() {
       {/* Global Leaderboard */}
       <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100">
-          <p className="font-bold text-black">🏆 Kenyan Leaderboard</p>
+          <p className="font-bold text-black">🏆 Watu Pesa | Kenya Leaderboard</p>
           <p className="text-xs text-gray-400 mt-0.5">Ranked by KSH paid</p>
         </div>
         {leaderboard.length === 0 ? (
@@ -199,9 +202,11 @@ export default function HomeScreen() {
 
                 {/* Name */}
                 <div className="flex-1 min-w-0">
-                  <p className={`font-semibold text-sm truncate ${isMe ? "text-green-700" : "text-black"}`}>
-                    {entry.display_name} {isMe && "(you)"}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className={`font-semibold text-sm truncate ${isMe ? "text-green-700" : "text-black"}`}>
+                      {entry.display_name} {isMe && "(you)"}
+                    </p>
+                  </div>
                   <p className="text-xs text-gray-400">@{entry.username}</p>
                 </div>
 
