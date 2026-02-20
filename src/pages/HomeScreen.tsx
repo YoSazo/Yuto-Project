@@ -367,11 +367,8 @@ export default function HomeScreen() {
                       {(planUpdates[plan.id] || []).map((update) => (
                         <div key={update.id} className="flex gap-2 mt-2">
                           <div className="flex flex-col items-center w-5 flex-shrink-0">
-                            <div className="w-px bg-gray-200 h-3" />
-                            <div className="flex w-full">
-                              <div className="w-px bg-gray-200 h-3" />
-                              <div className="h-px bg-gray-200 flex-1 mt-3" />
-                            </div>
+                            <div className="w-px bg-gray-200 h-4" />
+                            <div className="w-3 h-3 border-l border-b border-gray-200 rounded-bl-md" />
                           </div>
                           <div className="flex-1 pb-2">
                             <div className="flex items-start gap-2">
