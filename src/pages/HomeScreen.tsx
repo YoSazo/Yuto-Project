@@ -198,17 +198,22 @@ export default function HomeScreen() {
         <span className="text-2xl font-bold text-black">Home</span>
       </div>
 
-      {/* Tab switcher */}
-      <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
+      {/* Tab switcher with sliding pill */}
+      <div className="relative flex bg-gray-100 rounded-2xl p-1 mb-6">
+        {/* Sliding pill */}
+        <div
+          className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-transform duration-300 ease-in-out"
+          style={{ transform: activeTab === "friends" ? "translateX(0px)" : "translateX(calc(100% + 8px))" }}
+        />
         <button
           onClick={() => setActiveTab("friends")}
-          className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === "friends" ? "bg-white text-black shadow-sm" : "text-gray-400"}`}
+          className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "friends" ? "text-black" : "text-gray-400"}`}
         >
           Plans 📋
         </button>
         <button
           onClick={() => setActiveTab("leaderboard")}
-          className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === "leaderboard" ? "bg-white text-black shadow-sm" : "text-gray-400"}`}
+          className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "leaderboard" ? "text-black" : "text-gray-400"}`}
         >
           Leaderboard 🏆
         </button>
@@ -430,9 +435,9 @@ export default function HomeScreen() {
       {/* Floating compose button */}
       <button
         onClick={() => setShowCompose(true)}
-        className="fixed bottom-24 right-5 w-14 h-14 bg-black text-white rounded-full shadow-lg flex items-center justify-center text-2xl z-40 hover:bg-gray-800 transition-colors"
+        className="fixed bottom-24 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
       >
-        +
+        <span className="text-lg">+</span> Post a Plan
       </button>
     </div>
   );
