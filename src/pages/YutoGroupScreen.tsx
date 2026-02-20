@@ -148,9 +148,11 @@ function PayNowModal({
 // Modal for creator to pay driver after all have paid (Buy Goods / PayBill / Phone)
 function PayDriverModal({
   amount,
+  title = "Pay Driver",
   onClose,
 }: {
   amount: number;
+  title?: string;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<PaymentTab>("phone");
@@ -208,7 +210,7 @@ function PayDriverModal({
         {step === "input" || step === "error" ? (
           <>
             <div className="flex justify-between items-center mb-2">
-              <h2 className="font-bold text-xl text-black">Pay Driver</h2>
+              <h2 className="font-bold text-xl text-black">{title}</h2>
               <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer">✕</button>
             </div>
             <p className="text-center text-sm text-gray-500 mb-5">
@@ -272,7 +274,7 @@ function PayDriverModal({
                 isValid() ? "bg-black text-white hover:bg-gray-800" : "bg-gray-200 text-gray-400 cursor-not-allowed"
               }`}
             >
-              Pay Driver KSH {amount.toLocaleString()}
+              {title} KSH {amount.toLocaleString()}
             </button>
           </>
         ) : step === "sending" ? (
@@ -873,6 +875,7 @@ export default function YutoGroupScreen() {
       {showPayDriverModal && (
         <PayDriverModal
           amount={totalAmount}
+          title={groupType === "single" && groupName !== "Fare Share" ? "Pay Now" : "Pay Driver"}
           onClose={() => setShowPayDriverModal(false)}
         />
       )}
