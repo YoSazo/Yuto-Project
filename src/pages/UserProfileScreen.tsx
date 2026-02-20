@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, sendFriendRequest, getFriends } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
+import { Scissors } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -220,7 +221,7 @@ export default function UserProfileScreen() {
             onClick={() => navigate("/split")}
             className="w-full py-4 rounded-full font-bold text-base bg-white border-2 border-gray-200 text-black hover:border-black transition-colors tap-scale cursor-pointer"
           >
-            Split with {profile.display_name.split(" ")[0]} ✂️
+            <span className="flex items-center justify-center gap-2"><Scissors size={16} /> Split with {profile.display_name.split(" ")[0]}</span>
           </button>
         </div>
       )}
