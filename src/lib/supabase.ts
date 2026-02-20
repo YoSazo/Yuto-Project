@@ -268,7 +268,6 @@ export async function getPlans(userId: string) {
       creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url),
       plan_members(id, user_id, profiles(id, username, display_name, avatar_url))
     `)
-    .eq("status", "open")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
