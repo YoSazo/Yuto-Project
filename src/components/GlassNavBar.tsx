@@ -165,17 +165,18 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
           const isLit = i === visualIndex;
           const color = isLit ? "#fff" : "#9ca3af";
 
-          // Water lens magnification — calculate proximity of pill center to this tab center
-          const pillCenter = isDragging
-            ? dragLeft + getPillWidth() / 2
-            : (activeIndex * 25 + 12.5) / 100 * (containerRef.current?.getBoundingClientRect().width || 0);
-          const tabCenter = containerRef.current
-            ? (i * 25 + 12.5) / 100 * containerRef.current.getBoundingClientRect().width
-            : 0;
-          const distance = Math.abs(pillCenter - tabCenter);
-          const maxDist = containerRef.current ? containerRef.current.getBoundingClientRect().width / 4 : 80;
-          const proximity = Math.max(0, 1 - distance / maxDist);
-          const scale = 1 + proximity * 0.35;
+          // Water lens magnification — only active during drag
+          let scale = 1;
+          if (isDragging) {
+            const pillCenter = dragLeft + getPillWidth() / 2;
+            const tabCenter = containerRef.current
+              ? (i * 25 + 12.5) / 100 * containerRef.current.getBoundingClientRect().width
+              : 0;
+            const distance = Math.abs(pillCenter - tabCenter);
+            const maxDist = containerRef.current ? containerRef.current.getBoundingClientRect().width / 4 : 80;
+            const proximity = Math.max(0, 1 - distance / maxDist);
+            scale = 1 + proximity * 0.35;
+          }
 
           return (
             <button
