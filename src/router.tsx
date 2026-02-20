@@ -12,6 +12,7 @@ import WelcomeScreen from "./pages/WelcomeScreen";
 import WaitlistThanksScreen from "./pages/WaitlistThanksScreen";
 import JoinGroupScreen from "./pages/JoinGroupScreen";
 import InviteScreen from "./pages/InviteScreen";
+import UserProfileScreen from "./pages/UserProfileScreen";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthScreen /> },
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { path: "/friends", element: <FriendsScreen /> },
       { path: "/yuto/:groupId", element: <YutoGroupScreen /> },
       { path: "/yuto/:groupId/chat", element: <YutoChatScreen /> },
+      { path: "/user/:username", element: <UserProfileScreen /> },
     ],
   },
 ]);
