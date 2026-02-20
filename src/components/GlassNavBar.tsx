@@ -107,12 +107,22 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
     [isDragging]
   );
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!isDragging) return;
-    const snapIndex = getHoverIndex();
     setIsDragging(false);
-    if (tabs[snapIndex].id !== activeTab) {
-      navigate(tabs[snapIndex].path);
+    const moved = Math.abs(e.clientX - dragStart.current.pointerX);
+    if (moved < 8) {
+      // Treat as a click — find which tab was tapped
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const clickedIndex = Math.min(3, Math.max(0, Math.floor(x / (rect.width / 4))));
+      navigate(tabs[clickedIndex].path);
+    } else {
+      const snapIndex = getHoverIndex();
+      if (tabs[snapIndex].id !== activeTab) {
+        navigate(tabs[snapIndex].path);
+      }
     }
   }, [isDragging, getHoverIndex, activeTab, navigate]);
 

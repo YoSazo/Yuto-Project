@@ -209,7 +209,7 @@ export async function getGroup(groupId: string) {
   const { data, error } = await supabase
     .from("groups")
     .select(
-      `*, group_members(id, user_id, has_joined, has_paid, ride_amount, profiles(id, username, display_name))`
+      `*, group_members(id, user_id, has_joined, has_paid, ride_amount, profiles(id, username, display_name, avatar_url))`
     )
     .eq("id", groupId)
     .single();
@@ -233,6 +233,29 @@ export async function markPaid(groupId: string, userId: string) {
     .eq("group_id", groupId)
     .eq("user_id", userId);
   if (error) throw error;
+}
+
+// ─── Avatar Upload ────────────────────────────────────
+
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop();
+  const path = `${userId}/avatar.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+  const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ avatar_url: avatarUrl })
+    .eq("id", userId);
+  if (updateError) throw updateError;
+
+  return avatarUrl;
 }
 
 // ─── Push Notifications ──────────────────────────────

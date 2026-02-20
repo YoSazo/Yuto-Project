@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { getFriends, getMyGroups, getPendingRequests } from "../lib/supabase";
+import { getFriends, getMyGroups, getPendingRequests, uploadAvatar } from "../lib/supabase";
+import UserAvatar from "../components/UserAvatar";
 
 function ChevronRight() {
   return (
@@ -62,6 +63,23 @@ export default function ProfileScreen() {
   const { user, profile, signOut } = useAuth();
   const [stats, setStats] = useState({ totalYutos: 0, totalSpent: 0, friendsCount: 0 });
   const [pendingCount, setPendingCount] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(true);
+    try {
+      const url = await uploadAvatar(user.id, file);
+      setAvatarUrl(url);
+    } catch (err) {
+      console.error("Failed to upload avatar:", err);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -103,8 +121,27 @@ export default function ProfileScreen() {
           className="absolute top-3 right-3 w-8 h-8 object-contain opacity-40"
         />
         <div className="flex items-center gap-5">
-          <div className="w-[72px] h-[72px] rounded-full bg-black flex items-center justify-center text-white font-bold text-3xl flex-shrink-0">
-            {userName.charAt(0)}
+          {/* Avatar with + upload button */}
+          <div className="relative flex-shrink-0">
+            <UserAvatar name={userName} avatarUrl={avatarUrl} size="xl" />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute bottom-0 right-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm cursor-pointer"
+            >
+              {uploading ? (
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span className="text-white text-sm font-bold leading-none">+</span>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
           </div>
           <div>
             <p className="font-bold text-xl text-black">{userName}</p>

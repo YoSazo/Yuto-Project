@@ -8,6 +8,7 @@ import {
   sendFriendRequest,
   respondToFriendRequest,
 } from "../lib/supabase";
+import UserAvatar from "../components/UserAvatar";
 
 interface ProfileResult {
   id: string;
@@ -130,9 +131,7 @@ export default function FriendsScreen() {
                 className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-3"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-bold text-sm">
-                    {p.display_name.charAt(0)}
-                  </div>
+                  <UserAvatar name={p.display_name} avatarUrl={p.avatar_url} size="sm" />
                   <div>
                     <p className="font-semibold text-sm text-black">{p.display_name}</p>
                     <p className="text-xs text-gray-400">@{p.username}</p>
@@ -168,9 +167,7 @@ export default function FriendsScreen() {
                 className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-3"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-sm text-gray-600">
-                    {req.requester.display_name.charAt(0)}
-                  </div>
+                  <UserAvatar name={req.requester.display_name} avatarUrl={req.requester.avatar_url} size="sm" />
                   <div>
                     <p className="font-semibold text-sm text-black">
                       {req.requester.display_name}
@@ -213,9 +210,7 @@ export default function FriendsScreen() {
                 key={f.id}
                 className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3"
               >
-                <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-bold text-sm">
-                  {f.display_name.charAt(0)}
-                </div>
+                <UserAvatar name={f.display_name} avatarUrl={f.avatar_url} size="sm" />
                 <div>
                   <p className="font-semibold text-sm text-black">{f.display_name}</p>
                   <p className="text-xs text-gray-400">@{f.username}</p>

@@ -96,7 +96,7 @@ function YutoCard({ group, onClick, onDelete }: { group: GroupData; onClick: () 
               key={i}
               className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600"
             >
-              {m.profiles.display_name.charAt(0)}
+              {m.profiles.display_name.charAt(0).toUpperCase()}
             </div>
           ))}
           {members.length > 4 && (

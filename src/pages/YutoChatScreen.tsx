@@ -146,8 +146,12 @@ export default function YutoChatScreen() {
                   className={`flex items-end gap-2.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}
                 >
                   {!isMe && (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
-                      {msg.profiles?.display_name?.charAt(0) || "?"}
+                    <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0 overflow-hidden">
+                      {(msg.profiles as any)?.avatar_url ? (
+                        <img src={(msg.profiles as any).avatar_url} alt={msg.profiles?.display_name} className="w-full h-full object-cover" />
+                      ) : (
+                        msg.profiles?.display_name?.charAt(0)?.toUpperCase() || "?"
+                      )}
                     </div>
                   )}
                   <div className="flex flex-col gap-1">
