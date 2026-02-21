@@ -14,11 +14,20 @@ if (!existsSync(mascot)) {
 }
 
 const sizes = [192, 512];
+const mascotScale = 0.65; // Mascot fills 65% of frame, leaving space around
 
 await Promise.all(
   sizes.map(async (size) => {
     const out = join(publicDir, `icon-${size}.png`);
-    await sharp(mascot).resize(size, size).png().toFile(out);
+    const inner = Math.round(size * mascotScale);
+    const offset = Math.round((size - inner) / 2);
+    const resizedMascot = await sharp(mascot).resize(inner, inner).toBuffer();
+    await sharp({
+      create: { width: size, height: size, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+    })
+      .composite([{ input: resizedMascot, top: offset, left: offset }])
+      .png()
+      .toFile(out);
     console.log(`Generated ${out}`);
   })
 );
