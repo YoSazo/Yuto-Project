@@ -14,14 +14,22 @@ export default function AuthScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      const redirect = sessionStorage.getItem("joinAfterAuth");
-      if (redirect) {
-        sessionStorage.removeItem("joinAfterAuth");
-        navigate(redirect, { replace: true });
-      } else {
-        navigate("/split", { replace: true });
-      }
+    if (!user) return;
+    const redirect = sessionStorage.getItem("joinAfterAuth");
+    if (redirect) {
+      sessionStorage.removeItem("joinAfterAuth");
+      navigate(redirect, { replace: true });
+      return;
+    }
+    const showPwaPrompt = sessionStorage.getItem("showPwaPrompt");
+    sessionStorage.removeItem("showPwaPrompt");
+    const isStandalone =
+      (navigator as { standalone?: boolean }).standalone ||
+      window.matchMedia("(display-mode: standalone)").matches;
+    if (showPwaPrompt === "1" && !isStandalone) {
+      navigate("/add-to-home", { replace: true });
+    } else {
+      navigate("/home", { replace: true });
     }
   }, [user, navigate]);
 
@@ -45,10 +53,10 @@ export default function AuthScreen() {
     try {
       if (mode === "signup") {
         await signUp(username, password, displayName);
+        sessionStorage.setItem("showPwaPrompt", "1");
       } else {
         await signIn(username, password);
       }
-      navigate("/split");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       if (msg.includes("Invalid login")) {
