@@ -8,7 +8,3 @@ create policy "Anyone can view plans" on plans
 drop policy if exists "Friends can view plan updates" on plan_updates;
 create policy "Anyone can view plan updates" on plan_updates
   for select using (true);
-
--- Realtime for plans (if not already added)
-alter publication supabase_realtime add table plans;
-alter publication supabase_realtime add table plan_members;
