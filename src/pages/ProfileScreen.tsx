@@ -58,10 +58,10 @@ function MenuItem({
 }
 
 const STAT_POSITIONS = [
-  { id: "splits", angle: -Math.PI / 2, label: "Splits" },
-  { id: "paid", angle: 0, label: "KSH Paid" },
-  { id: "friends", angle: Math.PI / 2, label: "Friends" },
-  { id: "plans", angle: Math.PI, label: "Plans" },
+  { id: "splits", angle: -2.4, label: "Splits" },
+  { id: "paid", angle: -0.7, label: "KSH Paid" },
+  { id: "friends", angle: 2.4, label: "Friends" },
+  { id: "plans", angle: 0.7, label: "Plans" },
 ];
 
 export default function ProfileScreen() {
@@ -118,8 +118,8 @@ export default function ProfileScreen() {
   const userHandle = profile?.username ? `@${profile.username}` : "";
 
   const cx = 190;
-  const cy = 200;
-  const nodeRadius = 130;
+  const cy = 190;
+  const nodeRadius = 125;
 
   return (
     <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
@@ -128,10 +128,10 @@ export default function ProfileScreen() {
       </div>
 
       {/* Radial graph — YutoGroupScreen inspired */}
-      <div className="relative w-full max-w-[380px] mx-auto flex-shrink-0 min-h-[380px]">
+      <div className="relative w-full max-w-[380px] mx-auto flex-shrink-0" style={{ height: 380 }}>
         <svg
           className="absolute inset-0 w-full h-full"
-          viewBox="0 0 380 400"
+          viewBox="0 0 380 380"
           preserveAspectRatio="xMidYMid meet"
           style={{ zIndex: 1 }}
         >
@@ -166,9 +166,14 @@ export default function ProfileScreen() {
         <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 10 }}>
           <div className="relative">
             <div
-              className={`w-[100px] h-[100px] rounded-full flex items-center justify-center overflow-hidden border-[3px] transition-colors ${
-                stats.totalSpent > 0 ? "border-green-500 shadow-lg shadow-green-500/20" : "border-gray-300"
+              className={`w-[100px] h-[100px] rounded-full flex items-center justify-center overflow-hidden border-[3px] transition-all ${
+                stats.totalSpent > 0 ? "border-green-500" : "border-gray-300"
               }`}
+              style={
+                stats.totalSpent > 0
+                  ? { boxShadow: "0 0 0 6px rgba(34,197,94,0.2), 0 0 0 14px rgba(34,197,94,0.08)" }
+                  : {}
+              }
             >
               <UserAvatar name={userName} avatarUrl={avatarUrl} size="xl" className="!w-full !h-full" />
             </div>
@@ -220,7 +225,7 @@ export default function ProfileScreen() {
                     : "bg-white border border-gray-200 shadow-sm"
                 }`}
               >
-                <p className={`font-bold text-xl ${isPaid ? "text-green-400" : "text-black"}`}>
+                <p className={`font-extrabold text-xl font-syne ${isPaid ? "text-green-400" : "text-black"}`}>
                   {value}
                 </p>
                 <p className={`text-xs mt-0.5 ${isPaid ? "text-white/70" : "text-gray-400"}`}>
