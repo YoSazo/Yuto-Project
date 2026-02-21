@@ -1,7 +1,7 @@
 {
-  "name": "Yuto - Split Rides Fairly",
+  "name": "Yuto - Pay Together",
   "short_name": "Yuto",
-  "description": "Split ride fares fairly with friends using M-PESA",
+  "description": "Pay together with friends using M-PESA",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

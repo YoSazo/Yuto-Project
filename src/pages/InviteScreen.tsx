@@ -89,7 +89,7 @@ export default function InviteScreen() {
       <h1 className="text-2xl font-black mb-1">{profile?.display_name}</h1>
       <p className="text-gray-400 mb-2">@{profile?.username}</p>
       <p className="text-gray-500 mb-8">
-        wants to split rides with you on <span className="font-bold text-black">Yuto</span>
+        wants to pay together with you on <span className="font-bold text-black">Yuto</span>
       </p>
 
       {/* CTA */}

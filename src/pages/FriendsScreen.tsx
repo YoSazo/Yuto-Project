@@ -93,7 +93,7 @@ export default function FriendsScreen() {
           onClick={() => {
             const link = `${window.location.origin}/invite/${profile?.username || ""}`;
             if (navigator.share) {
-              navigator.share({ title: "Join me on Yuto!", text: "Split rides fairly with me on Yuto 🚗", url: link });
+              navigator.share({ title: "Join me on Yuto!", text: "Pay together with me on Yuto 🚗", url: link });
             } else {
               navigator.clipboard.writeText(link);
               setToast("Invite link copied!");
