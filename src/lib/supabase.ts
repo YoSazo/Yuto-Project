@@ -260,17 +260,41 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
 
 // ─── Plans ───────────────────────────────────────────
 
-export async function getPlans(userId: string) {
+const PLANS_SELECT = `
+  *,
+  creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url),
+  plan_members(id, user_id, profiles(id, username, display_name, avatar_url))
+`;
+
+/** All plans (public tab) */
+export async function getPlansPublic() {
   const { data, error } = await supabase
     .from("plans")
-    .select(`
-      *,
-      creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url),
-      plan_members(id, user_id, profiles(id, username, display_name, avatar_url))
-    `)
+    .select(PLANS_SELECT)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
+}
+
+/** Plans from you and your friends (friends tab) */
+export async function getPlansFriends(userId: string) {
+  const friends = await getFriends(userId);
+  const friendIds = friends.map((f: { requester_id: string; addressee_id: string }) =>
+    f.requester_id === userId ? f.addressee_id : f.requester_id
+  );
+  const creatorIds = [userId, ...friendIds];
+  const { data, error } = await supabase
+    .from("plans")
+    .select(PLANS_SELECT)
+    .in("creator_id", creatorIds)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+/** @deprecated Use getPlansPublic or getPlansFriends */
+export async function getPlans(userId: string) {
+  return getPlansFriends(userId);
 }
 
 export async function createPlan(
