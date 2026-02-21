@@ -137,27 +137,42 @@ export default function ProfileScreen() {
         >
           <circle cx={cx} cy={cy} r="85" fill="none" stroke="#f0f0f0" strokeWidth="1" />
           <circle
-            cx={cx} cy={cy} r="135"
+            cx={cx}
+            cy={cy}
+            r="135"
             fill="none"
             stroke="#f0f0f0"
             strokeWidth="1"
             strokeDasharray="4 6"
+            style={{ animation: "orbitSpin 60s linear infinite", transformOrigin: "190px 190px" }}
           />
-          {/* Connection lines from center to stat nodes */}
+          {/* Connection ropes — curved with flowing dashes */}
           {STAT_POSITIONS.map((pos, i) => {
             const nx = cx + Math.cos(pos.angle) * nodeRadius;
             const ny = cy + Math.sin(pos.angle) * nodeRadius;
-            const pathD = `M ${cx} ${cy} L ${nx} ${ny}`;
+            const midX = (cx + nx) / 2;
+            const midY = (cy + ny) / 2;
+            const perpX = -Math.sin(pos.angle) * 25;
+            const perpY = Math.cos(pos.angle) * 25;
+            const cpX = midX + perpX;
+            const cpY = midY + perpY;
+            const pathD = `M ${cx} ${cy} Q ${cpX} ${cpY} ${nx} ${ny}`;
             return (
-              <path
-                key={pos.id}
-                d={pathD}
-                fill="none"
-                stroke="#e5e7eb"
-                strokeWidth="1.5"
-                strokeDasharray="6 4"
-                strokeLinecap="round"
-              />
+              <g key={pos.id}>
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke="#d1d5db"
+                  strokeWidth="2"
+                  strokeDasharray="7 5"
+                  strokeLinecap="round"
+                  className="graph-line-flowing"
+                />
+                <circle r="3.5" fill="#5493b3" opacity="0.7">
+                  <animateMotion dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} path={pathD} />
+                  <animate attributeName="opacity" values="0;0.8;0.8;0" dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} />
+                </circle>
+              </g>
             );
           })}
         </svg>
