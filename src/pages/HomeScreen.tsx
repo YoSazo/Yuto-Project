@@ -2,26 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getPlans, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates } from "../lib/supabase";
+import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
-import { Trash2, Flame, Trophy, TrendingDown, ClipboardList, Rocket, UserCheck, Send } from "lucide-react";
-
-interface LeaderboardEntry {
-  user_id: string;
-  display_name: string;
-  username: string;
-  avatar_url: string | null;
-  total_paid: number;
-  rank: number;
-}
-
-interface BrokestEntry {
-  user_id: string;
-  display_name: string;
-  username: string;
-  avatar_url: string | null;
-  total_paid: number;
-}
+import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe } from "lucide-react";
 
 interface PlanMember {
   id: string;
@@ -65,14 +48,8 @@ interface Plan {
 export default function HomeScreen() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"friends" | "leaderboard">("friends");
+  const [activeTab, setActiveTab] = useState<"public" | "friends">("public");
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [myRank, setMyRank] = useState<number | null>(null);
-  const [myTotalPaid, setMyTotalPaid] = useState(0);
-  const [brokest, setBrokest] = useState<BrokestEntry | null>(null);
-  const [bestGroupName, setBestGroupName] = useState<string | null>(null);
-  const [bestGroupTotal, setBestGroupTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Compose state
@@ -89,9 +66,8 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!user) return;
-    loadData();
+    loadPlans();
 
-    // Realtime for plans
     const channel = supabase
       .channel("plans-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "plans" }, () => loadPlans())
@@ -99,15 +75,17 @@ export default function HomeScreen() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, activeTab]);
 
   const loadPlans = async () => {
     if (!user) return;
+    setLoading(true);
     try {
-      const data = await getPlans(user.id);
+      const data = activeTab === "public"
+        ? await getPlansPublic()
+        : await getPlansFriends(user.id);
       const planList = (data as Plan[]) || [];
       setPlans(planList);
-      // Load updates for all plans
       const updatesMap: Record<string, PlanUpdate[]> = {};
       await Promise.all(planList.map(async (plan) => {
         try {
@@ -117,6 +95,7 @@ export default function HomeScreen() {
       }));
       setPlanUpdates(updatesMap);
     } catch { /* ignore */ }
+    setLoading(false);
   };
 
   const handlePostUpdate = async (planId: string) => {
@@ -145,40 +124,6 @@ export default function HomeScreen() {
       await loadPlans();
     } catch (err) { console.error(err); }
     setPostingUpdate((prev) => ({ ...prev, [planId]: false }));
-  };
-
-  const loadData = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      await loadPlans();
-
-      // Leaderboard
-      const { data: board } = await supabase.from("leaderboard").select("*");
-      if (board) {
-        const ranked = board.map((entry: any, i: number) => ({ ...entry, rank: i + 1 }));
-        setLeaderboard(ranked.slice(0, 10));
-        const myEntry = ranked.find((e: any) => e.user_id === user.id);
-        if (myEntry) { setMyRank(myEntry.rank); setMyTotalPaid(myEntry.total_paid); }
-        const withActivity = ranked.filter((e: any) => e.total_paid > 0);
-        if (withActivity.length > 0) {
-          const last = withActivity[withActivity.length - 1];
-          setBrokest({ user_id: last.user_id, display_name: last.display_name, username: last.username, avatar_url: last.avatar_url, total_paid: last.total_paid });
-        }
-      }
-
-      // Best group
-      const { data: bestGroups } = await supabase
-        .from("public_groups")
-        .select("id, name, total_amount")
-        .order("total_amount", { ascending: false })
-        .limit(1);
-      if (bestGroups && bestGroups.length > 0) {
-        setBestGroupName(bestGroups[0].name);
-        setBestGroupTotal(bestGroups[0].total_amount);
-      }
-    } catch { /* ignore */ }
-    setLoading(false);
   };
 
   const handlePost = async () => {
@@ -230,21 +175,6 @@ export default function HomeScreen() {
     } catch (err) { console.error(err); }
   };
 
-  const getMedal = (rank: number) => {
-    if (rank === 1) return "🥇";
-    if (rank === 2) return "🥈";
-    if (rank === 3) return "🥉";
-    return `#${rank}`;
-  };
-
-  const getRankEmoji = (rank: number | null) => {
-    if (!rank) return "🏅";
-    if (rank === 1) return "🥇";
-    if (rank === 2) return "🥈";
-    if (rank === 3) return "🥉";
-    return `#${rank}`;
-  };
-
   return (
     <div className="flex flex-col min-h-full overflow-y-auto pb-36 px-5 pt-6">
       {/* Header */}
@@ -253,32 +183,31 @@ export default function HomeScreen() {
         <span className="text-2xl font-bold text-black">Home</span>
       </div>
 
-      {/* Tab switcher with sliding pill */}
+      {/* Tab switcher */}
       <div className="relative flex bg-gray-100 rounded-2xl p-1 mb-6">
-        {/* Sliding pill */}
         <div
           className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-transform duration-300 ease-in-out"
-          style={{ transform: activeTab === "friends" ? "translateX(0px)" : "translateX(calc(100% + 8px))" }}
+          style={{ transform: activeTab === "public" ? "translateX(0px)" : "translateX(calc(100% + 8px))" }}
         />
+        <button
+          onClick={() => setActiveTab("public")}
+          className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "public" ? "text-black" : "text-gray-400"}`}
+        >
+          <span className="flex items-center justify-center gap-1.5">
+            <Globe size={14} /> Public
+          </span>
+        </button>
         <button
           onClick={() => setActiveTab("friends")}
           className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "friends" ? "text-black" : "text-gray-400"}`}
         >
           <span className="flex items-center justify-center gap-1.5">
-            <ClipboardList size={14} /> Plans
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveTab("leaderboard")}
-          className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "leaderboard" ? "text-black" : "text-gray-400"}`}
-        >
-          <span className="flex items-center justify-center gap-1.5">
-            <Trophy size={14} /> Leaderboard
+            <Users size={14} /> Friends
           </span>
         </button>
       </div>
 
-      {activeTab === "friends" ? (
+      {/* Plans board — same for both tabs */}
         <>
           {/* Plans board */}
           {loading ? (
@@ -288,8 +217,12 @@ export default function HomeScreen() {
           ) : plans.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <ClipboardList size={48} className="text-gray-300 mb-3" />
-              <p className="font-bold text-black text-lg">The board is empty</p>
-              <p className="text-gray-400 text-sm mt-1">Post a plan and see who's in</p>
+              <p className="font-bold text-black text-lg">
+                {activeTab === "public" ? "No plans yet" : "No plans from friends yet"}
+              </p>
+              <p className="text-gray-400 text-sm mt-1">
+                {activeTab === "public" ? "Be the first to post one!" : "Add friends to see their plans here"}
+              </p>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -418,76 +351,6 @@ export default function HomeScreen() {
           </div>
         )}
         </>
-      ) : (
-        <>
-          {/* Your rank card */}
-          <div className="bg-black rounded-2xl p-5 mb-5">
-            <p className="text-white/60 text-sm mb-1">Your Kenyan rank</p>
-            <div className="flex items-center justify-between">
-              <span className="text-4xl">{getRankEmoji(myRank)}</span>
-              <div className="text-right">
-                <p className="text-white/60 text-xs">Total paid</p>
-                <p className="text-green-400 font-bold text-2xl">KSH {myTotalPaid.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Best group + Watu Broke */}
-          <div className="flex gap-3 mb-5">
-            {bestGroupName && (
-              <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                <p className="text-gray-500 font-bold text-xs mb-2 flex items-center gap-1"><Flame size={12} /> Most Active</p>
-                <p className="font-bold text-black text-sm truncate">{bestGroupName}</p>
-                <p className="text-gray-600 font-bold text-lg">KSH {bestGroupTotal?.toLocaleString()}</p>
-              </div>
-            )}
-            {brokest && (
-              <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                <p className="text-gray-500 font-bold text-xs mb-2 flex items-center gap-1"><TrendingDown size={12} /> Watu Broke</p>
-                <div className="flex items-center gap-2 mb-1">
-                  <UserAvatar name={brokest.display_name} avatarUrl={brokest.avatar_url} size="sm" />
-                  <p className="font-bold text-black text-sm truncate">{brokest.display_name}</p>
-                </div>
-                <p className="text-gray-600 font-bold text-lg">KSH {brokest.total_paid.toLocaleString()}</p>
-                <p className="text-gray-400 text-xs">@{brokest.username}</p>
-                <span className="inline-block mt-2 text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-                  Tumeshangaa this brokeness 😭
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Kenyan Leaderboard */}
-          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden mb-6">
-            <div className="px-4 py-4 border-b border-gray-50">
-              <p className="font-bold text-black flex items-center gap-2"><Trophy size={16} /> Watu Pesa | Kenya Leaderboard</p>
-              <p className="text-xs text-gray-400 mt-0.5">Ranked by KSH paid</p>
-            </div>
-            {leaderboard.map((entry) => {
-              const isMe = entry.user_id === user?.id;
-              return (
-                <div
-                  key={entry.user_id}
-                  onClick={() => navigate(`/user/${entry.username}`)}
-                  className={`flex items-center gap-3 px-4 py-4 border-b border-gray-50 last:border-0 cursor-pointer active:bg-gray-50 transition-colors ${isMe ? "bg-green-50" : ""}`}
-                >
-                  <span className="text-lg w-8 text-center">{getMedal(entry.rank)}</span>
-                  <UserAvatar name={entry.display_name} avatarUrl={entry.avatar_url} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-semibold text-sm truncate ${isMe ? "text-green-700" : "text-black"}`}>
-                      {entry.display_name} {isMe && "(you)"}
-                    </p>
-                    <p className="text-xs text-gray-400">@{entry.username}</p>
-                  </div>
-                  <p className={`font-bold text-sm ${isMe ? "text-green-600" : "text-black"}`}>
-                    KSH {entry.total_paid.toLocaleString()}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
 
       {/* Compose sheet */}
       {showCompose && (
@@ -540,14 +403,12 @@ export default function HomeScreen() {
       )}
 
       {/* Floating compose button */}
-      {activeTab === "friends" && (
-        <button
+      <button
           onClick={() => setShowCompose(true)}
           className="fixed bottom-36 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
         >
           <Send size={16} /> Post a Plan
         </button>
-      )}
     </div>
   );
 }
