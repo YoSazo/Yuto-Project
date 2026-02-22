@@ -62,6 +62,7 @@ export default function HomeScreen() {
   const [planImageFile, setPlanImageFile] = useState<File | null>(null);
   const [planImagePreview, setPlanImagePreview] = useState<string | null>(null);
   const [isPosting, setIsPosting] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
   const planImageInputRef = useRef<HTMLInputElement>(null);
 
   // Plan updates state
@@ -149,10 +150,17 @@ export default function HomeScreen() {
   const handlePost = async () => {
     if (!planTitle.trim() || !user) return;
     setIsPosting(true);
+    setPostError(null);
     try {
       let imageUrl: string | null = null;
       if (planImageFile) {
-        imageUrl = await uploadPlanImage(user.id, planImageFile);
+        try {
+          imageUrl = await uploadPlanImage(user.id, planImageFile);
+        } catch (uploadErr) {
+          console.error("Image upload failed:", uploadErr);
+          setPostError("Couldn't upload image — posting without it.");
+          imageUrl = null;
+        }
       }
       await createPlan(
         user.id,
@@ -165,10 +173,13 @@ export default function HomeScreen() {
       setPlanAmount("");
       setPlanSlots("");
       clearPlanImage();
+      setPostError(null);
       setShowCompose(false);
       await loadPlans();
     } catch (err) {
       console.error(err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setPostError(msg || "Failed to post plan. Try again.");
     }
     setIsPosting(false);
   };
@@ -279,8 +290,8 @@ export default function HomeScreen() {
 
                     {/* Image */}
                     {plan.image_url && (
-                      <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 aspect-video max-h-48">
-                        <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
+                      <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 max-h-64 flex items-center justify-center">
+                        <img src={plan.image_url} alt="" className="w-full h-auto max-h-64 object-contain" />
                       </div>
                     )}
 
@@ -402,6 +413,7 @@ export default function HomeScreen() {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => {
               setShowCompose(false);
+              setPostError(null);
               clearPlanImage();
             }}
           />
@@ -420,8 +432,8 @@ export default function HomeScreen() {
             {/* Image picker */}
             <div className="mb-4">
               {planImagePreview ? (
-                <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-video max-h-40">
-                  <img src={planImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <div className="relative rounded-2xl overflow-hidden bg-gray-100 max-h-48 flex items-center justify-center">
+                  <img src={planImagePreview} alt="Preview" className="w-full h-auto max-h-48 object-contain" />
                   <button
                     type="button"
                     onClick={clearPlanImage}
@@ -472,6 +484,9 @@ export default function HomeScreen() {
               </div>
             </div>
 
+            {postError && (
+              <p className="mb-3 text-sm text-red-600">{postError}</p>
+            )}
             <button
               onClick={handlePost}
               disabled={!planTitle.trim() || isPosting}
