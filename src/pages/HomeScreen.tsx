@@ -438,8 +438,12 @@ export default function HomeScreen() {
             {/* Image picker */}
             <div className="mb-4">
               {planImagePreview ? (
-                <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-video max-h-40">
-                  <img src={planImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <div className="relative rounded-2xl overflow-hidden bg-gray-100 flex items-center justify-center">
+                  <img
+                    src={planImagePreview}
+                    alt="Preview"
+                    className="max-w-full max-h-64 w-auto h-auto object-contain"
+                  />
                   <button
                     type="button"
                     onClick={clearPlanImage}
