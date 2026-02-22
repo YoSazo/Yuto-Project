@@ -178,8 +178,14 @@ export default function HomeScreen() {
       await loadPlans();
     } catch (err) {
       console.error(err);
-      const msg = err instanceof Error ? err.message : String(err);
-      setPostError(msg || "Failed to post plan. Try again.");
+      let msg: string =
+        (err as { message?: string })?.message ||
+        (err as { error?: { message?: string } })?.error?.message ||
+        (err instanceof Error ? err.message : null) ||
+        (typeof err === "string" ? err : null) ||
+        "";
+      if (!msg || msg === "[object Object]") msg = "Failed to post plan. Try again.";
+      setPostError(msg);
     }
     setIsPosting(false);
   };
