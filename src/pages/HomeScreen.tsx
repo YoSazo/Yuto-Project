@@ -296,8 +296,12 @@ export default function HomeScreen() {
 
                     {/* Image */}
                     {plan.image_url && (
-                      <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 aspect-video max-h-64">
-                        <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
+                      <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 w-full">
+                        <img
+                          src={plan.image_url}
+                          alt=""
+                          className="block w-full h-auto"
+                        />
                       </div>
                     )}
 
