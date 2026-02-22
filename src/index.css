@@ -24,6 +24,36 @@
   animation: modalSlideUp 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* Compose modal: bouncy slide-up with spring overshoot */
+@keyframes composeSheetUp {
+  from {
+    transform: translateY(100%) scale(0.96);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(-2%) scale(1.01);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.compose-sheet-up {
+  animation: composeSheetUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Backdrop fade for compose */
+@keyframes backdropFadeIn {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(4px); }
+}
+
+.compose-backdrop-in {
+  animation: backdropFadeIn 0.25s ease-out forwards;
+}
+
 /* Fade in */
 @keyframes fadeIn {
   from { opacity: 0; }

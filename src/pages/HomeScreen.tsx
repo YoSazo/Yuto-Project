@@ -296,8 +296,12 @@ export default function HomeScreen() {
 
                     {/* Image */}
                     {plan.image_url && (
-                      <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 aspect-video max-h-48">
-                        <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
+                      <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img
+                          src={plan.image_url}
+                          alt=""
+                          className="max-w-full max-h-80 w-auto h-auto object-contain"
+                        />
                       </div>
                     )}
 
@@ -416,14 +420,14 @@ export default function HomeScreen() {
       {showCompose && (
         <div className="fixed inset-0 z-50 flex items-end">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm compose-backdrop-in"
             onClick={() => {
               setShowCompose(false);
               setPostError(null);
               clearPlanImage();
             }}
           />
-          <div className="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10 max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10 max-h-[90vh] overflow-y-auto compose-sheet-up">
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
             <p className="font-bold text-xl text-black mb-4">Post a Plan</p>
 
