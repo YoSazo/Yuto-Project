@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates } from "../lib/supabase";
+import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates, uploadPlanImage } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
-import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe } from "lucide-react";
+import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe, ImagePlus, X } from "lucide-react";
 
 interface PlanMember {
   id: string;
@@ -34,6 +34,8 @@ interface Plan {
   title: string;
   amount: number | null;
   slots: number | null;
+  image_url: string | null;
+  yuto_group_id: string | null;
   created_at: string;
   status: string;
   creator: {
@@ -57,7 +59,10 @@ export default function HomeScreen() {
   const [planTitle, setPlanTitle] = useState("");
   const [planAmount, setPlanAmount] = useState("");
   const [planSlots, setPlanSlots] = useState("");
+  const [planImageFile, setPlanImageFile] = useState<File | null>(null);
+  const [planImagePreview, setPlanImagePreview] = useState<string | null>(null);
   const [isPosting, setIsPosting] = useState(false);
+  const planImageInputRef = useRef<HTMLInputElement>(null);
 
   // Plan updates state
   const [planUpdates, setPlanUpdates] = useState<Record<string, PlanUpdate[]>>({});
@@ -126,17 +131,40 @@ export default function HomeScreen() {
     setPostingUpdate((prev) => ({ ...prev, [planId]: false }));
   };
 
+  const handlePlanImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    setPlanImageFile(file);
+    const url = URL.createObjectURL(file);
+    setPlanImagePreview(url);
+  };
+
+  const clearPlanImage = () => {
+    setPlanImageFile(null);
+    if (planImagePreview) URL.revokeObjectURL(planImagePreview);
+    setPlanImagePreview(null);
+    planImageInputRef.current?.focus();
+  };
+
   const handlePost = async () => {
     if (!planTitle.trim() || !user) return;
     setIsPosting(true);
     try {
+      let imageUrl: string | null = null;
+      if (planImageFile) {
+        imageUrl = await uploadPlanImage(user.id, planImageFile);
+      }
       await createPlan(
         user.id,
         planTitle.trim(),
         planAmount ? parseInt(planAmount) : null,
-        planSlots ? parseInt(planSlots) : null
+        planSlots ? parseInt(planSlots) : null,
+        imageUrl
       );
-      setPlanTitle(""); setPlanAmount(""); setPlanSlots("");
+      setPlanTitle("");
+      setPlanAmount("");
+      setPlanSlots("");
+      clearPlanImage();
       setShowCompose(false);
       await loadPlans();
     } catch (err) {
@@ -249,6 +277,13 @@ export default function HomeScreen() {
                       )}
                     </div>
 
+                    {/* Image */}
+                    {plan.image_url && (
+                      <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 aspect-video max-h-48">
+                        <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
                     {/* Title */}
                     <p className="font-bold text-black text-lg mb-2">{plan.title}</p>
 
@@ -286,7 +321,15 @@ export default function HomeScreen() {
                           onClick={() => handleJoin(plan)}
                           className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${isMember ? "bg-gray-100 text-gray-600" : "bg-black text-white"}`}
                         >
-                          {isMember ? "Leave" : <span className="flex items-center justify-center gap-1.5"><UserCheck size={15} /> I'm in</span>}
+                          {isMember ? "Leave" : <span className="flex items-center justify-center gap-1.5"><UserCheck size={15} /> I&apos;m in</span>}
+                        </button>
+                      )}
+                      {allIn && plan.yuto_group_id && isMember && (
+                        <button
+                          onClick={() => navigate(`/yuto/${plan.yuto_group_id}`)}
+                          className="flex-1 py-2.5 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
+                        >
+                          <span className="flex items-center justify-center gap-1.5"><Rocket size={15} /> Join Yuto</span>
                         </button>
                       )}
                       {canYutoIt && (
@@ -355,8 +398,14 @@ export default function HomeScreen() {
       {/* Compose sheet */}
       {showCompose && (
         <div className="fixed inset-0 z-50 flex items-end">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowCompose(false)} />
-          <div className="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => {
+              setShowCompose(false);
+              clearPlanImage();
+            }}
+          />
+          <div className="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10 max-h-[90vh] overflow-y-auto">
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
             <p className="font-bold text-xl text-black mb-4">Post a Plan</p>
 
@@ -367,6 +416,38 @@ export default function HomeScreen() {
               className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors mb-3"
               maxLength={200}
             />
+
+            {/* Image picker */}
+            <div className="mb-4">
+              {planImagePreview ? (
+                <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-video max-h-40">
+                  <img src={planImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={clearPlanImage}
+                    className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => planImageInputRef.current?.click()}
+                  className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
+                >
+                  <ImagePlus size={20} />
+                  <span className="text-sm font-medium">Add photo</span>
+                </button>
+              )}
+              <input
+                ref={planImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePlanImageChange}
+              />
+            </div>
 
             <div className="flex gap-3 mb-4">
               <div className="flex-1">

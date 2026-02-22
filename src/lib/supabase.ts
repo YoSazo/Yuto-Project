@@ -258,6 +258,19 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
   return avatarUrl;
 }
 
+export async function uploadPlanImage(creatorId: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${creatorId}/${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("plan-images")
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from("plan-images").getPublicUrl(path);
+  return `${data.publicUrl}?t=${Date.now()}`;
+}
+
 // ─── Plans ───────────────────────────────────────────
 
 const PLANS_SELECT = `
@@ -301,11 +314,12 @@ export async function createPlan(
   creatorId: string,
   title: string,
   amount: number | null,
-  slots: number | null
+  slots: number | null,
+  imageUrl?: string | null
 ) {
   const { data, error } = await supabase
     .from("plans")
-    .insert({ creator_id: creatorId, title, amount, slots })
+    .insert({ creator_id: creatorId, title, amount, slots, image_url: imageUrl || null })
     .select()
     .single();
   if (error) throw error;
