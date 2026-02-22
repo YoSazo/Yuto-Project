@@ -296,8 +296,8 @@ export default function HomeScreen() {
 
                     {/* Image */}
                     {plan.image_url && (
-                      <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 max-h-64 flex items-center justify-center">
-                        <img src={plan.image_url} alt="" className="w-full h-auto max-h-64 object-contain" />
+                      <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 aspect-video max-h-48">
+                        <img src={plan.image_url} alt="" className="w-full h-full object-cover" />
                       </div>
                     )}
 
@@ -438,8 +438,8 @@ export default function HomeScreen() {
             {/* Image picker */}
             <div className="mb-4">
               {planImagePreview ? (
-                <div className="relative rounded-2xl overflow-hidden bg-gray-100 max-h-48 flex items-center justify-center">
-                  <img src={planImagePreview} alt="Preview" className="w-full h-auto max-h-48 object-contain" />
+                <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-video max-h-40">
+                  <img src={planImagePreview} alt="Preview" className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={clearPlanImage}
