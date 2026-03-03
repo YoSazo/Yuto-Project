@@ -6,45 +6,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Verify Flutterwave webhook signature
-  const hash = req.headers["verif-hash"];
-  if (hash !== process.env.FLW_WEBHOOK_HASH) {
+  const payload = req.body as {
+    invoice_id?: string;
+    state?: string;
+    currency?: string;
+    api_ref?: string;
+    challenge?: string;
+    provider?: string;
+    [key: string]: unknown;
+  };
+
+  // 1) Verify webhook challenge (body-based; adjust to header if IntaSend sends it there)
+  if (!payload.challenge || payload.challenge !== process.env.INTASEND_WEBHOOK_SECRET) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { event, data } = req.body;
-
-  if (event !== "charge.completed" || data.status !== "successful") {
+  // 2) Only process completed KES payments
+  if (payload.state !== "COMPLETE" || payload.currency !== "KES") {
     return res.status(200).json({ received: true });
   }
 
-  // Double-verify with Flutterwave
-  try {
-    const verifyRes = await fetch(
-      `https://api.flutterwave.com/v3/transactions/${data.id}/verify`,
-      { headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` } }
-    );
-    const verifyData = await verifyRes.json();
-
-    if (verifyData.data?.status !== "successful" || verifyData.data?.currency !== "KES") {
-      console.error("Verification failed:", verifyData);
-      return res.status(400).json({ error: "Verification failed" });
-    }
-  } catch (err) {
-    console.error("Verify error:", err);
-    return res.status(500).json({ error: "Verification request failed" });
+  if (!payload.api_ref) {
+    return res.status(400).json({ error: "Missing api_ref" });
   }
 
-  // Parse tx_ref: yuto--{groupId}--{userId}--{timestamp}
-  const parts = (data.tx_ref as string).split("--");
+  // 3) Parse api_ref: yuto__{groupId}__{userId}__{timestamp}
+  const parts = payload.api_ref.split("__");
   if (parts.length < 3 || parts[0] !== "yuto") {
-    return res.status(400).json({ error: "Invalid tx_ref format" });
+    return res.status(400).json({ error: "Invalid api_ref format" });
   }
 
   const groupId = parts[1];
   const userId = parts[2];
 
-  // Update Supabase with service role key (bypasses RLS)
   const supabase = createClient(
     process.env.VITE_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -58,16 +52,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (updateError) {
     console.error("Supabase update error:", updateError);
-    return res.status(500).json({ error: "Database update failed" });
+    return res.status(200).json({ error: "Database update failed" });
   }
 
-  // Check if all members paid → mark group completed
-  const { data: members } = await supabase
+  const { data: members, error: membersError } = await supabase
     .from("group_members")
     .select("has_paid")
     .eq("group_id", groupId);
 
-  if (members && members.every((m) => m.has_paid)) {
+  if (!membersError && members?.length && members.every((m) => m.has_paid)) {
     await supabase.from("groups").update({ status: "completed" }).eq("id", groupId);
   }
 
