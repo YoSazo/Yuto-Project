@@ -23,14 +23,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         Authorization: `Bearer ${process.env.INTASEND_SECRET_KEY!}`,
       },
       body: JSON.stringify({
-        method: "MPESA_STK_PUSH",
-        amount: Number(amount),
-        currency: "KES",
-        phone_number,
-        email: `${user_id}@yuto.app`,
-        api_ref,
-        host: "https://yuto-project.vercel.app",
         public_key: process.env.INTASEND_PUBLISHABLE_KEY,
+        currency: "KES",
+        method: "M-PESA",
+        amount: Number(amount),
+        phone_number,
+        api_ref,
+        name: "Yuto User",
+        email: "pay@yuto.app",
       }),
     });
 
