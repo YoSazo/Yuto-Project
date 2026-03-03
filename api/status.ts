@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const INTASEND_BASE = process.env.INTASEND_HOST || "https://payment.intasend.com";
+const INTASEND_BASE = process.env.INTASEND_HOST || "https://sandbox.intasend.com";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
