@@ -36,18 +36,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const data = (await response.json()) as {
       invoice_id?: string;
+      invoice?: { invoice_id?: string };
       detail?: string;
       message?: string;
       [key: string]: unknown;
     };
 
-    if (response.ok && data.invoice_id) {
+    const invoiceId = data.invoice_id ?? data.invoice?.invoice_id;
+
+    if (response.ok && invoiceId) {
       return res.status(200).json({
         success: true,
-        invoice_id: data.invoice_id,
+        invoice_id: invoiceId,
         api_ref,
         message: "Check your phone for the M-PESA PIN prompt",
       });
+    }
+
+    // Log so Vercel logs show why charge failed (IntaSend status + body)
+    if (!response.ok) {
+      console.error("IntaSend charge non-OK:", response.status, JSON.stringify(data));
+    } else {
+      console.error("IntaSend charge OK but no invoice_id in response:", JSON.stringify(data));
     }
 
     return res.status(400).json({
