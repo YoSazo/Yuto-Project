@@ -51,15 +51,18 @@ function PayNowModal({
   groupId,
   userId,
   onClose,
+  onRefreshStatus,
 }: {
   amount: number;
   groupId: string;
   userId: string;
   onClose: () => void;
+  onRefreshStatus?: () => void;
 }) {
   const [phone, setPhone] = useState("254");
   const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">("input");
   const [error, setError] = useState("");
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
 
   const handlePay = async () => {
     if (phone.length < 12) {
@@ -76,6 +79,7 @@ function PayNowModal({
       });
       const data = await res.json();
       if (data.success) {
+        if (data.invoice_id) setInvoiceId(data.invoice_id);
         setStep("waiting");
       } else {
         setError(data.message || "Failed to initiate payment");
@@ -138,6 +142,15 @@ function PayNowModal({
             <p className="font-bold text-lg text-black mb-2">Check your phone</p>
             <p className="text-sm text-gray-500">Enter your M-PESA PIN to complete payment</p>
             <p className="text-xs text-gray-400 mt-6">This will close automatically once confirmed</p>
+            {onRefreshStatus && (
+              <button
+                type="button"
+                onClick={onRefreshStatus}
+                className="mt-4 text-sm text-gray-500 underline hover:text-black"
+              >
+                I already paid — refresh
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -460,37 +473,31 @@ export default function YutoGroupScreen() {
     if (youPaid && showPayModal) setShowPayModal(false);
   }, [youPaid, showPayModal]);
 
-  // Polling fallback: if modal is open, poll every 3s directly on group_members to check has_paid
+  // Single fallback check 30s after pay modal opens (webhook is primary; this catches late delivery)
+  const refetchPaymentStatus = async () => {
+    if (!groupId || !user) return;
+    try {
+      const { data, error } = await supabase
+        .from("group_members")
+        .select("has_paid")
+        .eq("group_id", groupId)
+        .eq("user_id", user.id)
+        .single();
+      if (!error && data?.has_paid) {
+        setMembers((prev) =>
+          prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: true } : m))
+        );
+        setShowPayModal(false);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     if (!showPayModal || !groupId || !user) return;
-    let cancelled = false;
-
-    const poll = async () => {
-      while (!cancelled) {
-        await new Promise((r) => setTimeout(r, 3000));
-        if (cancelled) break;
-        try {
-          const { data, error } = await supabase
-            .from("group_members")
-            .select("has_paid")
-            .eq("group_id", groupId)
-            .eq("user_id", user.id)
-            .single();
-          if (!error && data?.has_paid) {
-            setMembers((prev) =>
-              prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: true } : m))
-            );
-            setShowPayModal(false);
-            break;
-          }
-        } catch {
-          // silently ignore poll errors
-        }
-      }
-    };
-
-    poll();
-    return () => { cancelled = true; };
+    const t = setTimeout(refetchPaymentStatus, 30000);
+    return () => clearTimeout(t);
   }, [showPayModal, groupId, user]);
 
   const handlePayShare = () => setShowPayModal(true);
@@ -868,6 +875,7 @@ export default function YutoGroupScreen() {
           groupId={groupId}
           userId={user.id}
           onClose={() => setShowPayModal(false)}
+          onRefreshStatus={refetchPaymentStatus}
         />
       )}
 

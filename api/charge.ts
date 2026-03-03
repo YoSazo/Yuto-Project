@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+const INTASEND_BASE = process.env.INTASEND_HOST || "https://payment.intasend.com";
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -11,41 +13,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const tx_ref = `yuto--${group_id}--${user_id}--${Date.now()}`;
+  const api_ref = `yuto__${group_id}__${user_id}__${Date.now()}`;
 
   try {
-    const response = await fetch("https://api.flutterwave.com/v3/charges?type=mpesa", {
+    const response = await fetch(`${INTASEND_BASE}/api/v1/payment/collection/`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`,
         "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.INTASEND_SECRET_KEY!}`,
       },
       body: JSON.stringify({
-        tx_ref,
-        amount: String(amount),
+        method: "MPESA_STK_PUSH",
+        amount: Number(amount),
         currency: "KES",
         phone_number,
         email: `${user_id}@yuto.app`,
-        fullname: "Yuto User",
+        api_ref,
+        host: "https://yuto-project.vercel.app",
+        public_key: process.env.INTASEND_PUBLISHABLE_KEY,
       }),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      invoice_id?: string;
+      detail?: string;
+      message?: string;
+      [key: string]: unknown;
+    };
 
-    if (data.status === "success") {
+    if (response.ok && data.invoice_id) {
       return res.status(200).json({
         success: true,
-        tx_ref,
+        invoice_id: data.invoice_id,
+        api_ref,
         message: "Check your phone for the M-PESA PIN prompt",
       });
     }
 
     return res.status(400).json({
       success: false,
-      message: data.message || "Failed to initiate payment",
+      message: data.detail || data.message || "Failed to initiate payment",
     });
   } catch (err) {
-    console.error("Charge error:", err);
+    console.error("IntaSend charge error:", err);
     return res.status(500).json({ success: false, message: "Internal server error" });
   }
 }
