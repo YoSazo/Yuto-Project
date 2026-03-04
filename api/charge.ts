@@ -49,16 +49,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (response.ok && invoiceId) {
       // Persist invoice_id so webhook can map payment → group member even if api_ref is absent in webhook payload
       try {
-        const supabase = createClient(
-          process.env.VITE_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
-        const { error } = await supabase
-          .from("group_members")
-          .update({ payment_invoice_id: invoiceId, payment_api_ref: api_ref })
-          .eq("group_id", group_id)
-          .eq("user_id", user_id);
-        if (error) console.error("Failed to persist invoice_id on group_members:", error);
+        const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!supabaseUrl || !serviceRoleKey) {
+          console.error("Missing Supabase env for charge (need SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel)");
+        } else {
+          const supabase = createClient(supabaseUrl, serviceRoleKey);
+          const { error } = await supabase
+            .from("group_members")
+            .update({ payment_invoice_id: invoiceId, payment_api_ref: api_ref })
+            .eq("group_id", group_id)
+            .eq("user_id", user_id);
+          if (error) console.error("Failed to persist invoice_id on group_members:", error);
+        }
       } catch (err) {
         console.error("Failed to persist invoice_id on group_members:", err);
       }
