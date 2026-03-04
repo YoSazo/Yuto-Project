@@ -42,11 +42,10 @@ async function processIntaSendWebhook(payload: {
     if (parts.length >= 3 && parts[0] === "yuto") {
       groupId = parts[1];
       userId = parts[2];
-    } else {
-      throw new Error("Invalid api_ref format");
     }
-  } else if (payload.invoice_id) {
-    // Fallback: lookup by invoice_id (some IntaSend webhook payloads may omit api_ref)
+  }
+  if ((!groupId || !userId) && payload.invoice_id) {
+    // Fallback: lookup by invoice_id (when api_ref is missing or truncated)
     const { data: match, error: matchError } = await supabase
       .from("group_members")
       .select("group_id, user_id")
@@ -56,17 +55,19 @@ async function processIntaSendWebhook(payload: {
     if (!match) throw new Error("No group_members row matches payment_invoice_id");
     groupId = match.group_id;
     userId = match.user_id;
-  } else {
-    throw new Error("Missing api_ref and invoice_id");
+  }
+  if (!groupId || !userId) {
+    throw new Error("Missing api_ref (or valid parse) and invoice_id");
   }
 
   const { error: updateError } = await supabase
     .from("group_members")
     .update({ has_paid: true, paid_at: new Date().toISOString() })
-    .eq("group_id", groupId!)
-    .eq("user_id", userId!);
+    .eq("group_id", groupId)
+    .eq("user_id", userId);
 
   if (updateError) throw updateError;
+  console.log("Webhook: set has_paid=true for group_id=" + groupId + " user_id=" + userId);
 
   const { data: members, error: membersError } = await supabase
     .from("group_members")
