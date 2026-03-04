@@ -11,7 +11,10 @@ async function processIntaSendWebhook(payload: {
   [key: string]: unknown;
 }) {
   // 2) Only process completed KES payments
-  if (payload.state !== "COMPLETE" || payload.currency !== "KES") return;
+  // TEMP: sandbox test number often sends FAILED; treat as COMPLETE so we can test webhook → realtime → modal. Remove for live.
+  const state = payload.state;
+  if (payload.currency !== "KES") return;
+  if (state !== "COMPLETE" && state !== "FAILED") return;
 
   const supabase = createClient(
     process.env.VITE_SUPABASE_URL!,
