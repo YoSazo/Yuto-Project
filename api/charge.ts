@@ -59,30 +59,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const invoiceId = data.invoice_id ?? data.invoice?.invoice_id;
 
     if (response.ok && invoiceId) {
-      // Persist invoice_id so webhook can map payment → group member even if api_ref is absent in webhook payload
-      try {
-        const supabaseUrl =
-          process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (!supabaseUrl || !serviceRoleKey) {
-          console.error(
-            "Missing Supabase env for charge (need SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel)",
-          );
-        } else {
-          const supabase = createClient(supabaseUrl, serviceRoleKey);
-          const { error } = await supabase
-            .from("group_members")
-            .update({ payment_invoice_id: invoiceId, payment_api_ref: api_ref })
-            .eq("group_id", group_id)
-            .eq("user_id", user_id);
-          if (error)
+      // Persist invoice_id fire-and-forget — webhook fires 30-60s later so
+      // there is plenty of time. Don't await this so the client gets a response
+      // immediately after the IntaSend call, reducing "Network error" on slow
+      // mobile connections.
+      const supabaseUrl =
+        process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        console.error(
+          "Missing Supabase env for charge (need SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel)",
+        );
+      } else {
+        const supabase = createClient(supabaseUrl, serviceRoleKey);
+        supabase
+          .from("group_members")
+          .update({ payment_invoice_id: invoiceId, payment_api_ref: api_ref })
+          .eq("group_id", group_id)
+          .eq("user_id", user_id)
+          .then(({ error }) => {
+            if (error)
+              console.error(
+                "Failed to persist invoice_id on group_members:",
+                error,
+              );
+          })
+          .catch((err) => {
             console.error(
               "Failed to persist invoice_id on group_members:",
-              error,
+              err,
             );
-        }
-      } catch (err) {
-        console.error("Failed to persist invoice_id on group_members:", err);
+          });
       }
 
       return res.status(200).json({
