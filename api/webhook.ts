@@ -131,10 +131,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Respond immediately to prevent IntaSend timeouts/retries.
-    res.status(200).json({ ok: true });
-
-    // Do the DB work after responding (best-effort).
     console.log(
       "IntaSend webhook received:",
       JSON.stringify({
@@ -145,13 +141,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     );
 
-    void processIntaSendWebhook(payload).catch((err) => {
+    // Await DB work BEFORE responding — Vercel terminates the function as soon
+    // as the response is sent, so fire-and-forget will never complete.
+    try {
+      await processIntaSendWebhook(payload);
+    } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const cause = err instanceof Error && err.cause ? String(err.cause) : "";
       console.error("Webhook processing error:", msg, cause || "", err);
-    });
+    }
 
-    return;
+    return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("Webhook handler error:", err);
     // Always return a response even if something unexpected happens.
