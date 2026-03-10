@@ -11,7 +11,9 @@ function getSupabaseClient() {
       !SUPABASE_URL && "SUPABASE_URL or VITE_SUPABASE_URL",
       !SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY",
     ].filter(Boolean);
-    throw new Error(`Missing Supabase env in webhook: ${missing.join(", ")}. Use service role key (not anon) for server-side.`);
+    throw new Error(
+      `Missing Supabase env in webhook: ${missing.join(", ")}. Use service role key (not anon) for server-side.`,
+    );
   }
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 }
@@ -26,10 +28,9 @@ async function processIntaSendWebhook(payload: {
   [key: string]: unknown;
 }) {
   // 2) Only process completed KES payments
-  // TEMP: sandbox test number often sends FAILED; treat as COMPLETE so we can test webhook → realtime → modal. Remove for live.
   const state = payload.state;
   if (payload.currency !== "KES") return;
-  if (state !== "COMPLETE" && state !== "FAILED") return;
+  if (state !== "COMPLETE") return;
 
   const supabase = getSupabaseClient();
 
@@ -52,7 +53,8 @@ async function processIntaSendWebhook(payload: {
       .eq("payment_invoice_id", payload.invoice_id)
       .maybeSingle();
     if (matchError) throw matchError;
-    if (!match) throw new Error("No group_members row matches payment_invoice_id");
+    if (!match)
+      throw new Error("No group_members row matches payment_invoice_id");
     groupId = match.group_id;
     userId = match.user_id;
   }
@@ -67,7 +69,9 @@ async function processIntaSendWebhook(payload: {
     .eq("user_id", userId);
 
   if (updateError) throw updateError;
-  console.log("Webhook: set has_paid=true for group_id=" + groupId + " user_id=" + userId);
+  console.log(
+    "Webhook: set has_paid=true for group_id=" + groupId + " user_id=" + userId,
+  );
 
   const { data: members, error: membersError } = await supabase
     .from("group_members")
@@ -102,7 +106,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     // 1) Verify webhook challenge (body-based; adjust to header if IntaSend sends it there)
-    if (!payload.challenge || payload.challenge !== process.env.INTASEND_WEBHOOK_SECRET) {
+    if (
+      !payload.challenge ||
+      payload.challenge !== process.env.INTASEND_WEBHOOK_SECRET
+    ) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
@@ -112,7 +119,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Do the DB work after responding (best-effort).
     console.log(
       "IntaSend webhook received:",
-      JSON.stringify({ state: payload.state, currency: payload.currency, invoice_id: payload.invoice_id, api_ref: payload.api_ref })
+      JSON.stringify({
+        state: payload.state,
+        currency: payload.currency,
+        invoice_id: payload.invoice_id,
+        api_ref: payload.api_ref,
+      }),
     );
 
     void processIntaSendWebhook(payload).catch((err) => {
