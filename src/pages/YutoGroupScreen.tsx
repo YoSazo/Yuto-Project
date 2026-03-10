@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getGroup, joinGroup, submitRideAmount } from "../lib/supabase";
+import {
+  supabase,
+  getGroup,
+  joinGroup,
+  submitRideAmount,
+} from "../lib/supabase";
 
 interface Member {
   user_id: string;
@@ -16,7 +21,14 @@ interface Member {
 }
 
 function Confetti() {
-  const colors = ["#5493b3", "#FFD700", "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4"];
+  const colors = [
+    "#5493b3",
+    "#FFD700",
+    "#FF6B6B",
+    "#4ECDC4",
+    "#45B7D1",
+    "#96CEB4",
+  ];
   const pieces = Array.from({ length: 24 }, (_, i) => ({
     id: i,
     left: Math.random() * 100,
@@ -60,7 +72,9 @@ function PayNowModal({
   onRefreshStatus?: () => void;
 }) {
   const [phone, setPhone] = useState("254");
-  const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">("input");
+  const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">(
+    "input",
+  );
   const [error, setError] = useState("");
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
 
@@ -75,7 +89,12 @@ function PayNowModal({
       const res = await fetch("/api/charge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_number: phone, amount, group_id: groupId, user_id: userId }),
+        body: JSON.stringify({
+          phone_number: phone,
+          amount,
+          group_id: groupId,
+          user_id: userId,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -98,13 +117,23 @@ function PayNowModal({
           <>
             <div className="flex justify-between items-center mb-5">
               <h2 className="font-bold text-xl text-black">Pay with M-PESA</h2>
-              <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer">✕</button>
+              <button
+                onClick={onClose}
+                className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
             <p className="text-center text-sm text-gray-500 mb-5">
-              Amount: <span className="font-bold text-black">KSH {amount.toLocaleString()}</span>
+              Amount:{" "}
+              <span className="font-bold text-black">
+                KSH {amount.toLocaleString()}
+              </span>
             </p>
             <div className="mb-5">
-              <label className="text-xs text-gray-500 mb-1.5 block">M-PESA Phone Number</label>
+              <label className="text-xs text-gray-500 mb-1.5 block">
+                M-PESA Phone Number
+              </label>
               <input
                 type="tel"
                 value={phone}
@@ -113,35 +142,67 @@ function PayNowModal({
                 maxLength={12}
                 className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
               />
-              <p className="text-xs text-gray-400 mt-1.5 ml-2">Format: 254 followed by your number</p>
+              <p className="text-xs text-gray-400 mt-1.5 ml-2">
+                Format: 254 followed by your number
+              </p>
             </div>
-            {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
+            {error && (
+              <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+            )}
             <button
               onClick={handlePay}
               disabled={phone.length < 12}
               className={`w-full h-12 rounded-full font-bold text-base transition-colors ${
-                phone.length >= 12 ? "bg-black text-white hover:bg-gray-800" : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                phone.length >= 12
+                  ? "bg-black text-white hover:bg-gray-800"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
               }`}
             >
               Pay KSH {amount.toLocaleString()}
             </button>
+            {step === "error" && onRefreshStatus && (
+              <button
+                type="button"
+                onClick={onRefreshStatus}
+                className="mt-3 w-full text-sm text-gray-500 underline hover:text-black text-center"
+              >
+                Already paid? Check status
+              </button>
+            )}
           </>
         ) : step === "sending" ? (
           <div className="py-12 text-center">
             <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full mx-auto mb-4 animate-spin" />
-            <p className="font-bold text-lg text-black">Sending to your phone...</p>
+            <p className="font-bold text-lg text-black">
+              Sending to your phone...
+            </p>
           </div>
         ) : (
           <div className="py-12 text-center">
             <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
                 <line x1="12" y1="18" x2="12.01" y2="18" />
               </svg>
             </div>
-            <p className="font-bold text-lg text-black mb-2">Check your phone</p>
-            <p className="text-sm text-gray-500">Enter your M-PESA PIN to complete payment</p>
-            <p className="text-xs text-gray-400 mt-6">This will close automatically once confirmed</p>
+            <p className="font-bold text-lg text-black mb-2">
+              Check your phone
+            </p>
+            <p className="text-sm text-gray-500">
+              Enter your M-PESA PIN to complete payment
+            </p>
+            <p className="text-xs text-gray-400 mt-6">
+              This will close automatically once confirmed
+            </p>
             {onRefreshStatus && (
               <button
                 type="button"
@@ -173,13 +234,16 @@ function PayDriverModal({
   const [tillNumber, setTillNumber] = useState("");
   const [businessNo, setBusinessNo] = useState("");
   const [accountNo, setAccountNo] = useState("");
-  const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">("input");
+  const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">(
+    "input",
+  );
   const [error, setError] = useState("");
 
   const isValid = () => {
     if (tab === "phone") return phone.length >= 12;
     if (tab === "buygoods") return tillNumber.length >= 4;
-    if (tab === "paybill") return businessNo.length >= 4 && accountNo.length >= 1;
+    if (tab === "paybill")
+      return businessNo.length >= 4 && accountNo.length >= 1;
     return false;
   };
 
@@ -214,7 +278,9 @@ function PayDriverModal({
 
   const tabClass = (t: PaymentTab) =>
     `px-4 py-2 rounded-full text-sm font-semibold border transition-all cursor-pointer ${
-      tab === t ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
+      tab === t
+        ? "bg-black text-white border-black"
+        : "bg-white text-black border-gray-300"
     }`;
 
   return (
@@ -224,34 +290,66 @@ function PayDriverModal({
           <>
             <div className="flex justify-between items-center mb-2">
               <h2 className="font-bold text-xl text-black">{title}</h2>
-              <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer">✕</button>
+              <button
+                onClick={onClose}
+                className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
             <p className="text-center text-sm text-gray-500 mb-5">
-              Total: <span className="font-bold text-black">KSH {amount.toLocaleString()}</span>
+              Total:{" "}
+              <span className="font-bold text-black">
+                KSH {amount.toLocaleString()}
+              </span>
             </p>
             {/* Tabs */}
             <div className="flex gap-2 mb-5">
-              <button className={tabClass("buygoods")} onClick={() => setTab("buygoods")}>Buy Goods</button>
-              <button className={tabClass("paybill")} onClick={() => setTab("paybill")}>PayBill</button>
-              <button className={tabClass("phone")} onClick={() => setTab("phone")}>Phone</button>
+              <button
+                className={tabClass("buygoods")}
+                onClick={() => setTab("buygoods")}
+              >
+                Buy Goods
+              </button>
+              <button
+                className={tabClass("paybill")}
+                onClick={() => setTab("paybill")}
+              >
+                PayBill
+              </button>
+              <button
+                className={tabClass("phone")}
+                onClick={() => setTab("phone")}
+              >
+                Phone
+              </button>
             </div>
             {tab === "phone" && (
               <div className="mb-5">
-                <label className="text-xs text-gray-500 mb-1.5 block">Driver's M-PESA Number</label>
+                <label className="text-xs text-gray-500 mb-1.5 block">
+                  Driver's M-PESA Number
+                </label>
                 <input
-                  type="tel" value={phone}
+                  type="tel"
+                  value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                  placeholder="e.g. 254712345678" maxLength={12}
+                  placeholder="e.g. 254712345678"
+                  maxLength={12}
                   className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
                 />
               </div>
             )}
             {tab === "buygoods" && (
               <div className="mb-5">
-                <label className="text-xs text-gray-500 mb-1.5 block">Enter Till Number</label>
+                <label className="text-xs text-gray-500 mb-1.5 block">
+                  Enter Till Number
+                </label>
                 <input
-                  type="tel" value={tillNumber}
-                  onChange={(e) => setTillNumber(e.target.value.replace(/\D/g, ""))}
+                  type="tel"
+                  value={tillNumber}
+                  onChange={(e) =>
+                    setTillNumber(e.target.value.replace(/\D/g, ""))
+                  }
                   placeholder="e.g. 123456"
                   className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
                 />
@@ -260,18 +358,26 @@ function PayDriverModal({
             {tab === "paybill" && (
               <div className="mb-5 flex flex-col gap-3">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1.5 block">Enter Business No</label>
+                  <label className="text-xs text-gray-500 mb-1.5 block">
+                    Enter Business No
+                  </label>
                   <input
-                    type="tel" value={businessNo}
-                    onChange={(e) => setBusinessNo(e.target.value.replace(/\D/g, ""))}
+                    type="tel"
+                    value={businessNo}
+                    onChange={(e) =>
+                      setBusinessNo(e.target.value.replace(/\D/g, ""))
+                    }
                     placeholder="e.g. 247247"
                     className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1.5 block">Enter Account No</label>
+                  <label className="text-xs text-gray-500 mb-1.5 block">
+                    Enter Account No
+                  </label>
                   <input
-                    type="text" value={accountNo}
+                    type="text"
+                    value={accountNo}
                     onChange={(e) => setAccountNo(e.target.value)}
                     placeholder="e.g. 0712345678"
                     className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
@@ -279,12 +385,16 @@ function PayDriverModal({
                 </div>
               </div>
             )}
-            {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
+            {error && (
+              <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+            )}
             <button
               onClick={handlePay}
               disabled={!isValid()}
               className={`w-full h-12 rounded-full font-bold text-base transition-colors ${
-                isValid() ? "bg-black text-white hover:bg-gray-800" : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                isValid()
+                  ? "bg-black text-white hover:bg-gray-800"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
               }`}
             >
               {title} KSH {amount.toLocaleString()}
@@ -293,19 +403,36 @@ function PayDriverModal({
         ) : step === "sending" ? (
           <div className="py-12 text-center">
             <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full mx-auto mb-4 animate-spin" />
-            <p className="font-bold text-lg text-black">Sending to your phone...</p>
+            <p className="font-bold text-lg text-black">
+              Sending to your phone...
+            </p>
           </div>
         ) : (
           <div className="py-12 text-center">
             <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
                 <line x1="12" y1="18" x2="12.01" y2="18" />
               </svg>
             </div>
-            <p className="font-bold text-lg text-black mb-2">Check your phone</p>
-            <p className="text-sm text-gray-500">Enter your M-PESA PIN to pay the driver</p>
-            <p className="text-xs text-gray-400 mt-6">This will close automatically once confirmed</p>
+            <p className="font-bold text-lg text-black mb-2">
+              Check your phone
+            </p>
+            <p className="text-sm text-gray-500">
+              Enter your M-PESA PIN to pay the driver
+            </p>
+            <p className="text-xs text-gray-400 mt-6">
+              This will close automatically once confirmed
+            </p>
           </div>
         )}
       </div>
@@ -358,8 +485,11 @@ export default function YutoGroupScreen() {
         }));
 
         // Pre-fill my ride amount if already submitted
-        const myMembership = data.group_members.find((gm: any) => gm.user_id === user.id);
-        if (myMembership?.ride_amount) setMyRideAmount(String(myMembership.ride_amount));
+        const myMembership = data.group_members.find(
+          (gm: any) => gm.user_id === user.id,
+        );
+        if (myMembership?.ride_amount)
+          setMyRideAmount(String(myMembership.ride_amount));
         setMembers(list);
 
         // Auto-join if I haven't yet
@@ -367,7 +497,9 @@ export default function YutoGroupScreen() {
         if (me && !me.has_joined) {
           await joinGroup(groupId, user.id);
           setMembers((prev) =>
-            prev.map((m) => (m.user_id === user.id ? { ...m, hasJoined: true } : m))
+            prev.map((m) =>
+              m.user_id === user.id ? { ...m, hasJoined: true } : m,
+            ),
           );
         }
       } catch (err) {
@@ -420,8 +552,14 @@ export default function YutoGroupScreen() {
             // Recalculate totals for multi-ride when ride_amount updates
             if (updated.ride_amount !== null) {
               const submitted = newMembers.filter((m) => m.rideAmount !== null);
-              const newTotal = submitted.reduce((sum, m) => sum + (m.rideAmount || 0), 0);
-              const newPerPerson = newMembers.length > 0 ? Math.ceil(newTotal / newMembers.length) : 0;
+              const newTotal = submitted.reduce(
+                (sum, m) => sum + (m.rideAmount || 0),
+                0,
+              );
+              const newPerPerson =
+                newMembers.length > 0
+                  ? Math.ceil(newTotal / newMembers.length)
+                  : 0;
               setTotalAmount(newTotal);
               setPerPersonAmount(newPerPerson);
             }
@@ -434,13 +572,15 @@ export default function YutoGroupScreen() {
             const timer = setTimeout(() => {
               setMembers((prev) =>
                 prev.map((m) =>
-                  m.user_id === updated.user_id ? { ...m, justJoined: false } : m
-                )
+                  m.user_id === updated.user_id
+                    ? { ...m, justJoined: false }
+                    : m,
+                ),
               );
             }, 700);
             justJoinedTimers.current.push(timer);
           }
-        }
+        },
       )
       .subscribe();
 
@@ -466,7 +606,8 @@ export default function YutoGroupScreen() {
   const allJoined = members.length > 0 && joinedCount === members.length;
   const allPaid = members.length > 0 && paidCount === members.length;
   const youPaid = members.find((m) => m.user_id === user?.id)?.isPaid || false;
-  const fillPercentage = members.length > 0 ? (paidCount / members.length) * 100 : 0;
+  const fillPercentage =
+    members.length > 0 ? (paidCount / members.length) * 100 : 0;
 
   // Auto-close payment modal when real-time confirms payment
   useEffect(() => {
@@ -485,7 +626,7 @@ export default function YutoGroupScreen() {
         .single();
       if (!error && data?.has_paid) {
         setMembers((prev) =>
-          prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: true } : m))
+          prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: true } : m)),
         );
         setShowPayModal(false);
       }
@@ -502,29 +643,48 @@ export default function YutoGroupScreen() {
 
   const handlePayShare = () => setShowPayModal(true);
 
-  const myRideSubmitted = members.find((m) => m.user_id === user?.id)?.rideAmount !== null;
-  const allRidesSubmitted = groupType === "multi" && members.length > 0 && members.every((m) => m.rideAmount !== null);
+  const myRideSubmitted =
+    members.find((m) => m.user_id === user?.id)?.rideAmount !== null;
+  const allRidesSubmitted =
+    groupType === "multi" &&
+    members.length > 0 &&
+    members.every((m) => m.rideAmount !== null);
 
   const handleSubmitRideAmount = async () => {
-    if (!groupId || !user || !myRideAmount || parseInt(myRideAmount) <= 0) return;
+    if (!groupId || !user || !myRideAmount || parseInt(myRideAmount) <= 0)
+      return;
     setIsSubmittingRide(true);
     setRideSubmitError("");
     try {
       await submitRideAmount(groupId, user.id, parseInt(myRideAmount));
       setMembers((prev) =>
-        prev.map((m) => m.user_id === user.id ? { ...m, rideAmount: parseInt(myRideAmount) } : m)
+        prev.map((m) =>
+          m.user_id === user.id
+            ? { ...m, rideAmount: parseInt(myRideAmount) }
+            : m,
+        ),
       );
       // Recalculate totals immediately
       const updatedMembers = members.map((m) =>
-        m.user_id === user.id ? { ...m, rideAmount: parseInt(myRideAmount) } : m
+        m.user_id === user.id
+          ? { ...m, rideAmount: parseInt(myRideAmount) }
+          : m,
       );
       const submitted = updatedMembers.filter((m) => m.rideAmount !== null);
-      const newTotal = submitted.reduce((sum, m) => sum + (m.rideAmount || 0), 0);
-      const newPerPerson = updatedMembers.length > 0 ? Math.ceil(newTotal / updatedMembers.length) : 0;
+      const newTotal = submitted.reduce(
+        (sum, m) => sum + (m.rideAmount || 0),
+        0,
+      );
+      const newPerPerson =
+        updatedMembers.length > 0
+          ? Math.ceil(newTotal / updatedMembers.length)
+          : 0;
       setTotalAmount(newTotal);
       setPerPersonAmount(newPerPerson);
     } catch (err) {
-      setRideSubmitError(err instanceof Error ? err.message : "Failed to submit. Try again.");
+      setRideSubmitError(
+        err instanceof Error ? err.message : "Failed to submit. Try again.",
+      );
     } finally {
       setIsSubmittingRide(false);
     }
@@ -556,7 +716,11 @@ export default function YutoGroupScreen() {
             onClick={() => {
               const link = `${window.location.origin}/join/${groupId}`;
               if (navigator.share) {
-                navigator.share({ title: "Join my Yuto group!", text: `Join my fare split on Yuto 🚗`, url: link });
+                navigator.share({
+                  title: "Join my Yuto group!",
+                  text: `Join my fare split on Yuto 🚗`,
+                  url: link,
+                });
               } else {
                 navigator.clipboard.writeText(link);
               }
@@ -564,7 +728,16 @@ export default function YutoGroupScreen() {
             className="p-2 bg-transparent border-none cursor-pointer hover:opacity-70"
             title="Share group invite"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E1E1E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#1E1E1E"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="18" cy="5" r="3" />
               <circle cx="6" cy="12" r="3" />
               <circle cx="18" cy="19" r="3" />
@@ -574,7 +747,9 @@ export default function YutoGroupScreen() {
           </button>
           {/* Chat button */}
           <button
-            onClick={() => navigate(`/yuto/${groupId}/chat`, { state: { groupName } })}
+            onClick={() =>
+              navigate(`/yuto/${groupId}/chat`, { state: { groupName } })
+            }
             className="p-2 bg-transparent border-none cursor-pointer hover:opacity-70"
           >
             <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
@@ -593,7 +768,9 @@ export default function YutoGroupScreen() {
       {/* Group info */}
       <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-black">{groupName}</h1>
-        <p className="text-base text-gray-500 mt-0.5">KSH {totalAmount.toLocaleString()} total</p>
+        <p className="text-base text-gray-500 mt-0.5">
+          KSH {totalAmount.toLocaleString()} total
+        </p>
       </div>
 
       {/* Graph / Mind-map layout */}
@@ -606,24 +783,87 @@ export default function YutoGroupScreen() {
           style={{ zIndex: 1 }}
         >
           {/* Orbit rings */}
-          <circle cx="190" cy="210" r="85" fill="none" stroke="#f0f0f0" strokeWidth="1" />
           <circle
-            cx="190" cy="210" r="155"
-            fill="none" stroke="#f0f0f0" strokeWidth="1"
-            strokeDasharray="4 6"
-            style={{ animation: "orbitSpin 60s linear infinite", transformOrigin: "190px 210px" }}
+            cx="190"
+            cy="210"
+            r="85"
+            fill="none"
+            stroke="#f0f0f0"
+            strokeWidth="1"
           />
-          <circle cx="190" cy="210" r="120" fill="none" stroke="#f7f7f7" strokeWidth="0.5" />
+          <circle
+            cx="190"
+            cy="210"
+            r="155"
+            fill="none"
+            stroke="#f0f0f0"
+            strokeWidth="1"
+            strokeDasharray="4 6"
+            style={{
+              animation: "orbitSpin 60s linear infinite",
+              transformOrigin: "190px 210px",
+            }}
+          />
+          <circle
+            cx="190"
+            cy="210"
+            r="120"
+            fill="none"
+            stroke="#f7f7f7"
+            strokeWidth="0.5"
+          />
 
           {!allPaid && (
             <>
-              <circle cx="190" cy="210" r="40" fill="none" stroke="#5493b3" strokeWidth="1.5" opacity="0">
-                <animate attributeName="r" from="40" to="85" dur="2s" repeatCount="indefinite" />
-                <animate attributeName="opacity" from="0.3" to="0" dur="2s" repeatCount="indefinite" />
+              <circle
+                cx="190"
+                cy="210"
+                r="40"
+                fill="none"
+                stroke="#5493b3"
+                strokeWidth="1.5"
+                opacity="0"
+              >
+                <animate
+                  attributeName="r"
+                  from="40"
+                  to="85"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="opacity"
+                  from="0.3"
+                  to="0"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
               </circle>
-              <circle cx="190" cy="210" r="40" fill="none" stroke="#5493b3" strokeWidth="1" opacity="0">
-                <animate attributeName="r" from="40" to="85" dur="2s" begin="1s" repeatCount="indefinite" />
-                <animate attributeName="opacity" from="0.2" to="0" dur="2s" begin="1s" repeatCount="indefinite" />
+              <circle
+                cx="190"
+                cy="210"
+                r="40"
+                fill="none"
+                stroke="#5493b3"
+                strokeWidth="1"
+                opacity="0"
+              >
+                <animate
+                  attributeName="r"
+                  from="40"
+                  to="85"
+                  dur="2s"
+                  begin="1s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="opacity"
+                  from="0.2"
+                  to="0"
+                  dur="2s"
+                  begin="1s"
+                  repeatCount="indefinite"
+                />
               </circle>
             </>
           )}
@@ -653,7 +893,7 @@ export default function YutoGroupScreen() {
             const endY = my + hangOffset;
 
             // Curved rope: control point pulls outward for a natural droop
-            const cpX = (corner.x + endX) / 2 + (Math.cos(angle) * 30);
+            const cpX = (corner.x + endX) / 2 + Math.cos(angle) * 30;
             const cpY = (corner.y + endY) / 2 + (joined ? 40 : 60);
             const pathD = `M ${corner.x} ${corner.y} Q ${cpX} ${cpY} ${endX} ${endY}`;
 
@@ -667,23 +907,46 @@ export default function YutoGroupScreen() {
                   strokeDasharray={paid ? "none" : joined ? "7 5" : "4 6"}
                   strokeLinecap="round"
                   className={
-                    member.justJoined ? "rope-yank" : paid ? "" : joined ? "graph-line-flowing" : ""
+                    member.justJoined
+                      ? "rope-yank"
+                      : paid
+                        ? ""
+                        : joined
+                          ? "graph-line-flowing"
+                          : ""
                   }
                 />
                 {paid && (
                   <path
                     d={pathD}
-                    fill="none" stroke="#22c55e" strokeWidth={8} opacity={0.12} strokeLinecap="round"
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth={8}
+                    opacity={0.12}
+                    strokeLinecap="round"
                   />
                 )}
-                <circle cx={endX} cy={endY} r={paid ? 5 : joined ? 4 : 2}
-                  fill={paid ? "#22c55e" : joined ? "#d1d5db" : "#e0e0e0"} />
+                <circle
+                  cx={endX}
+                  cy={endY}
+                  r={paid ? 5 : joined ? 4 : 2}
+                  fill={paid ? "#22c55e" : joined ? "#d1d5db" : "#e0e0e0"}
+                />
                 {joined && !paid && (
                   <circle r="3.5" fill="#5493b3" opacity="0.7">
-                    <animateMotion dur="1.5s" repeatCount="indefinite" begin={`${i * 0.4}s`}
-                      path={pathD} />
-                    <animate attributeName="opacity" values="0;0.8;0.8;0" dur="1.5s"
-                      repeatCount="indefinite" begin={`${i * 0.4}s`} />
+                    <animateMotion
+                      dur="1.5s"
+                      repeatCount="indefinite"
+                      begin={`${i * 0.4}s`}
+                      path={pathD}
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0;0.8;0.8;0"
+                      dur="1.5s"
+                      repeatCount="indefinite"
+                      begin={`${i * 0.4}s`}
+                    />
                   </circle>
                 )}
               </g>
@@ -692,10 +955,15 @@ export default function YutoGroupScreen() {
         </svg>
 
         {/* Center Yuto jar */}
-        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 10 }}>
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ zIndex: 10 }}
+        >
           <div
             className={`bg-white rounded-[28px] shadow-xl border-2 w-[160px] h-[195px] relative overflow-hidden transition-all duration-500 ${
-              allPaid ? "border-green-400 shadow-green-300/40" : "border-gray-200"
+              allPaid
+                ? "border-green-400 shadow-green-300/40"
+                : "border-gray-200"
             }`}
           >
             <div
@@ -703,19 +971,33 @@ export default function YutoGroupScreen() {
               style={{ height: `${fillPercentage}%` }}
             />
             <div className="relative z-10 flex flex-col items-center justify-center h-full px-2">
-              <img src={imgYutoMascot} alt="Yuto" className="w-[72px] h-[72px] object-contain mb-2" />
+              <img
+                src={imgYutoMascot}
+                alt="Yuto"
+                className="w-[72px] h-[72px] object-contain mb-2"
+              />
               {allPaid ? (
                 <>
-                  <p className="text-sm font-bold text-white text-center leading-tight">Yuto is holding</p>
-                  <p className="text-sm font-bold text-white text-center leading-tight">your money! 🎉</p>
-                  <p className="text-xs text-white/80 mt-1">KSH {totalAmount.toLocaleString()} secured</p>
+                  <p className="text-sm font-bold text-white text-center leading-tight">
+                    Yuto is holding
+                  </p>
+                  <p className="text-sm font-bold text-white text-center leading-tight">
+                    your money! 🎉
+                  </p>
+                  <p className="text-xs text-white/80 mt-1">
+                    KSH {totalAmount.toLocaleString()} secured
+                  </p>
                 </>
               ) : (
                 <>
-                  <p className={`text-2xl font-bold transition-colors duration-300 ${fillPercentage > 50 ? "text-white" : "text-black"}`}>
+                  <p
+                    className={`text-2xl font-bold transition-colors duration-300 ${fillPercentage > 50 ? "text-white" : "text-black"}`}
+                  >
                     KSH {perPersonAmount}
                   </p>
-                  <p className={`text-sm transition-colors duration-300 ${fillPercentage > 50 ? "text-white/80" : "text-gray-400"}`}>
+                  <p
+                    className={`text-sm transition-colors duration-300 ${fillPercentage > 50 ? "text-white/80" : "text-gray-400"}`}
+                  >
                     per person
                   </p>
                 </>
@@ -758,22 +1040,32 @@ export default function YutoGroupScreen() {
                       paid
                         ? "bg-black border-green-500 text-white shadow-xl shadow-green-500/25"
                         : joined
-                        ? "bg-white border-gray-300 text-black shadow-lg"
-                        : "bg-gray-100 border-gray-200 text-gray-300 shadow-sm"
+                          ? "bg-white border-gray-300 text-black shadow-lg"
+                          : "bg-gray-100 border-gray-200 text-gray-300 shadow-sm"
                     }`}
                   >
                     {member.avatarUrl ? (
-                      <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
+                      <img
+                        src={member.avatarUrl}
+                        alt={member.name}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       member.name.charAt(0).toUpperCase()
                     )}
                   </div>
                   {paid && (
                     <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full p-1">
-                      <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd"
+                      <svg
+                        className="w-3.5 h-3.5 text-white"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
                           d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd" />
+                          clipRule="evenodd"
+                        />
                       </svg>
                     </div>
                   )}
@@ -798,37 +1090,47 @@ export default function YutoGroupScreen() {
         {allPaid
           ? "Everyone has paid!"
           : !allJoined
-          ? `${joinedCount}/${members.length} joined`
-          : groupType === "multi" && !allRidesSubmitted
-          ? `${members.filter((m) => m.rideAmount !== null).length}/${members.length} fares submitted`
-          : `${paidCount}/${members.length} have paid`}
+            ? `${joinedCount}/${members.length} joined`
+            : groupType === "multi" && !allRidesSubmitted
+              ? `${members.filter((m) => m.rideAmount !== null).length}/${members.length} fares submitted`
+              : `${paidCount}/${members.length} have paid`}
       </p>
 
       {/* Action button */}
       <div>
         {!allJoined ? (
-          <button disabled
-            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
+          <button
+            disabled
+            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed"
+          >
             Waiting for group to join...
           </button>
         ) : groupType === "multi" && !myRideSubmitted ? (
           // Multi-ride: enter your fare first
           <div className="flex flex-col gap-3">
-            <p className="text-center text-sm font-semibold text-gray-500">Enter your ride fare</p>
+            <p className="text-center text-sm font-semibold text-gray-500">
+              Enter your ride fare
+            </p>
             <div className="flex items-center border-2 border-gray-200 rounded-full px-5 h-14 focus-within:border-black transition-colors">
-              <span className="text-sm text-gray-400 mr-2 font-medium">KSH</span>
+              <span className="text-sm text-gray-400 mr-2 font-medium">
+                KSH
+              </span>
               <input
                 type="text"
                 inputMode="numeric"
                 value={myRideAmount}
-                onChange={(e) => setMyRideAmount(e.target.value.replace(/\D/g, ""))}
+                onChange={(e) =>
+                  setMyRideAmount(e.target.value.replace(/\D/g, ""))
+                }
                 placeholder="0"
                 className="flex-1 text-lg font-bold bg-transparent border-none outline-none text-black"
               />
             </div>
             <button
               onClick={handleSubmitRideAmount}
-              disabled={!myRideAmount || parseInt(myRideAmount) <= 0 || isSubmittingRide}
+              disabled={
+                !myRideAmount || parseInt(myRideAmount) <= 0 || isSubmittingRide
+              }
               className={`w-full py-4 rounded-full font-bold text-lg transition-all tap-scale ${
                 myRideAmount && parseInt(myRideAmount) > 0 && !isSubmittingRide
                   ? "bg-black text-white"
@@ -837,29 +1139,44 @@ export default function YutoGroupScreen() {
             >
               {isSubmittingRide ? "Submitting..." : "Submit Fare"}
             </button>
-            {rideSubmitError && <p className="text-red-500 text-sm text-center">{rideSubmitError}</p>}
+            {rideSubmitError && (
+              <p className="text-red-500 text-sm text-center">
+                {rideSubmitError}
+              </p>
+            )}
           </div>
         ) : groupType === "multi" && myRideSubmitted && !allRidesSubmitted ? (
           // Multi-ride: waiting for others to submit their fare
-          <button disabled
-            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
-            Waiting for fares... ({members.filter((m) => m.rideAmount !== null).length}/{members.length} submitted)
+          <button
+            disabled
+            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed"
+          >
+            Waiting for fares... (
+            {members.filter((m) => m.rideAmount !== null).length}/
+            {members.length} submitted)
           </button>
         ) : !youPaid ? (
-          <button onClick={handlePayShare}
-            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale">
+          <button
+            onClick={handlePayShare}
+            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale"
+          >
             Pay KSH {perPersonAmount.toLocaleString()}
           </button>
         ) : !allPaid ? (
-          <button disabled
-            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
+          <button
+            disabled
+            className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed"
+          >
             Waiting for others...
           </button>
         ) : user?.id === createdBy ? (
           <button
             onClick={() => setShowPayDriverModal(true)}
-            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale">
-            {groupType === "single" && groupName !== "Fare Share" ? "Pay Now" : "Pay Driver"}
+            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale"
+          >
+            {groupType === "single" && groupName !== "Fare Share"
+              ? "Pay Now"
+              : "Pay Driver"}
           </button>
         ) : (
           <button className="w-full py-5 bg-green-500 text-white rounded-full font-bold text-lg cursor-default">
@@ -883,7 +1200,11 @@ export default function YutoGroupScreen() {
       {showPayDriverModal && (
         <PayDriverModal
           amount={totalAmount}
-          title={groupType === "single" && groupName !== "Fare Share" ? "Pay Now" : "Pay Driver"}
+          title={
+            groupType === "single" && groupName !== "Fare Share"
+              ? "Pay Now"
+              : "Pay Driver"
+          }
           onClose={() => setShowPayDriverModal(false)}
         />
       )}
