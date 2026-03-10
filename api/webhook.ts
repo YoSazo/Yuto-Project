@@ -37,8 +37,6 @@ async function processIntaSendWebhook(payload: {
   let groupId: string | null = null;
   let userId: string | null = null;
 
-  const supabase = getSupabaseClient();
-
   // Primary: look up by invoice_id — this is always saved to DB by charge.ts
   // before the webhook fires, so it's the most reliable identifier.
   if (payload.invoice_id) {
