@@ -37,29 +37,47 @@ async function processIntaSendWebhook(payload: {
   let groupId: string | null = null;
   let userId: string | null = null;
 
-  if (payload.api_ref) {
-    // Prefer api_ref: yuto__{groupId}__{userId}__{timestamp}
-    const parts = payload.api_ref.split("__");
-    if (parts.length >= 3 && parts[0] === "yuto") {
-      groupId = parts[1];
-      userId = parts[2];
-    }
-  }
-  if ((!groupId || !userId) && payload.invoice_id) {
-    // Fallback: lookup by invoice_id (when api_ref is missing or truncated)
+  const supabase = getSupabaseClient();
+
+  // Primary: look up by invoice_id — this is always saved to DB by charge.ts
+  // before the webhook fires, so it's the most reliable identifier.
+  if (payload.invoice_id) {
     const { data: match, error: matchError } = await supabase
       .from("group_members")
       .select("group_id, user_id")
       .eq("payment_invoice_id", payload.invoice_id)
       .maybeSingle();
     if (matchError) throw matchError;
-    if (!match)
-      throw new Error("No group_members row matches payment_invoice_id");
-    groupId = match.group_id;
-    userId = match.user_id;
+    if (match) {
+      groupId = match.group_id;
+      userId = match.user_id;
+    }
   }
+
+  // Fallback: parse api_ref in the short format yuto-{shortGroupId}-{shortUserId}
+  // This is a last resort in case invoice_id wasn't persisted (e.g. Supabase was
+  // temporarily unavailable during the charge call).
+  if ((!groupId || !userId) && payload.api_ref) {
+    const parts = payload.api_ref.split("-");
+    if (parts.length >= 3 && parts[0] === "yuto") {
+      const shortGroupId = parts[1];
+      const shortUserId = parts[2];
+      const { data: match } = await supabase
+        .from("group_members")
+        .select("group_id, user_id")
+        .ilike("payment_api_ref", `yuto-${shortGroupId}-${shortUserId}%`)
+        .maybeSingle();
+      if (match) {
+        groupId = match.group_id;
+        userId = match.user_id;
+      }
+    }
+  }
+
   if (!groupId || !userId) {
-    throw new Error("Missing api_ref (or valid parse) and invoice_id");
+    throw new Error(
+      `Could not resolve group/user for invoice_id=${payload.invoice_id} api_ref=${payload.api_ref}`,
+    );
   }
 
   const { error: updateError } = await supabase
