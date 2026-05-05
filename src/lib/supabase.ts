@@ -16,20 +16,34 @@ export async function signUp(username: string, password: string, displayName: st
   });
   if (error) throw error;
 
-  // Catch referral parameter from the URL if it exists
+  // Catch referral from sessionStorage redirect URL OR query parameter
   if (typeof window !== "undefined" && data.user) {
+    let refUsername: string | null = null;
+    
+    // Check URL parameters first (e.g., ?ref=salah)
     const params = new URLSearchParams(window.location.search);
-    const ref = params.get("ref");
-    if (ref) {
+    refUsername = params.get("ref");
+    
+    // If no query param, check if they came from an invite screen redirect
+    if (!refUsername) {
+      const storedRedirect = sessionStorage.getItem("joinAfterAuth");
+      if (storedRedirect && storedRedirect.startsWith("/invite/")) {
+        // Extract the username from "/invite/salah"
+        refUsername = storedRedirect.split("/invite/")[1]; 
+      }
+    }
+
+    if (refUsername) {
       // Find the referrer by username
       const { data: refUser } = await supabase
         .from("profiles")
         .select("id")
-        .eq("username", ref.toLowerCase())
+        .eq("username", refUsername.toLowerCase())
         .single();
         
       if (refUser) {
         // Log the referral (converted: false by default)
+        // We use insert without throwing to avoid crashing signup if it fails
         await supabase.from("referrals").insert({
           referrer_id: refUser.id,
           referred_id: data.user.id
