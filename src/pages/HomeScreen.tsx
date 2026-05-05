@@ -1422,7 +1422,7 @@ export default function HomeScreen() {
           </div>
         </div>
       )}
-
+{/* Function Payment Modal */}
       {functionPayTarget && user && (
         <FunctionPayModal
           amount={functionPayTarget.amount_per_person}
@@ -1434,6 +1434,7 @@ export default function HomeScreen() {
         />
       )}
 
+      {/* Function Chat Modal */}
       {activeFunctionThread && user && (
         <FunctionMessagesModal
           functionItem={activeFunctionThread}
@@ -1441,23 +1442,24 @@ export default function HomeScreen() {
           onMessagesRead={(functionId) => setFunctionUnreadCounts((prev) => ({ ...prev, [functionId]: 0 }))}
           onClose={() => setActiveFunctionThread(null)}
         />
+      )}
 
-        {activePlanChat && user && (
-  <PlanMessagesModal
-    plan={activePlanChat}
-    currentUserId={user.id}
-    onClose={() => setActivePlanChat(null)}
-  />
-)}
+      {/* Plan Chat Modal */}
+      {activePlanChat && user && (
+        <PlanMessagesModal
+          plan={activePlanChat}
+          currentUserId={user.id}
+          onClose={() => setActivePlanChat(null)}
+        />
       )}
 
       {/* Floating compose button */}
       <button
-          onClick={() => setShowCompose(true)}
-          className="fixed bottom-36 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
-        >
-          <Send size={16} /> Post a Plan
-        </button>
+        onClick={() => setShowCompose(true)}
+        className="fixed bottom-36 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
+      >
+        <Send size={16} /> Post a Plan
+      </button>
     </div>
   );
 }
