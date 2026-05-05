@@ -947,7 +947,7 @@ export default function HomeScreen() {
               return (
                 <div 
                   key={eventFunction.id} 
-                  className="bg-white border border-gray-200/60 rounded-3xl p-5 mb-6 relative overflow-hidden premium-function-card function-card-highlight"
+                  className="bg-white border border-gray-200/60 rounded-3xl p-4 mb-5 relative overflow-hidden premium-function-card function-card-highlight"
                 >
                   <div 
                   className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity" 
