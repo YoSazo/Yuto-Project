@@ -1162,7 +1162,7 @@ export default function HomeScreen() {
                         </div>
                       ))}
 
-                      // Find this section in your HomeScreen.tsx and replace it:
+
 
 {/* Update input — creator only */}
 {isMine && (
