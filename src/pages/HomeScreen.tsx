@@ -65,6 +65,7 @@ interface FunctionListing {
   host_id: string;
   title: string;
   description: string | null;
+  image_url: string | null;
   date: string | null;
   location: string | null;
   amount_per_person: number;
@@ -240,6 +241,8 @@ export default function HomeScreen() {
   const [planSlots, setPlanSlots] = useState("");
   const [planImageFile, setPlanImageFile] = useState<File | null>(null);
   const [planImagePreview, setPlanImagePreview] = useState<string | null>(null);
+  const [functionImageFile, setFunctionImageFile] = useState<File | null>(null);
+  const [functionImagePreview, setFunctionImagePreview] = useState<string | null>(null);
   const [functionTitle, setFunctionTitle] = useState("");
   const [functionDescription, setFunctionDescription] = useState("");
   const [functionDate, setFunctionDate] = useState("");
@@ -249,6 +252,7 @@ export default function HomeScreen() {
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const planImageInputRef = useRef<HTMLInputElement>(null);
+  const functionImageInputRef = useRef<HTMLInputElement>(null);
   const activeTabRef = useRef(activeTab);
 
   // Function payment state
@@ -353,11 +357,25 @@ export default function HomeScreen() {
     setPlanImagePreview(url);
   };
 
+  const handleFunctionImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    setFunctionImageFile(file);
+    const url = URL.createObjectURL(file);
+    setFunctionImagePreview(url);
+  };
+
   const clearPlanImage = () => {
     setPlanImageFile(null);
     if (planImagePreview) URL.revokeObjectURL(planImagePreview);
     setPlanImagePreview(null);
     planImageInputRef.current?.focus();
+  };
+
+  const clearFunctionImage = () => {
+    setFunctionImageFile(null);
+    if (functionImagePreview) URL.revokeObjectURL(functionImagePreview);
+    setFunctionImagePreview(null);
   };
 
   const resetCompose = () => {
@@ -368,6 +386,7 @@ export default function HomeScreen() {
     setPlanAmount("");
     setPlanSlots("");
     clearPlanImage();
+    clearFunctionImage();
     setFunctionTitle("");
     setFunctionDescription("");
     setFunctionDate("");
@@ -402,6 +421,16 @@ export default function HomeScreen() {
           imageUrl
         );
       } else {
+        let imageUrl: string | null = null;
+        if (functionImageFile) {
+          try {
+            imageUrl = await uploadPlanImage(user.id, functionImageFile);
+          } catch (uploadErr) {
+            console.error("Function image upload failed:", uploadErr);
+            setPostError("Couldn't upload function photo — posting without it.");
+            imageUrl = null;
+          }
+        }
         await createFunction(
           user.id,
           functionTitle.trim(),
@@ -410,6 +439,7 @@ export default function HomeScreen() {
           functionLocation.trim() || null,
           parseInt(functionAmount),
           functionCapacity ? parseInt(functionCapacity) : null,
+          imageUrl,
         );
       }
       resetCompose();
@@ -530,7 +560,7 @@ export default function HomeScreen() {
               const canPay = isMember && !me?.has_paid;
 
               return (
-                <div key={eventFunction.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                <div key={eventFunction.id} className={`bg-white border border-gray-100 rounded-2xl p-4 shadow-sm ${activeTab === "public" ? "function-card-highlight" : ""}`}>
                   <div className="flex items-start gap-2 mb-3">
                     <UserAvatar name={eventFunction.host.display_name} avatarUrl={eventFunction.host.avatar_url} size="sm" />
                     <div className="flex-1">
@@ -541,6 +571,11 @@ export default function HomeScreen() {
                   </div>
 
                   <p className="font-bold text-black text-lg mb-1">{eventFunction.title}</p>
+                  {eventFunction.image_url && (
+                    <div className="mb-3 rounded-xl overflow-hidden bg-gray-100">
+                      <img src={eventFunction.image_url} alt="Function cover" className="block w-full h-auto" />
+                    </div>
+                  )}
                   {eventFunction.description && (
                     <p className="text-sm text-gray-600 mb-3">{eventFunction.description}</p>
                   )}
@@ -769,9 +804,7 @@ export default function HomeScreen() {
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm compose-backdrop-in"
             onClick={() => {
-              setShowCompose(false);
-              setPostError(null);
-              clearPlanImage();
+              resetCompose();
             }}
           />
           <div className="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10 max-h-[90vh] overflow-y-auto compose-sheet-up">
@@ -881,7 +914,38 @@ export default function HomeScreen() {
                 </div>
               </>
             ) : (
-              <div className="flex flex-col gap-3 mb-4">
+              <div className="flex flex-col gap-3 mb-3">
+                <div className="mb-1">
+                  {functionImagePreview ? (
+                    <div className="relative rounded-2xl overflow-hidden bg-gray-100 flex items-center justify-center">
+                      <img src={functionImagePreview} alt="Function preview" className="max-w-full max-h-64 w-auto h-auto object-contain" />
+                      <button
+                        type="button"
+                        onClick={clearFunctionImage}
+                        className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => functionImageInputRef.current?.click()}
+                      className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
+                    >
+                      <ImagePlus size={20} />
+                      <span className="text-sm font-medium">Add function photo</span>
+                    </button>
+                  )}
+                  <input
+                    ref={functionImageInputRef}
+                    id="function-image-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFunctionImageChange}
+                  />
+                </div>
                 <div className="flex gap-3">
                   <div className="flex-1">
                     <p className="text-xs text-gray-400 mb-1 font-semibold">Amount per person (KSH)</p>

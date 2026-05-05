@@ -183,3 +183,32 @@
 html {
   font-size: var(--font-size);
 }
+
+/* Function cards in the public feed */
+@keyframes functionCardGlow {
+  0%,
+  100% {
+    box-shadow: 0 10px 28px rgba(245, 158, 11, 0.10), 0 0 0 1px rgba(245, 158, 11, 0.16);
+    transform: translateY(0);
+  }
+  50% {
+    box-shadow: 0 16px 38px rgba(245, 158, 11, 0.18), 0 0 0 1px rgba(245, 158, 11, 0.28);
+    transform: translateY(-1px);
+  }
+}
+
+.function-card-highlight {
+  animation: functionCardGlow 3.2s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.function-card-highlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(251, 191, 36, 0.05), rgba(255, 255, 255, 0));
+  opacity: 0.55;
+}

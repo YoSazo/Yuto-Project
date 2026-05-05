@@ -53,6 +53,7 @@ create table if not exists functions (
   host_id uuid references profiles(id) on delete cascade not null,
   title text not null,
   description text,
+  image_url text,
   date timestamptz,
   location text,
   amount_per_person integer not null,

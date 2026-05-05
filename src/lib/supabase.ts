@@ -297,6 +297,7 @@ export async function createFunction(
   location: string | null,
   amountPerPerson: number,
   maxCapacity: number | null,
+  imageUrl?: string | null,
 ) {
   const { data, error } = await supabase
     .from("functions")
@@ -308,6 +309,7 @@ export async function createFunction(
       location,
       amount_per_person: amountPerPerson,
       max_capacity: maxCapacity,
+      image_url: imageUrl || null,
       mode: "pay",
       is_public: true,
     })

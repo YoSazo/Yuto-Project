@@ -5,6 +5,7 @@ create table if not exists functions (
   host_id uuid references profiles(id) on delete cascade not null,
   title text not null,
   description text,
+  image_url text,
   date timestamptz,
   location text,
   amount_per_person integer not null,
@@ -16,6 +17,8 @@ create table if not exists functions (
   is_public boolean default true,
   created_at timestamptz default now()
 );
+
+alter table public.functions add column if not exists image_url text;
 
 create table if not exists function_members (
   id uuid default gen_random_uuid() primary key,
