@@ -32,6 +32,9 @@ create table if not exists function_members (
 alter table functions enable row level security;
 alter table function_members enable row level security;
 
+create policy "Anyone can view plans" on plans
+  for select using (auth.uid() is not null);
+
 create policy "Public functions can be viewed" on functions
   for select using (
     is_public = true

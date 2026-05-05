@@ -249,6 +249,7 @@ export default function HomeScreen() {
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const planImageInputRef = useRef<HTMLInputElement>(null);
+  const activeTabRef = useRef(activeTab);
 
   // Function payment state
   const [functionPayTarget, setFunctionPayTarget] = useState<FunctionListing | null>(null);
@@ -259,19 +260,23 @@ export default function HomeScreen() {
   const [postingUpdate, setPostingUpdate] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
     if (!user) return;
     loadFeed();
 
     const channel = supabase
       .channel("feed-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "plans" }, () => loadPlans())
-      .on("postgres_changes", { event: "*", schema: "public", table: "plan_members" }, () => loadPlans())
+      .on("postgres_changes", { event: "*", schema: "public", table: "plans" }, () => loadFeed())
+      .on("postgres_changes", { event: "*", schema: "public", table: "plan_members" }, () => loadFeed())
       .on("postgres_changes", { event: "*", schema: "public", table: "functions" }, () => loadFeed())
       .on("postgres_changes", { event: "*", schema: "public", table: "function_members" }, () => loadFeed())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, activeTab]);
+  }, [user]);
 
   useEffect(() => {
     if (!user || !functionPayTarget) return;
@@ -286,9 +291,10 @@ export default function HomeScreen() {
     if (!user) return;
     setLoading(true);
     try {
+      const tab = activeTabRef.current;
       const [planData, functionData] = await Promise.all([
-        activeTab === "public" ? getPlansPublic() : getPlansFriends(user.id),
-        activeTab === "public" ? getFunctionsPublic() : Promise.resolve([]),
+        tab === "public" ? getPlansPublic() : getPlansFriends(user.id),
+        tab === "public" ? getFunctionsPublic() : Promise.resolve([]),
       ]);
       const planList = (planData as Plan[]) || [];
       setPlans(planList);
@@ -298,10 +304,14 @@ export default function HomeScreen() {
         try {
           const updates = await getPlanUpdates(plan.id);
           updatesMap[plan.id] = (updates as PlanUpdate[]) || [];
-        } catch { /* ignore */ }
+        } catch (err) {
+          console.error("loadFeed plan updates error:", err);
+        }
       }));
       setPlanUpdates(updatesMap);
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error("loadFeed error:", err);
+    }
     setLoading(false);
   };
 

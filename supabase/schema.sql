@@ -229,6 +229,9 @@ create table if not exists plans (
 
 alter table plans enable row level security;
 
+create policy "Anyone can view plans" on plans
+  for select using (auth.uid() is not null);
+
 create policy "Friends can view plans" on plans
   for select using (
     creator_id = auth.uid()
