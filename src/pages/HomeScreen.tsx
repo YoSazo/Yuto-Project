@@ -276,7 +276,7 @@ export default function HomeScreen() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, activeTab]);
 
   useEffect(() => {
     if (!user || !functionPayTarget) return;
