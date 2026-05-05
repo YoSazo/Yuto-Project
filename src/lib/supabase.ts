@@ -271,6 +271,73 @@ export async function uploadPlanImage(creatorId: string, file: File): Promise<st
   return `${data.publicUrl}?t=${Date.now()}`;
 }
 
+// ─── Functions ───────────────────────────────────────
+
+const FUNCTIONS_SELECT = `
+  *,
+  host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url),
+  function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))
+`;
+
+export async function getFunctionsPublic() {
+  const { data, error } = await supabase
+    .from("functions")
+    .select(FUNCTIONS_SELECT)
+    .eq("is_public", true)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createFunction(
+  hostId: string,
+  title: string,
+  description: string | null,
+  date: string | null,
+  location: string | null,
+  amountPerPerson: number,
+  maxCapacity: number | null,
+) {
+  const { data, error } = await supabase
+    .from("functions")
+    .insert({
+      host_id: hostId,
+      title,
+      description,
+      date,
+      location,
+      amount_per_person: amountPerPerson,
+      max_capacity: maxCapacity,
+      mode: "pay",
+      is_public: true,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function joinFunction(functionId: string, userId: string) {
+  const { error } = await supabase.from("function_members").upsert(
+    {
+      function_id: functionId,
+      user_id: userId,
+      joined_at: new Date().toISOString(),
+    },
+    { onConflict: "function_id,user_id" },
+  );
+  if (error) throw error;
+}
+
+export async function leaveFunction(functionId: string, userId: string) {
+  const { error } = await supabase
+    .from("function_members")
+    .delete()
+    .eq("function_id", functionId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
 // ─── Plans ───────────────────────────────────────────
 
 const PLANS_SELECT = `

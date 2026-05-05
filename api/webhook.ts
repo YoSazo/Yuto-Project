@@ -31,65 +31,87 @@ async function processIntaSendWebhook(payload: {
 
   const supabase = getSupabaseClient();
 
+  let membershipTable: "group_members" | "function_members" | null = null;
+  let parentTable: "groups" | "functions" | null = null;
+  let parentIdColumn: "group_id" | "function_id" | null = null;
   let groupId: string | null = null;
   let userId: string | null = null;
 
-  // Primary: match by invoice_id persisted during charge
-  if (payload.invoice_id) {
-    const { data: match, error: matchError } = await supabase
-      .from("group_members")
-      .select("group_id, user_id")
-      .eq("payment_invoice_id", payload.invoice_id)
-      .maybeSingle();
-    if (matchError) throw matchError;
-    if (match) {
-      groupId = match.group_id;
-      userId = match.user_id;
+  const membershipTables: Array<{
+    table: "group_members" | "function_members";
+    idColumn: "group_id" | "function_id";
+  }> = [
+    { table: "group_members", idColumn: "group_id" },
+    { table: "function_members", idColumn: "function_id" },
+  ];
+
+  for (const entry of membershipTables) {
+    if (groupId && userId) break;
+
+    if (payload.invoice_id) {
+      const { data: match, error: matchError } = await supabase
+        .from(entry.table)
+        .select(`${entry.idColumn}, user_id`)
+        .eq("payment_invoice_id", payload.invoice_id)
+        .maybeSingle();
+      if (matchError) throw matchError;
+      if (match) {
+        membershipTable = entry.table;
+        parentTable = entry.table === "group_members" ? "groups" : "functions";
+        parentIdColumn = entry.idColumn;
+        groupId = match[entry.idColumn] as string;
+        userId = match.user_id;
+        break;
+      }
+    }
+
+    if (payload.api_ref) {
+      const { data: match, error: matchError } = await supabase
+        .from(entry.table)
+        .select(`${entry.idColumn}, user_id`)
+        .eq("payment_api_ref", payload.api_ref)
+        .maybeSingle();
+      if (matchError) throw matchError;
+      if (match) {
+        membershipTable = entry.table;
+        parentTable = entry.table === "group_members" ? "groups" : "functions";
+        parentIdColumn = entry.idColumn;
+        groupId = match[entry.idColumn] as string;
+        userId = match.user_id;
+        break;
+      }
     }
   }
 
-  // Fallback: match by payment_api_ref column (also persisted during charge)
-  if ((!groupId || !userId) && payload.api_ref) {
-    const { data: match, error: matchError } = await supabase
-      .from("group_members")
-      .select("group_id, user_id")
-      .eq("payment_api_ref", payload.api_ref)
-      .maybeSingle();
-    if (matchError) throw matchError;
-    if (match) {
-      groupId = match.group_id;
-      userId = match.user_id;
-    }
-  }
-
-  if (!groupId || !userId) {
+  if (!membershipTable || !parentTable || !parentIdColumn || !groupId || !userId) {
     throw new Error(
-      `Could not resolve group/user for invoice_id=${payload.invoice_id} api_ref=${payload.api_ref}`,
+      `Could not resolve membership for invoice_id=${payload.invoice_id} api_ref=${payload.api_ref}`,
     );
   }
 
   const { error: updateError } = await supabase
-    .from("group_members")
+    .from(membershipTable)
     .update({ has_paid: true, paid_at: new Date().toISOString() })
-    .eq("group_id", groupId)
+    .eq(parentIdColumn, groupId)
     .eq("user_id", userId);
 
   if (updateError) throw updateError;
   console.log(
-    "Webhook: set has_paid=true for group_id=" + groupId + " user_id=" + userId,
+    `Webhook: set has_paid=true for ${membershipTable} parent_id=${groupId} user_id=${userId}`,
   );
 
   const { data: members, error: membersError } = await supabase
-    .from("group_members")
+    .from(membershipTable)
     .select("has_paid")
-    .eq("group_id", groupId);
+    .eq(parentIdColumn, groupId);
 
   if (membersError) throw membersError;
 
   if (members?.length && members.every((m) => m.has_paid)) {
+    const nextStatus = parentTable === "functions" ? "funded" : "completed";
     const { error: groupError } = await supabase
-      .from("groups")
-      .update({ status: "completed" })
+      .from(parentTable)
+      .update({ status: nextStatus })
       .eq("id", groupId);
     if (groupError) throw groupError;
   }

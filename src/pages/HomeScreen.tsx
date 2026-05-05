@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates, uploadPlanImage } from "../lib/supabase";
+import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates, uploadPlanImage, getFunctionsPublic, createFunction, joinFunction, leaveFunction } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
-import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe, ImagePlus, X } from "lucide-react";
+import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe, ImagePlus, X, CalendarDays, MapPin, BadgeDollarSign, Sparkles } from "lucide-react";
 
 interface PlanMember {
   id: string;
@@ -47,23 +47,211 @@ interface Plan {
   plan_members: PlanMember[];
 }
 
+interface FunctionMember {
+  id: string;
+  user_id: string;
+  has_paid: boolean;
+  joined_at: string;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  };
+}
+
+interface FunctionListing {
+  id: string;
+  host_id: string;
+  title: string;
+  description: string | null;
+  date: string | null;
+  location: string | null;
+  amount_per_person: number;
+  max_capacity: number | null;
+  mode: "pay" | "pledge";
+  goal_count: number | null;
+  deadline: string | null;
+  status: "open" | "funded" | "cancelled";
+  is_public: boolean;
+  created_at: string;
+  host: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  };
+  function_members: FunctionMember[];
+}
+
+function formatEventDate(dateValue: string | null) {
+  if (!dateValue) return "Anytime";
+  return new Date(dateValue).toLocaleDateString("en-KE", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function FunctionPayModal({
+  amount,
+  functionId,
+  userId,
+  onClose,
+  onRefreshStatus,
+}: {
+  amount: number;
+  functionId: string;
+  userId: string;
+  onClose: () => void;
+  onRefreshStatus?: () => void;
+}) {
+  const [phone, setPhone] = useState("254");
+  const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">("input");
+  const [error, setError] = useState("");
+
+  const handlePay = async () => {
+    if (phone.length < 12) {
+      setError("Enter a valid phone number (e.g. 254712345678)");
+      return;
+    }
+    setStep("sending");
+    setError("");
+    try {
+      const res = await fetch("/api/charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone_number: phone,
+          amount,
+          function_id: functionId,
+          user_id: userId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStep("waiting");
+      } else {
+        setError(data.message || "Failed to initiate payment");
+        setStep("error");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+      setStep("error");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
+      <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+        {step === "input" || step === "error" ? (
+          <>
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="font-bold text-xl text-black">Pay to join</h2>
+              <button
+                onClick={onClose}
+                className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-center text-sm text-gray-500 mb-5">
+              Amount: <span className="font-bold text-black">KSH {amount.toLocaleString()}</span>
+            </p>
+            <div className="mb-5">
+              <label className="text-xs text-gray-500 mb-1.5 block">M-PESA Phone Number</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                placeholder="254712345678"
+                maxLength={12}
+                className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+              />
+              <p className="text-xs text-gray-400 mt-1.5 ml-2">Format: 254 followed by your number</p>
+            </div>
+            {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
+            <button
+              onClick={handlePay}
+              disabled={phone.length < 12}
+              className={`w-full h-12 rounded-full font-bold text-base transition-colors ${
+                phone.length >= 12
+                  ? "bg-black text-white hover:bg-gray-800"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              Pay KSH {amount.toLocaleString()}
+            </button>
+            {step === "error" && onRefreshStatus && (
+              <button
+                type="button"
+                onClick={onRefreshStatus}
+                className="mt-3 w-full text-sm text-gray-500 underline hover:text-black text-center"
+              >
+                Already paid? Check status
+              </button>
+            )}
+          </>
+        ) : step === "sending" ? (
+          <div className="py-12 text-center">
+            <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full mx-auto mb-4 animate-spin" />
+            <p className="font-bold text-lg text-black">Sending to your phone...</p>
+          </div>
+        ) : (
+          <div className="py-12 text-center">
+            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                <line x1="12" y1="18" x2="12.01" y2="18" />
+              </svg>
+            </div>
+            <p className="font-bold text-lg text-black mb-2">Check your phone</p>
+            <p className="text-sm text-gray-500">Enter your M-PESA PIN to complete payment</p>
+            <p className="text-xs text-gray-400 mt-6">This will close automatically once confirmed</p>
+            {onRefreshStatus && (
+              <button
+                type="button"
+                onClick={onRefreshStatus}
+                className="mt-4 text-sm text-gray-500 underline hover:text-black"
+              >
+                I already paid — refresh
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function HomeScreen() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"public" | "friends">("public");
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [functionsFeed, setFunctionsFeed] = useState<FunctionListing[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
+  const [composeMode, setComposeMode] = useState<"plan" | "function">("plan");
   const [planTitle, setPlanTitle] = useState("");
   const [planAmount, setPlanAmount] = useState("");
   const [planSlots, setPlanSlots] = useState("");
   const [planImageFile, setPlanImageFile] = useState<File | null>(null);
   const [planImagePreview, setPlanImagePreview] = useState<string | null>(null);
+  const [functionTitle, setFunctionTitle] = useState("");
+  const [functionDescription, setFunctionDescription] = useState("");
+  const [functionDate, setFunctionDate] = useState("");
+  const [functionLocation, setFunctionLocation] = useState("");
+  const [functionAmount, setFunctionAmount] = useState("");
+  const [functionCapacity, setFunctionCapacity] = useState("");
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const planImageInputRef = useRef<HTMLInputElement>(null);
+
+  // Function payment state
+  const [functionPayTarget, setFunctionPayTarget] = useState<FunctionListing | null>(null);
 
   // Plan updates state
   const [planUpdates, setPlanUpdates] = useState<Record<string, PlanUpdate[]>>({});
@@ -72,26 +260,39 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!user) return;
-    loadPlans();
+    loadFeed();
 
     const channel = supabase
-      .channel("plans-realtime")
+      .channel("feed-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "plans" }, () => loadPlans())
       .on("postgres_changes", { event: "*", schema: "public", table: "plan_members" }, () => loadPlans())
+      .on("postgres_changes", { event: "*", schema: "public", table: "functions" }, () => loadFeed())
+      .on("postgres_changes", { event: "*", schema: "public", table: "function_members" }, () => loadFeed())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [user, activeTab]);
 
-  const loadPlans = async () => {
+  useEffect(() => {
+    if (!user || !functionPayTarget) return;
+    const refreshed = functionsFeed.find((f) => f.id === functionPayTarget.id);
+    const hasPaid = refreshed?.function_members.some((m) => m.user_id === user.id && m.has_paid);
+    if (hasPaid) {
+      setFunctionPayTarget(null);
+    }
+  }, [functionsFeed, functionPayTarget, user]);
+
+  const loadFeed = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const data = activeTab === "public"
-        ? await getPlansPublic()
-        : await getPlansFriends(user.id);
-      const planList = (data as Plan[]) || [];
+      const [planData, functionData] = await Promise.all([
+        activeTab === "public" ? getPlansPublic() : getPlansFriends(user.id),
+        activeTab === "public" ? getFunctionsPublic() : Promise.resolve([]),
+      ]);
+      const planList = (planData as Plan[]) || [];
       setPlans(planList);
+      setFunctionsFeed((functionData as FunctionListing[]) || []);
       const updatesMap: Record<string, PlanUpdate[]> = {};
       await Promise.all(planList.map(async (plan) => {
         try {
@@ -103,6 +304,8 @@ export default function HomeScreen() {
     } catch { /* ignore */ }
     setLoading(false);
   };
+
+  const loadPlans = loadFeed;
 
   const handlePostUpdate = async (planId: string) => {
     const content = updateInputs[planId]?.trim();
@@ -147,35 +350,60 @@ export default function HomeScreen() {
     planImageInputRef.current?.focus();
   };
 
+  const resetCompose = () => {
+    setShowCompose(false);
+    setPostError(null);
+    setComposeMode("plan");
+    setPlanTitle("");
+    setPlanAmount("");
+    setPlanSlots("");
+    clearPlanImage();
+    setFunctionTitle("");
+    setFunctionDescription("");
+    setFunctionDate("");
+    setFunctionLocation("");
+    setFunctionAmount("");
+    setFunctionCapacity("");
+  };
+
   const handlePost = async () => {
-    if (!planTitle.trim() || !user) return;
+    if (!user) return;
+    if (composeMode === "plan" && !planTitle.trim()) return;
+    if (composeMode === "function" && (!functionTitle.trim() || !functionAmount.trim())) return;
     setIsPosting(true);
     setPostError(null);
     try {
-      let imageUrl: string | null = null;
-      if (planImageFile) {
-        try {
-          imageUrl = await uploadPlanImage(user.id, planImageFile);
-        } catch (uploadErr) {
-          console.error("Image upload failed:", uploadErr);
-          setPostError("Couldn't upload image — posting without it.");
-          imageUrl = null;
+      if (composeMode === "plan") {
+        let imageUrl: string | null = null;
+        if (planImageFile) {
+          try {
+            imageUrl = await uploadPlanImage(user.id, planImageFile);
+          } catch (uploadErr) {
+            console.error("Image upload failed:", uploadErr);
+            setPostError("Couldn't upload image — posting without it.");
+            imageUrl = null;
+          }
         }
+        await createPlan(
+          user.id,
+          planTitle.trim(),
+          planAmount ? parseInt(planAmount) : null,
+          planSlots ? parseInt(planSlots) : null,
+          imageUrl
+        );
+      } else {
+        await createFunction(
+          user.id,
+          functionTitle.trim(),
+          functionDescription.trim() || null,
+          functionDate ? new Date(functionDate).toISOString() : null,
+          functionLocation.trim() || null,
+          parseInt(functionAmount),
+          functionCapacity ? parseInt(functionCapacity) : null,
+        );
       }
-      await createPlan(
-        user.id,
-        planTitle.trim(),
-        planAmount ? parseInt(planAmount) : null,
-        planSlots ? parseInt(planSlots) : null,
-        imageUrl
-      );
-      setPlanTitle("");
-      setPlanAmount("");
-      setPlanSlots("");
-      clearPlanImage();
-      setPostError(null);
-      setShowCompose(false);
-      await loadPlans();
+      resetCompose();
+      await loadFeed();
     } catch (err) {
       console.error(err);
       let msg: string =
@@ -188,6 +416,27 @@ export default function HomeScreen() {
       setPostError(msg);
     }
     setIsPosting(false);
+  };
+
+  const handleJoinFunction = async (eventFunction: FunctionListing) => {
+    if (!user) return;
+    const isMember = eventFunction.function_members.some((m) => m.user_id === user.id);
+    const isFull = eventFunction.max_capacity ? eventFunction.function_members.length >= eventFunction.max_capacity && !isMember : false;
+    if (isFull) return;
+
+    try {
+      if (!isMember) {
+        await joinFunction(eventFunction.id, user.id);
+      }
+      setFunctionPayTarget(eventFunction);
+      await loadFeed();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const refreshFunctionPaymentStatus = async () => {
+    await loadFeed();
   };
 
   const handleJoin = async (plan: Plan) => {
@@ -251,6 +500,94 @@ export default function HomeScreen() {
           </span>
         </button>
       </div>
+
+      {/* Functions board */}
+      {activeTab === "public" && functionsFeed.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Functions</p>
+            <span className="text-xs text-gray-400">Hosted now</span>
+          </div>
+          <div className="flex flex-col gap-4 mb-6">
+            {functionsFeed.map((eventFunction) => {
+              const isHost = eventFunction.host_id === user?.id;
+              const isMember = eventFunction.function_members.some((m) => m.user_id === user?.id);
+              const me = eventFunction.function_members.find((m) => m.user_id === user?.id);
+              const paidCount = eventFunction.function_members.filter((m) => m.has_paid).length;
+              const joinedCount = eventFunction.function_members.length;
+              const isFull = eventFunction.max_capacity ? joinedCount >= eventFunction.max_capacity && !isMember : false;
+              const canJoin = !isHost && !isMember && !isFull;
+              const canPay = isMember && !me?.has_paid;
+
+              return (
+                <div key={eventFunction.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-start gap-2 mb-3">
+                    <UserAvatar name={eventFunction.host.display_name} avatarUrl={eventFunction.host.avatar_url} size="sm" />
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm text-black">{eventFunction.host.display_name} is hosting a function</p>
+                      <p className="text-xs text-gray-400">{formatEventDate(eventFunction.date)}</p>
+                    </div>
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-black text-white uppercase tracking-wide">Function</span>
+                  </div>
+
+                  <p className="font-bold text-black text-lg mb-1">{eventFunction.title}</p>
+                  {eventFunction.description && (
+                    <p className="text-sm text-gray-600 mb-3">{eventFunction.description}</p>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <span className="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                      <BadgeDollarSign size={14} /> KSH {eventFunction.amount_per_person.toLocaleString()}
+                    </span>
+                    <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                      <Users size={14} /> {joinedCount} joining
+                    </span>
+                    {eventFunction.location && (
+                      <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                        <MapPin size={14} /> {eventFunction.location}
+                      </span>
+                    )}
+                    {eventFunction.max_capacity && (
+                      <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                        <Sparkles size={14} /> {eventFunction.max_capacity} max
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs text-gray-400 flex items-center gap-1.5">
+                      <CalendarDays size={13} /> {formatEventDate(eventFunction.date)}
+                      <span>•</span>
+                      <span>{paidCount} paid</span>
+                    </div>
+                    {isHost ? (
+                      <span className="text-sm font-semibold text-gray-500">Hosting</span>
+                    ) : isMember && me?.has_paid ? (
+                      <span className="text-sm font-semibold text-green-600">You&apos;re in</span>
+                    ) : canPay ? (
+                      <button
+                        onClick={() => handleJoinFunction(eventFunction)}
+                        className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
+                      >
+                        Pay &amp; join
+                      </button>
+                    ) : canJoin ? (
+                      <button
+                        onClick={() => handleJoinFunction(eventFunction)}
+                        className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
+                      >
+                        Join Function
+                      </button>
+                    ) : (
+                      <span className="text-sm font-semibold text-gray-500">{isFull ? "Full" : "Joined"}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Plans board — same for both tabs */}
         <>
@@ -369,7 +706,7 @@ export default function HomeScreen() {
                       {(planUpdates[plan.id] || []).map((update) => (
                         <div key={update.id} className="flex items-start gap-2 mt-2 pl-2">
                           <div className="flex items-start gap-2 flex-1 pb-2">
-                            <UserAvatar name={update.profiles.display_name} avatarUrl={update.profiles.avatar_url} size="sm" className="!w-7 !h-7 flex-shrink-0 mt-0.5" />
+                            <UserAvatar name={update.profiles.display_name} avatarUrl={update.profiles.avatar_url} size="sm" className="w-7! h-7! shrink-0 mt-0.5" />
                             <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-sm px-3 py-2">
                               <p className="text-sm text-black">{update.content}</p>
                               <p className="text-[10px] text-gray-400 mt-0.5">{new Date(update.created_at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}</p>
@@ -381,11 +718,11 @@ export default function HomeScreen() {
                       {/* Update input — creator only */}
                       {isMine && (
                         <div className="flex gap-2 mt-2">
-                          <div className="flex flex-col items-center w-5 flex-shrink-0">
+                          <div className="flex flex-col items-center w-5 shrink-0">
                             <div className="w-px bg-gray-200 h-3" />
                           </div>
                           <div className="flex-1 flex gap-2 items-center pb-2">
-                            <UserAvatar name={profile?.display_name || ""} avatarUrl={profile?.avatar_url} size="sm" className="!w-7 !h-7 flex-shrink-0" />
+                            <UserAvatar name={profile?.display_name || ""} avatarUrl={profile?.avatar_url} size="sm" className="w-7! h-7! shrink-0" />
                             <input
                               type="text"
                               value={updateInputs[plan.id] || ""}
@@ -399,7 +736,7 @@ export default function HomeScreen() {
                               <button
                                 onClick={() => handlePostUpdate(plan.id)}
                                 disabled={postingUpdate[plan.id]}
-                                className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center text-sm flex-shrink-0"
+                                className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center text-sm shrink-0"
                               >
                                 ↑
                               </button>
@@ -429,87 +766,186 @@ export default function HomeScreen() {
           />
           <div className="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10 max-h-[90vh] overflow-y-auto compose-sheet-up">
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
-            <p className="font-bold text-xl text-black mb-4">Post a Plan</p>
-
-            <textarea
-              value={planTitle}
-              onChange={(e) => setPlanTitle(e.target.value)}
-              placeholder="Bowling Saturday? Who's in 🎳"
-              className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors mb-3"
-              maxLength={200}
-            />
-
-            {/* Image picker */}
-            <div className="mb-4">
-              {planImagePreview ? (
-                <div className="relative rounded-2xl overflow-hidden bg-gray-100 flex items-center justify-center">
-                  <img
-                    src={planImagePreview}
-                    alt="Preview"
-                    className="max-w-full max-h-64 w-auto h-auto object-contain"
-                  />
-                  <button
-                    type="button"
-                    onClick={clearPlanImage}
-                    className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <p className="font-bold text-xl text-black">Post something</p>
+              <div className="flex bg-gray-100 rounded-full p-1">
                 <button
                   type="button"
-                  onClick={() => planImageInputRef.current?.click()}
-                  className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
+                  onClick={() => setComposeMode("plan")}
+                  className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${composeMode === "plan" ? "bg-white text-black shadow-sm" : "text-gray-400"}`}
                 >
-                  <ImagePlus size={20} />
-                  <span className="text-sm font-medium">Add photo</span>
+                  <span className="flex items-center gap-1.5"><ClipboardList size={14} /> Plan</span>
                 </button>
-              )}
-              <input
-                ref={planImageInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePlanImageChange}
-              />
+                <button
+                  type="button"
+                  onClick={() => setComposeMode("function")}
+                  className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${composeMode === "function" ? "bg-white text-black shadow-sm" : "text-gray-400"}`}
+                >
+                  <span className="flex items-center gap-1.5"><CalendarDays size={14} /> Function</span>
+                </button>
+              </div>
             </div>
 
-            <div className="flex gap-3 mb-4">
-              <div className="flex-1">
-                <p className="text-xs text-gray-400 mb-1 font-semibold">Amount (KSH)</p>
+            {composeMode === "plan" ? (
+              <textarea
+                value={planTitle}
+                onChange={(e) => setPlanTitle(e.target.value)}
+                placeholder="Bowling Saturday? Who's in 🎳"
+                className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors mb-3"
+                maxLength={200}
+              />
+            ) : (
+              <div className="flex flex-col gap-3 mb-3">
                 <input
-                  type="number"
-                  value={planAmount}
-                  onChange={(e) => setPlanAmount(e.target.value)}
-                  placeholder="e.g. 500"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                  type="text"
+                  value={functionTitle}
+                  onChange={(e) => setFunctionTitle(e.target.value)}
+                  placeholder="Friday Night Westlands"
+                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                  maxLength={120}
+                />
+                <textarea
+                  value={functionDescription}
+                  onChange={(e) => setFunctionDescription(e.target.value)}
+                  placeholder="Add a short description..."
+                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors"
+                  maxLength={240}
                 />
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-400 mb-1 font-semibold">Slots</p>
-                <input
-                  type="number"
-                  value={planSlots}
-                  onChange={(e) => setPlanSlots(e.target.value)}
-                  placeholder="e.g. 5"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
-                />
+            )}
+
+            {composeMode === "plan" ? (
+              <>
+                <div className="mb-4">
+                  {planImagePreview ? (
+                    <div className="relative rounded-2xl overflow-hidden bg-gray-100 flex items-center justify-center">
+                      <img src={planImagePreview} alt="Preview" className="max-w-full max-h-64 w-auto h-auto object-contain" />
+                      <button
+                        type="button"
+                        onClick={clearPlanImage}
+                        className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => planImageInputRef.current?.click()}
+                      className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
+                    >
+                      <ImagePlus size={20} />
+                      <span className="text-sm font-medium">Add photo</span>
+                    </button>
+                  )}
+                  <input
+                    ref={planImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePlanImageChange}
+                  />
+                </div>
+
+                <div className="flex gap-3 mb-4">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400 mb-1 font-semibold">Amount (KSH)</p>
+                    <input
+                      type="number"
+                      value={planAmount}
+                      onChange={(e) => setPlanAmount(e.target.value)}
+                      placeholder="e.g. 500"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400 mb-1 font-semibold">Slots</p>
+                    <input
+                      type="number"
+                      value={planSlots}
+                      onChange={(e) => setPlanSlots(e.target.value)}
+                      placeholder="e.g. 5"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400 mb-1 font-semibold">Amount per person (KSH)</p>
+                    <input
+                      type="number"
+                      value={functionAmount}
+                      onChange={(e) => setFunctionAmount(e.target.value)}
+                      placeholder="e.g. 500"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400 mb-1 font-semibold">Capacity</p>
+                    <input
+                      type="number"
+                      value={functionCapacity}
+                      onChange={(e) => setFunctionCapacity(e.target.value)}
+                      placeholder="e.g. 25"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400 mb-1 font-semibold">Date &amp; time</p>
+                    <input
+                      type="datetime-local"
+                      value={functionDate}
+                      onChange={(e) => setFunctionDate(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1 font-semibold">Location</p>
+                  <input
+                    type="text"
+                    value={functionLocation}
+                    onChange={(e) => setFunctionLocation(e.target.value)}
+                    placeholder="Westlands, Nairobi"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {postError && (
               <p className="mb-3 text-sm text-red-600">{postError}</p>
             )}
             <button
               onClick={handlePost}
-              disabled={!planTitle.trim() || isPosting}
+              disabled={isPosting || (composeMode === "plan" ? !planTitle.trim() : !functionTitle.trim() || !functionAmount.trim())}
               className="w-full py-4 bg-black text-white rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
             >
-              {isPosting ? "Posting..." : <span className="flex items-center justify-center gap-2"><Send size={16} /> Post Plan</span>}
+              {isPosting ? (
+                "Posting..."
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <Send size={16} /> {composeMode === "plan" ? "Post Plan" : "Post Function"}
+                </span>
+              )}
             </button>
           </div>
         </div>
+      )}
+
+      {functionPayTarget && user && (
+        <FunctionPayModal
+          amount={functionPayTarget.amount_per_person}
+          functionId={functionPayTarget.id}
+          userId={user.id}
+          onClose={() => setFunctionPayTarget(null)}
+          onRefreshStatus={refreshFunctionPaymentStatus}
+        />
       )}
 
       {/* Floating compose button */}

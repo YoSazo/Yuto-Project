@@ -48,12 +48,43 @@ create table if not exists group_members (
   unique(group_id, user_id)
 );
 
+create table if not exists functions (
+  id uuid default gen_random_uuid() primary key,
+  host_id uuid references profiles(id) on delete cascade not null,
+  title text not null,
+  description text,
+  date timestamptz,
+  location text,
+  amount_per_person integer not null,
+  max_capacity integer default null,
+  mode text check (mode in ('pay', 'pledge')) default 'pay',
+  goal_count integer default null,
+  deadline timestamptz default null,
+  status text check (status in ('open', 'funded', 'cancelled')) default 'open',
+  is_public boolean default true,
+  created_at timestamptz default now()
+);
+
+create table if not exists function_members (
+  id uuid default gen_random_uuid() primary key,
+  function_id uuid references functions(id) on delete cascade not null,
+  user_id uuid references profiles(id) on delete cascade not null,
+  has_paid boolean default false,
+  paid_at timestamptz,
+  payment_invoice_id text,
+  payment_api_ref text,
+  joined_at timestamptz default now(),
+  unique(function_id, user_id)
+);
+
 -- ─── Enable RLS ──────────────────────────────────────
 
 alter table profiles enable row level security;
 alter table friendships enable row level security;
 alter table groups enable row level security;
 alter table group_members enable row level security;
+alter table functions enable row level security;
+alter table function_members enable row level security;
 
 -- ─── Functions ───────────────────────────────────────
 
@@ -123,6 +154,31 @@ create policy "Auth users can add members" on group_members
   for insert with check (auth.uid() is not null);
 create policy "Users can update own membership" on group_members
   for update using (user_id = auth.uid());
+
+create policy "Public functions can be viewed" on functions
+  for select using (
+    is_public = true
+    or host_id = auth.uid()
+    or id in (select function_id from function_members where user_id = auth.uid())
+  );
+
+create policy "Users can create functions" on functions
+  for insert with check (host_id = auth.uid());
+
+create policy "Hosts can update functions" on functions
+  for update using (host_id = auth.uid());
+
+create policy "Hosts can delete functions" on functions
+  for delete using (host_id = auth.uid());
+
+create policy "Anyone can view function members" on function_members
+  for select using (true);
+
+create policy "Users can join functions" on function_members
+  for insert with check (user_id = auth.uid());
+
+create policy "Users can leave functions" on function_members
+  for delete using (user_id = auth.uid());
 
 -- Messages table for group chat
 create table if not exists messages (
@@ -252,6 +308,8 @@ create index if not exists idx_plan_updates_plan on plan_updates(plan_id, create
 -- ─── Realtime ────────────────────────────────────────
 
 alter publication supabase_realtime add table group_members;
+alter publication supabase_realtime add table functions;
+alter publication supabase_realtime add table function_members;
 alter publication supabase_realtime add table friendships;
 alter publication supabase_realtime add table messages;
 
@@ -260,3 +318,5 @@ alter publication supabase_realtime add table messages;
 create index if not exists idx_friendships_requester on friendships(requester_id);
 create index if not exists idx_friendships_addressee on friendships(addressee_id);
 create index if not exists idx_messages_group on messages(group_id, created_at);
+create index if not exists idx_functions_host on functions(host_id);
+create index if not exists idx_function_members_function on function_members(function_id);

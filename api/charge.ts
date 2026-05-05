@@ -9,15 +9,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { phone_number, amount, group_id, user_id } = req.body;
+  const { phone_number, amount, group_id, function_id, user_id } = req.body;
 
-  if (!phone_number || !amount || !group_id || !user_id) {
+  const targetId = group_id || function_id;
+  const targetType = group_id ? "group" : function_id ? "function" : null;
+
+  if (!phone_number || !amount || !targetId || !user_id || !targetType) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const shortGroupId = group_id.replace(/-/g, "").slice(0, 7);
+  const shortTargetId = targetId.replace(/-/g, "").slice(0, 7);
   const shortUserId = user_id.replace(/-/g, "").slice(0, 7);
-  const api_ref = `yuto-${shortGroupId}-${shortUserId}`;
+  const api_ref = `yuto-${targetType}-${shortTargetId}-${shortUserId}`;
 
   try {
     console.log(
@@ -69,13 +72,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // If this isn't persisted before the COMPLETE webhook arrives, the
         // invoice_id lookup fails and has_paid never gets set.
         const supabase = createClient(supabaseUrl, serviceRoleKey);
+        const membershipTable = targetType === "group" ? "group_members" : "function_members";
+        const idColumn = targetType === "group" ? "group_id" : "function_id";
         const { error } = await supabase
-          .from("group_members")
+          .from(membershipTable)
           .update({ payment_invoice_id: invoiceId, payment_api_ref: api_ref })
-          .eq("group_id", group_id)
+          .eq(idColumn, targetId)
           .eq("user_id", user_id);
         if (error) {
-          console.error("Failed to persist invoice_id on group_members:", error);
+          console.error(`Failed to persist invoice_id on ${membershipTable}:`, error);
         }
       }
 
@@ -83,6 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         success: true,
         invoice_id: invoiceId,
         api_ref,
+        target_type: targetType,
         message: "Check your phone for the M-PESA PIN prompt",
       });
     }
