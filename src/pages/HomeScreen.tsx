@@ -946,12 +946,15 @@ export default function HomeScreen() {
 
               return (
                 <div key={eventFunction.id} className={`bg-white border border-gray-100 rounded-2xl p-4 shadow-sm ${activeTab === "public" ? "function-card-highlight" : ""}`}>
-                  <div className="flex items-start gap-2 mb-3">
-                    <UserAvatar name={eventFunction.host.display_name} avatarUrl={eventFunction.host.avatar_url} size="sm" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-black">{eventFunction.host.display_name} is hosting a function</p>
-                      <p className="text-xs text-gray-400">{formatEventDate(eventFunction.date)}</p>
-                    </div>
+                  <div 
+                  className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity" 
+                  onClick={() => navigate(`/user/${eventFunction.host.id}`)}
+                >
+                  <UserAvatar name={eventFunction.host.display_name} avatarUrl={eventFunction.host.avatar_url} size="sm" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm text-black">{eventFunction.host.display_name} is hosting a function</p>
+                    <p className="text-xs text-gray-400">{formatEventDate(eventFunction.date)}</p>
+                  </div>
                     <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-black text-white uppercase tracking-wide">Function</span>
                   </div>
 
@@ -1065,7 +1068,10 @@ export default function HomeScreen() {
                   <div key={plan.id}>
                   <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                     {/* Creator */}
-                    <div className="flex items-center gap-2 mb-3">
+                    <div 
+                      className="flex items-center gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => navigate(`/user/${plan.creator.id}`)}
+                    >
                       <UserAvatar name={plan.creator.display_name} avatarUrl={plan.creator.avatar_url} size="sm" />
                       <div className="flex-1">
                         <p className="font-semibold text-sm text-black">{plan.creator.display_name}</p>

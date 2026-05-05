@@ -1,239 +1,187 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, sendFriendRequest, getFriends } from "../lib/supabase";
+import { supabase, getProfile, getFriends, sendFriendRequest } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
-import { Scissors } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, Clock } from "lucide-react";
 
-interface UserProfile {
-  id: string;
-  username: string;
-  display_name: string;
-  avatar_url: string | null;
-}
+const STAT_POSITIONS = [
+  { id: "splits", angle: -2.4, label: "Splits" },
+  { id: "paid", angle: -0.7, label: "KSH Paid" },
+  { id: "friends", angle: 2.4, label: "Friends" },
+  { id: "plans", angle: 0.7, label: "Plans" },
+];
 
 export default function UserProfileScreen() {
-  const { username } = useParams<{ username: string }>();
+  const { id: targetUserId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  
+  const [profile, setProfile] = useState<any>(null);
+  const [stats, setStats] = useState({ totalYutos: 0, totalSpent: 0, friendsCount: 0, plansCount: 0 });
+  const [friendStatus, setFriendStatus] = useState<"none" | "pending" | "friends">("none");
   const [loading, setLoading] = useState(true);
-  const [isFriend, setIsFriend] = useState(false);
-  const [requestSent, setRequestSent] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [mutualCount, setMutualCount] = useState(0);
-  const [groupCount, setGroupCount] = useState(0);
-  const [totalSplits, setTotalSplits] = useState(0);
-  const [totalKshPaid, setTotalKshPaid] = useState(0);
-  const [friendsCount, setFriendsCount] = useState(0);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    if (!username || !user) return;
+    // If they click their own profile, redirect to their main profile tab
+    if (targetUserId === user?.id) {
+      navigate("/profile", { replace: true });
+      return;
+    }
+    loadUserProfile();
+  }, [targetUserId, user]);
 
-    const load = async () => {
-      // Fetch the profile
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url")
-        .eq("username", username)
-        .single();
+  const loadUserProfile = async () => {
+    if (!targetUserId || !user) return;
+    setLoading(true);
+    try {
+      // 1. Load Profile
+      const userProfile = await getProfile(targetUserId);
+      setProfile(userProfile);
 
-      if (error || !profileData) {
-        setLoading(false);
-        return;
-      }
-      setProfile(profileData);
+      // 2. Load Stats (Safe queries that don't violate RLS)
+      const [statsRes, plansRes, friendsRes, friendshipRes] = await Promise.all([
+        supabase.from("group_members").select("has_paid, groups(per_person)").eq("user_id", targetUserId),
+        supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", targetUserId),
+        getFriends(targetUserId).catch(() => []), 
+        supabase.from("friendships")
+          .select("status")
+          .or(`and(requester_id.eq.${user.id},addressee_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},addressee_id.eq.${user.id})`)
+          .maybeSingle()
+      ]);
 
-      // Check friendship status
-      const { data: friendship } = await supabase
-        .from("friendships")
-        .select("id, status")
-        .or(
-          `and(requester_id.eq.${user.id},addressee_id.eq.${profileData.id}),and(requester_id.eq.${profileData.id},addressee_id.eq.${user.id})`
-        )
-        .limit(1)
-        .single();
+      const membersData = statsRes.data || [];
+      const paidMemberships = membersData.filter((m: any) => m.has_paid);
+      const totalSpent = paidMemberships.reduce((sum, m: any) => sum + (m.groups?.per_person || 0), 0);
 
-      if (friendship) {
-        if (friendship.status === "accepted") setIsFriend(true);
-        else if (friendship.status === "pending") setRequestSent(true);
-      }
-
-      // Count shared groups
-      const { data: myGroups } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", user.id);
-
-      const { data: theirGroups } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", profileData.id);
-
-      if (myGroups && theirGroups) {
-        const myGroupIds = new Set(myGroups.map((g) => g.group_id));
-        const shared = theirGroups.filter((g) => myGroupIds.has(g.group_id));
-        setGroupCount(shared.length);
-      }
-
-      // Their total splits + KSH paid
-      const { data: theirMemberships } = await supabase
-        .from("group_members")
-        .select("has_paid, groups(per_person)")
-        .eq("user_id", profileData.id);
-
-      if (theirMemberships) {
-        setTotalSplits(theirMemberships.length);
-        const paid = theirMemberships.filter((m) => m.has_paid);
-        const ksh = paid.reduce((sum, m) => sum + ((m.groups as any)?.per_person || 0), 0);
-        setTotalKshPaid(ksh);
-      }
-
-      // Their friends count
-      const theirFriends = await getFriends(profileData.id);
-      setFriendsCount(theirFriends.length);
-
-      // Mutual friends
-      const myFriends = await getFriends(user.id);
-      const myFriendIds = new Set(
-        (myFriends as any[]).map((f) =>
-          f.requester_id === user.id ? f.addressee_id : f.requester_id
-        )
-      );
-      const mutuals = (theirFriends as any[]).filter((f) => {
-        const otherId =
-          f.requester_id === profileData.id ? f.addressee_id : f.requester_id;
-        return myFriendIds.has(otherId);
+      setStats({
+        totalYutos: membersData.length,
+        totalSpent,
+        friendsCount: friendsRes.length || 0,
+        plansCount: plansRes.count || 0,
       });
-      setMutualCount(mutuals.length);
 
-      setLoading(false);
-    };
-
-    load();
-  }, [username, user]);
+      // 3. Determine Friendship Status
+      if (friendshipRes.data) {
+        setFriendStatus(friendshipRes.data.status === "accepted" ? "friends" : "pending");
+      } else {
+        setFriendStatus("none");
+      }
+    } catch (err) {
+      console.error("Failed to load user profile:", err);
+    }
+    setLoading(false);
+  };
 
   const handleAddFriend = async () => {
-    if (!profile || !user) return;
-    setSending(true);
+    if (!user || !targetUserId) return;
+    setActionLoading(true);
     try {
-      await sendFriendRequest(user.id, profile.id);
-      setRequestSent(true);
-    } catch {
-      // already sent
-    } finally {
-      setSending(false);
+      await sendFriendRequest(user.id, targetUserId);
+      setFriendStatus("pending");
+    } catch (err) {
+      console.error(err);
     }
+    setActionLoading(false);
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-full items-center justify-center">
-        <p className="text-gray-400">Loading...</p>
+      <div className="flex items-center justify-center min-h-full">
+        <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!profile) {
-    return (
-      <div className="flex flex-col min-h-full items-center justify-center px-6">
-        <p className="font-bold text-lg text-black mb-2">User not found</p>
-        <button onClick={() => navigate(-1)} className="text-sm text-gray-400 bg-transparent border-none cursor-pointer">
-          ← Go back
-        </button>
-      </div>
-    );
-  }
+  if (!profile) return <div className="p-5 text-center text-gray-500">User not found</div>;
 
-  const isMe = user?.id === profile.id;
+  const userName = profile.display_name || "User";
+  const userHandle = profile.username ? `@${profile.username}` : "";
+  const cx = 190;
+  const cy = 190;
+  const nodeRadius = 125;
 
   return (
-    <div className="flex flex-col min-h-full px-6 pt-14">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-gray-400 hover:text-black bg-transparent border-none cursor-pointer text-base"
-        >
-          ← Back
+    <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
+      {/* Header with Back Button */}
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 bg-transparent border-none cursor-pointer text-black hover:opacity-70 transition-opacity">
+          <ArrowLeft size={24} />
         </button>
+        <span className="text-2xl font-bold text-black">Profile</span>
       </div>
 
-      {/* Profile card */}
-      <div className="flex flex-col items-center text-center mb-8">
-        <UserAvatar name={profile.display_name} avatarUrl={profile.avatar_url} size="xl" className="mb-4" />
-        <h1 className="text-2xl font-bold text-black">{profile.display_name}</h1>
-        <p className="text-sm text-gray-400 mt-1">@{profile.username}</p>
+      {/* Radial Graph */}
+      <div className="relative w-full max-w-[380px] mx-auto flex-shrink-0" style={{ height: 380 }}>
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 380 380" preserveAspectRatio="xMidYMid meet" style={{ zIndex: 1 }}>
+          <circle cx={cx} cy={cy} r="85" fill="none" stroke="#f0f0f0" strokeWidth="1" />
+          <circle cx={cx} cy={cy} r="135" fill="none" stroke="#f0f0f0" strokeWidth="1" strokeDasharray="4 6" style={{ animation: "orbitSpin 60s linear infinite", transformOrigin: "190px 190px" }} />
+          
+          {STAT_POSITIONS.map((pos, i) => {
+            const nx = cx + Math.cos(pos.angle) * nodeRadius;
+            const ny = cy + Math.sin(pos.angle) * nodeRadius;
+            const pathD = `M ${cx} ${cy} Q ${cx + -Math.sin(pos.angle) * 25} ${cy + Math.cos(pos.angle) * 25} ${nx} ${ny}`;
+            return (
+              <g key={pos.id}>
+                <path d={pathD} fill="none" stroke="#d1d5db" strokeWidth="2" strokeDasharray="7 5" strokeLinecap="round" />
+                <circle r="3.5" fill="#5493b3" opacity="0.7">
+                  <animateMotion dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} path={pathD} />
+                  <animate attributeName="opacity" values="0;0.8;0.8;0" dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} />
+                </circle>
+              </g>
+            );
+          })}
+        </svg>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-3 mt-6 w-full">
-          <div className="bg-white border border-gray-200 rounded-xl py-4 px-3 text-center">
-            <p className="font-bold text-xl text-black">{totalSplits}</p>
-            <p className="text-xs text-gray-400 mt-1">Splits</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl py-4 px-3 text-center">
-            <p className="font-bold text-lg text-black">{totalKshPaid.toLocaleString()}</p>
-            <p className="text-xs text-gray-400 mt-1">KSH Paid</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl py-4 px-3 text-center">
-            <p className="font-bold text-xl text-black">{friendsCount}</p>
-            <p className="text-xs text-gray-400 mt-1">Friends</p>
+        {/* Center Avatar */}
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 10 }}>
+          <div className="relative">
+            <div className={`w-[100px] h-[100px] rounded-full flex items-center justify-center overflow-hidden border-[3px] transition-all ${stats.totalSpent > 0 ? "border-green-500" : "border-gray-300"}`} style={stats.totalSpent > 0 ? { boxShadow: "0 0 0 6px rgba(34,197,94,0.2), 0 0 0 14px rgba(34,197,94,0.08)" } : {}}>
+              <UserAvatar name={userName} avatarUrl={profile.avatar_url} size="xl" className="!w-full !h-full" />
+            </div>
           </div>
         </div>
 
-        {/* Mutual / together stats */}
-        {(mutualCount > 0 || groupCount > 0) && (
-          <div className="flex items-center gap-4 mt-4">
-            {groupCount > 0 && (
-              <p className="text-xs text-gray-400">🤝 {groupCount} splits together</p>
-            )}
-            {mutualCount > 0 && (
-              <p className="text-xs text-gray-400">👥 {mutualCount} mutual friends</p>
-            )}
-          </div>
+        {/* Stat Nodes */}
+        {STAT_POSITIONS.map((pos) => {
+          const value = pos.id === "splits" ? stats.totalYutos : pos.id === "paid" ? stats.totalSpent.toLocaleString() : pos.id === "friends" ? stats.friendsCount : stats.plansCount;
+          const isPaid = pos.id === "paid" && stats.totalSpent > 0;
+          return (
+            <div key={pos.id} className="absolute left-1/2 top-1/2 flex flex-col items-center" style={{ transform: `translate(calc(-50% + ${Math.cos(pos.angle) * nodeRadius}px), calc(-50% + ${Math.sin(pos.angle) * nodeRadius}px))`, zIndex: 20 }}>
+              <div className={`rounded-2xl px-5 py-3 text-center min-w-[88px] transition-colors ${isPaid ? "bg-black text-green-400 border-2 border-green-500 shadow-lg" : "bg-white border border-gray-200 shadow-sm"}`}>
+                <p className={`font-extrabold text-xl font-syne ${isPaid ? "text-green-400" : "text-black"}`}>{value}</p>
+                <p className={`text-xs mt-0.5 ${isPaid ? "text-white/70" : "text-gray-400"}`}>{pos.label}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Name + Handle */}
+      <div className="text-center -mt-2 mb-8">
+        <p className="font-bold text-xl text-black">{userName}</p>
+        <p className="text-sm text-gray-400">{userHandle}</p>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="px-2">
+        {friendStatus === "none" && (
+          <button onClick={handleAddFriend} disabled={actionLoading} className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors shadow-lg shadow-black/10">
+            <UserPlus size={20} /> Add Friend
+          </button>
+        )}
+        {friendStatus === "pending" && (
+          <button disabled className="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold flex items-center justify-center gap-2">
+            <Clock size={20} /> Request Pending
+          </button>
+        )}
+        {friendStatus === "friends" && (
+          <button disabled className="w-full py-4 bg-green-50 text-green-600 rounded-2xl font-bold flex items-center justify-center gap-2 border border-green-200">
+            <Check size={20} /> You are friends
+          </button>
         )}
       </div>
-
-      {/* Action button */}
-      {!isMe && (
-        <div className="flex flex-col gap-3">
-          {isFriend ? (
-            <div className="w-full py-4 rounded-full font-bold text-base text-center bg-gray-100 text-gray-500">
-              ✓ Friends
-            </div>
-          ) : requestSent ? (
-            <div className="w-full py-4 rounded-full font-bold text-base text-center bg-gray-100 text-gray-400">
-              Request sent
-            </div>
-          ) : (
-            <button
-              onClick={handleAddFriend}
-              disabled={sending}
-              className="w-full py-4 rounded-full font-bold text-base bg-black text-white hover:bg-gray-800 transition-colors tap-scale border-none cursor-pointer"
-            >
-              {sending ? "Sending..." : "Add Friend"}
-            </button>
-          )}
-
-          {/* Invite to split */}
-          <button
-            onClick={() => navigate("/split")}
-            className="w-full py-4 rounded-full font-bold text-base bg-white border-2 border-gray-200 text-black hover:border-black transition-colors tap-scale cursor-pointer"
-          >
-            <span className="flex items-center justify-center gap-2"><Scissors size={16} /> Split with {profile.display_name.split(" ")[0]}</span>
-          </button>
-        </div>
-      )}
-
-      {isMe && (
-        <button
-          onClick={() => navigate("/profile")}
-          className="w-full py-4 rounded-full font-bold text-base bg-black text-white hover:bg-gray-800 transition-colors tap-scale border-none cursor-pointer"
-        >
-          Edit Profile
-        </button>
-      )}
     </div>
   );
 }
