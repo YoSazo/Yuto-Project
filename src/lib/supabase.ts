@@ -375,10 +375,16 @@ export async function getFunctionMessages(functionId: string) {
 }
 
 export async function sendFunctionMessage(functionId: string, userId: string, content: string) {
-  const { error } = await supabase
-    .from("function_messages")
-    .insert({ function_id: functionId, user_id: userId, content });
-  if (error) throw error;
+  const response = await fetch("/api/function-message", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ function_id: functionId, user_id: userId, content }),
+  });
+
+  const data = (await response.json()) as { success?: boolean; message?: string };
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || "Couldn't send message. Try again.");
+  }
 }
 
 // ─── Plans ───────────────────────────────────────────

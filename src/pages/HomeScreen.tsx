@@ -303,7 +303,7 @@ function FunctionMessagesModal({
       await loadMessages();
     } catch (err) {
       console.error("send function message error:", err);
-      setError("Couldn't send message. Try again.");
+      setError(err instanceof Error ? err.message : "Couldn't send message. Try again.");
     }
     setSendingMessage(false);
   };
