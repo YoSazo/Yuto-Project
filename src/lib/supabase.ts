@@ -44,6 +44,27 @@ export async function getProfile(userId: string) {
   return data;
 }
 
+const PHONE_STORAGE_PREFIX = "yuto_phone_number:";
+
+export function getSavedPhoneNumber(userId: string) {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(`${PHONE_STORAGE_PREFIX}${userId}`);
+}
+
+export function setSavedPhoneNumber(userId: string, phoneNumber: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(`${PHONE_STORAGE_PREFIX}${userId}`, phoneNumber);
+}
+
+export async function saveProfilePhoneNumber(userId: string, phoneNumber: string) {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ phone_number: phoneNumber })
+    .eq("id", userId);
+  if (error) throw error;
+  setSavedPhoneNumber(userId, phoneNumber);
+}
+
 export async function searchProfiles(query: string, currentUserId: string) {
   const { data, error } = await supabase
     .from("profiles")
@@ -337,6 +358,26 @@ export async function leaveFunction(functionId: string, userId: string) {
     .delete()
     .eq("function_id", functionId)
     .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function getFunctionMessages(functionId: string) {
+  const { data, error } = await supabase
+    .from("function_messages")
+    .select(
+      `id, function_id, user_id, content, created_at,
+       profiles(id, username, display_name, avatar_url)`
+    )
+    .eq("function_id", functionId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function sendFunctionMessage(functionId: string, userId: string, content: string) {
+  const { error } = await supabase
+    .from("function_messages")
+    .insert({ function_id: functionId, user_id: userId, content });
   if (error) throw error;
 }
 

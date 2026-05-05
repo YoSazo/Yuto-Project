@@ -7,6 +7,8 @@ import {
   getGroup,
   joinGroup,
   submitRideAmount,
+  getSavedPhoneNumber,
+  saveProfilePhoneNumber,
 } from "../lib/supabase";
 
 interface Member {
@@ -62,21 +64,29 @@ function PayNowModal({
   amount,
   groupId,
   userId,
+  defaultPhoneNumber,
   onClose,
   onRefreshStatus,
 }: {
   amount: number;
   groupId: string;
   userId: string;
+  defaultPhoneNumber?: string | null;
   onClose: () => void;
   onRefreshStatus?: () => void;
 }) {
-  const [phone, setPhone] = useState("254");
+  const [phone, setPhone] = useState(defaultPhoneNumber || "254");
   const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">(
     "input",
   );
   const [error, setError] = useState("");
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultPhoneNumber) {
+      setPhone(defaultPhoneNumber);
+    }
+  }, [defaultPhoneNumber]);
 
   const handlePay = async () => {
     if (phone.length < 12) {
@@ -99,6 +109,7 @@ function PayNowModal({
       const data = await res.json();
       if (data.success) {
         if (data.invoice_id) setInvoiceId(data.invoice_id);
+        void saveProfilePhoneNumber(userId, phone).catch(() => {});
         setStep("waiting");
       } else {
         setError(data.message || "Failed to initiate payment");
@@ -443,7 +454,7 @@ function PayDriverModal({
 export default function YutoGroupScreen() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const [groupName, setGroupName] = useState("Fare Share");
   const [perPersonAmount, setPerPersonAmount] = useState(0);
@@ -1191,6 +1202,7 @@ export default function YutoGroupScreen() {
           amount={perPersonAmount}
           groupId={groupId}
           userId={user.id}
+          defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || undefined}
           onClose={() => setShowPayModal(false)}
           onRefreshStatus={refetchPaymentStatus}
         />

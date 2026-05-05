@@ -13,6 +13,7 @@ create table if not exists profiles (
   username text unique not null,
   display_name text not null,
   avatar_url text,
+  phone_number text,
   created_at timestamptz default now()
 );
 
@@ -78,6 +79,14 @@ create table if not exists function_members (
   unique(function_id, user_id)
 );
 
+create table if not exists function_messages (
+  id uuid default gen_random_uuid() primary key,
+  function_id uuid references functions(id) on delete cascade not null,
+  user_id uuid references profiles(id) on delete cascade not null,
+  content text not null,
+  created_at timestamptz default now()
+);
+
 -- ─── Enable RLS ──────────────────────────────────────
 
 alter table profiles enable row level security;
@@ -86,6 +95,7 @@ alter table groups enable row level security;
 alter table group_members enable row level security;
 alter table functions enable row level security;
 alter table function_members enable row level security;
+alter table function_messages enable row level security;
 
 -- ─── Functions ───────────────────────────────────────
 
@@ -180,6 +190,27 @@ create policy "Users can join functions" on function_members
 
 create policy "Users can leave functions" on function_members
   for delete using (user_id = auth.uid());
+
+create policy "Users can read function messages" on function_messages
+  for select using (
+    function_id in (
+      select id from functions
+      where is_public = true
+        or host_id = auth.uid()
+        or id in (select function_id from function_members where user_id = auth.uid())
+    )
+  );
+
+create policy "Users can send function messages" on function_messages
+  for insert with check (
+    auth.uid() = user_id
+    and function_id in (
+      select id from functions
+      where is_public = true
+        or host_id = auth.uid()
+        or id in (select function_id from function_members where user_id = auth.uid())
+    )
+  );
 
 -- Messages table for group chat
 create table if not exists messages (
@@ -314,6 +345,7 @@ create index if not exists idx_plan_updates_plan on plan_updates(plan_id, create
 alter publication supabase_realtime add table group_members;
 alter publication supabase_realtime add table functions;
 alter publication supabase_realtime add table function_members;
+alter publication supabase_realtime add table function_messages;
 alter publication supabase_realtime add table friendships;
 alter publication supabase_realtime add table messages;
 

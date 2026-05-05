@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { getFriends, getMyGroups, getPendingRequests, uploadAvatar, supabase } from "../lib/supabase";
+import { getFriends, getMyGroups, getPendingRequests, getSavedPhoneNumber, saveProfilePhoneNumber, uploadAvatar, supabase } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 
 function ChevronRight() {
@@ -66,12 +66,20 @@ const STAT_POSITIONS = [
 
 export default function ProfileScreen() {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, refreshProfile } = useAuth();
   const [stats, setStats] = useState({ totalYutos: 0, totalSpent: 0, friendsCount: 0, plansCount: 0 });
   const [pendingCount, setPendingCount] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
+  const [phoneNumber, setPhoneNumber] = useState(profile?.phone_number || "");
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneMessage, setPhoneMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    setPhoneNumber(profile?.phone_number || getSavedPhoneNumber(user.id) || "");
+  }, [profile?.phone_number, user]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,6 +92,28 @@ export default function ProfileScreen() {
       console.error("Failed to upload avatar:", err);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleSavePhone = async () => {
+    if (!user) return;
+    const cleaned = phoneNumber.replace(/\D/g, "");
+    if (cleaned.length < 12) {
+      setPhoneMessage("Enter a valid M-PESA number like 254712345678.");
+      return;
+    }
+    setSavingPhone(true);
+    setPhoneMessage(null);
+    try {
+      await saveProfilePhoneNumber(user.id, cleaned);
+      await refreshProfile();
+      setPhoneNumber(cleaned);
+      setPhoneMessage("Saved for payments.");
+    } catch (err) {
+      console.error("Failed to save phone number:", err);
+      setPhoneMessage("Could not save phone number. Try again.");
+    } finally {
+      setSavingPhone(false);
     }
   };
 
@@ -256,6 +286,35 @@ export default function ProfileScreen() {
       <div className="text-center -mt-2 mb-6">
         <p className="font-bold text-xl text-black">{userName}</p>
         <p className="text-sm text-gray-400">{userHandle}</p>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <p className="text-sm font-semibold text-black">M-PESA number</p>
+            <p className="text-xs text-gray-500">Used to prefill payment prompts on this device.</p>
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mt-1">Saved</span>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="tel"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+            placeholder="254712345678"
+            maxLength={12}
+            className="flex-1 h-12 border border-gray-300 rounded-full px-4 text-base outline-none focus:border-black transition-colors"
+          />
+          <button
+            type="button"
+            onClick={handleSavePhone}
+            disabled={savingPhone}
+            className="h-12 px-5 rounded-full bg-black text-white font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {savingPhone ? "Saving" : "Save"}
+          </button>
+        </div>
+        {phoneMessage && <p className="text-xs text-gray-500 mt-2 ml-1">{phoneMessage}</p>}
       </div>
 
       {/* Menu */}

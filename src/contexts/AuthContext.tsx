@@ -32,6 +32,7 @@ export interface Profile {
   username: string;
   display_name: string;
   avatar_url: string | null;
+  phone_number: string | null;
   created_at: string;
 }
 
