@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
-type NavTab = "split" | "fareshare" | "home" | "activity" | "profile";
+type NavTab = "split" | "home" | "activity" | "profile";
 
 interface GlassNavBarProps {
   activeTab: NavTab;
@@ -24,17 +24,6 @@ function HomeIcon({ color }: { color: string }) {
   );
 }
 
-function CarIcon({ color }: { color: string }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 17h14v-5l-1.5-4.5h-11L5 12v5z" />
-      <circle cx="7" cy="17" r="2" />
-      <circle cx="17" cy="17" r="2" />
-      <path d="M5 9h14" />
-    </svg>
-  );
-}
-
 function ClockIcon({ color }: { color: string }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -53,9 +42,8 @@ function PersonIcon({ color }: { color: string }) {
   );
 }
 
-const tabs: { id: NavTab; label: string; path: string; Icon: typeof CarIcon }[] = [
+const tabs: { id: NavTab; label: string; path: string; Icon: typeof SplitIcon }[] = [
   { id: "split", label: "Split", path: "/split", Icon: SplitIcon },
-  { id: "fareshare", label: "Rides", path: "/fareshare", Icon: CarIcon },
   { id: "home", label: "Home", path: "/home", Icon: HomeIcon },
   { id: "activity", label: "Yuto's", path: "/activity", Icon: ClockIcon },
   { id: "profile", label: "Profile", path: "/profile", Icon: PersonIcon },
@@ -73,15 +61,15 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
 
   const getPillWidth = useCallback(() => {
     if (!containerRef.current) return 0;
-    return containerRef.current.getBoundingClientRect().width / 5 - 10;
+    return containerRef.current.getBoundingClientRect().width / 4 - 10;
   }, []);
 
   const getHoverIndex = useCallback(() => {
     if (!containerRef.current) return activeIndex;
     const w = containerRef.current.getBoundingClientRect().width;
-    const pillW = w / 5 - 10;
+    const pillW = w / 4 - 10;
     const center = dragLeft + pillW / 2;
-    return Math.min(4, Math.max(0, Math.floor(center / (w / 5))));
+    return Math.min(3, Math.max(0, Math.floor(center / (w / 4))));
   }, [dragLeft, activeIndex]);
 
   const handlePointerDown = useCallback(
@@ -92,7 +80,7 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
       const rect = container.getBoundingClientRect();
-      const currentLeft = (activeIndex / 5) * rect.width + 5;
+      const currentLeft = (activeIndex / 4) * rect.width + 5;
 
       dragStart.current = { pointerX: e.clientX, pillLeft: currentLeft };
       setDragLeft(currentLeft);
@@ -108,7 +96,7 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      const pillW = rect.width / 5 - 10;
+      const pillW = rect.width / 4 - 10;
       const delta = e.clientX - dragStart.current.pointerX;
       const newLeft = dragStart.current.pillLeft + delta;
       setDragLeft(Math.max(5, Math.min(newLeft, rect.width - pillW - 5)));
@@ -121,11 +109,10 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
     setIsDragging(false);
     const moved = Math.abs(e.clientX - dragStart.current.pointerX);
     if (moved < 8) {
-      // Treat as a click — find which tab was tapped
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const clickedIndex = Math.min(4, Math.max(0, Math.floor(x / (rect.width / 5))));
+      const clickedIndex = Math.min(3, Math.max(0, Math.floor(x / (rect.width / 4))));
       navigate(tabs[clickedIndex].path);
     } else {
       const snapIndex = getHoverIndex();
@@ -145,8 +132,8 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
         transform: "scaleY(1.03)",
       }
     : {
-        left: `calc(${activeIndex * 20}% + 5px)`,
-        width: "calc(20% - 10px)",
+        left: `calc(${activeIndex * 25}% + 5px)`,
+        width: "calc(25% - 10px)",
       };
 
   return (
@@ -158,7 +145,6 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
       onPointerUp={handlePointerUp}
       onPointerCancel={() => setIsDragging(false)}
     >
-      {/* Glass background */}
       <div
         className="absolute inset-0 rounded-full overflow-hidden border border-gray-200"
         style={{
@@ -169,13 +155,11 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
         }}
       />
 
-      {/* Sliding pill */}
       <div
         className="absolute top-[5px] bottom-[5px] rounded-full bg-black z-20 transition-all duration-300 ease-out"
         style={pillStyle}
       />
 
-      {/* Tab buttons — z-30 so icons render on top of the pill */}
       <div
         className="relative h-full flex items-center z-30"
         style={isDragging ? { pointerEvents: "none" } : undefined}
@@ -184,15 +168,14 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
           const isLit = i === visualIndex;
           const color = isLit ? "#fff" : "#9ca3af";
 
-          // Water lens magnification — only active during drag
           let scale = 1;
           if (isDragging) {
             const pillCenter = dragLeft + getPillWidth() / 2;
             const tabCenter = containerRef.current
-              ? (i * 25 + 12.5) / 100 * containerRef.current.getBoundingClientRect().width
+              ? (i * 33.33 + 16.66) / 100 * containerRef.current.getBoundingClientRect().width
               : 0;
             const distance = Math.abs(pillCenter - tabCenter);
-            const maxDist = containerRef.current ? containerRef.current.getBoundingClientRect().width / 4 : 80;
+            const maxDist = containerRef.current ? containerRef.current.getBoundingClientRect().width / 3 : 100;
             const proximity = Math.max(0, 1 - distance / maxDist);
             scale = 1 + proximity * 0.35;
           }
