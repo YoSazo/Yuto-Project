@@ -188,6 +188,8 @@ html {
   position: relative;
   overflow: hidden;
   isolation: isolate;
+  animation: premiumPulse 3.8s ease-in-out infinite;
+  will-change: transform, box-shadow;
 }
 
 .function-card-highlight::before {
