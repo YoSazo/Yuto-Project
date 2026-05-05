@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigate, useLocation } from
 
 export default function AuthScreen() {
   const navigate = useNavigate();
-  const location = useLocation(); // <--- Add this
+  const location = useLocation();
   const { user, signUp, signIn } = useAuth();
   
-  // <--- Update this to check the location state
   const [mode, setMode] = useState<"login" | "signup">(
     location.state?.defaultMode === "signup" ? "signup" : "login"
   );
