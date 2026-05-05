@@ -15,9 +15,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  // IntaSend truncates api_ref beyond ~20 chars; full UUIDs exceed that limit.
-  // Use short IDs so the ref is never truncated. Webhook routing relies on
-  // payment_invoice_id (saved to DB below) as the primary identifier anyway.
   const shortGroupId = group_id.replace(/-/g, "").slice(0, 7);
   const shortUserId = user_id.replace(/-/g, "").slice(0, 7);
   const api_ref = `yuto-${shortGroupId}-${shortUserId}`;
@@ -59,37 +56,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const invoiceId = data.invoice_id ?? data.invoice?.invoice_id;
 
     if (response.ok && invoiceId) {
-      // Persist invoice_id fire-and-forget — webhook fires 30-60s later so
-      // there is plenty of time. Don't await this so the client gets a response
-      // immediately after the IntaSend call, reducing "Network error" on slow
-      // mobile connections.
       const supabaseUrl =
         process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
       if (!supabaseUrl || !serviceRoleKey) {
         console.error(
           "Missing Supabase env for charge (need SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel)",
         );
       } else {
+        // MUST await — webhook fires in <1s, not 30-60s as previously assumed.
+        // If this isn't persisted before the COMPLETE webhook arrives, the
+        // invoice_id lookup fails and has_paid never gets set.
         const supabase = createClient(supabaseUrl, serviceRoleKey);
-        supabase
+        const { error } = await supabase
           .from("group_members")
           .update({ payment_invoice_id: invoiceId, payment_api_ref: api_ref })
           .eq("group_id", group_id)
-          .eq("user_id", user_id)
-          .then(({ error }) => {
-            if (error)
-              console.error(
-                "Failed to persist invoice_id on group_members:",
-                error,
-              );
-          })
-          .catch((err) => {
-            console.error(
-              "Failed to persist invoice_id on group_members:",
-              err,
-            );
-          });
+          .eq("user_id", user_id);
+        if (error) {
+          console.error("Failed to persist invoice_id on group_members:", error);
+        }
       }
 
       return res.status(200).json({
@@ -100,7 +87,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Log so Vercel logs show why charge failed (IntaSend status + body)
     if (!response.ok) {
       console.error(
         "IntaSend charge non-OK:",

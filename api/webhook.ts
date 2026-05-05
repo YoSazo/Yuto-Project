@@ -34,6 +34,7 @@ async function processIntaSendWebhook(payload: {
   let groupId: string | null = null;
   let userId: string | null = null;
 
+  // Primary: match by invoice_id persisted during charge
   if (payload.invoice_id) {
     const { data: match, error: matchError } = await supabase
       .from("group_members")
@@ -47,20 +48,17 @@ async function processIntaSendWebhook(payload: {
     }
   }
 
+  // Fallback: match by payment_api_ref column (also persisted during charge)
   if ((!groupId || !userId) && payload.api_ref) {
-    const parts = payload.api_ref.split("-");
-    if (parts.length >= 3 && parts[0] === "yuto") {
-      const shortGroupId = parts[1];
-      const shortUserId = parts[2];
-      const { data: match } = await supabase
-        .from("group_members")
-        .select("group_id, user_id")
-        .ilike("payment_api_ref", `yuto-${shortGroupId}-${shortUserId}%`)
-        .maybeSingle();
-      if (match) {
-        groupId = match.group_id;
-        userId = match.user_id;
-      }
+    const { data: match, error: matchError } = await supabase
+      .from("group_members")
+      .select("group_id, user_id")
+      .eq("payment_api_ref", payload.api_ref)
+      .maybeSingle();
+    if (matchError) throw matchError;
+    if (match) {
+      groupId = match.group_id;
+      userId = match.user_id;
     }
   }
 
