@@ -1065,13 +1065,9 @@ export default function HomeScreen() {
                 const canYutoIt = isMine && plan.amount && plan.plan_members.length > 0;
 
                 return (
-                  <div key={plan.id}>
-                  <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                  <div key={plan.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                     {/* Creator */}
-                    <div 
-                      className="flex items-center gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => navigate(`/user/${plan.creator.id}`)}
-                    >
+                    <div className="flex items-center gap-2 mb-3">
                       <UserAvatar name={plan.creator.display_name} avatarUrl={plan.creator.avatar_url} size="sm" />
                       <div className="flex-1">
                         <p className="font-semibold text-sm text-black">{plan.creator.display_name}</p>
@@ -1125,6 +1121,16 @@ export default function HomeScreen() {
 
                     {/* Actions */}
                     <div className="flex gap-2">
+                      {/* NEW: Standalone Message Button */}
+                      <button
+                        onClick={() => setActivePlanChat(plan)}
+                        className="relative w-11 h-11 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        aria-label={`Chat about ${plan.title}`}
+                        title="Open chat"
+                      >
+                        <MessageCircle size={16} />
+                      </button>
+
                       {!isMine && !allIn && (
                         <button
                           onClick={() => handleJoin(plan)}
@@ -1148,25 +1154,10 @@ export default function HomeScreen() {
                         >
                           <span className="flex items-center justify-center gap-1.5"><Rocket size={15} /> Yuto it!</span>
                         </button>
-
-                        
                       )}
                     </div>
                   </div>
-                  {/* Thread updates */}
-                  {((planUpdates[plan.id] || []).length > 0 || isMine) && (
-                    <div className="ml-4 mt-1">
-                      {(planUpdates[plan.id] || []).map((update) => (
-                        <div key={update.id} className="flex items-start gap-2 mt-2 pl-2">
-                          <div className="flex items-start gap-2 flex-1 pb-2">
-                            <UserAvatar name={update.profiles.display_name} avatarUrl={update.profiles.avatar_url} size="sm" className="w-7! h-7! shrink-0 mt-0.5" />
-                            <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-sm px-3 py-2">
-                              <p className="text-sm text-black">{update.content}</p>
-                              <p className="text-[10px] text-gray-400 mt-0.5">{new Date(update.created_at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                );
 
 
 
