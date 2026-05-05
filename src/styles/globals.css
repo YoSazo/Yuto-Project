@@ -184,73 +184,25 @@ html {
   font-size: var(--font-size);
 }
 
-.premium-function-card.function-card-highlight {
+/* Premium Breathing Pulse for Function Cards */
+.premium-function-card {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  animation: premiumPulse 3.8s ease-in-out infinite;
-  will-change: transform, box-shadow;
-  background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%) !important;
-  border-color: rgba(84, 147, 179, 0.24) !important;
-  box-shadow: 0 8px 24px rgba(84, 147, 179, 0.08), 0 0 0 1px rgba(84, 147, 179, 0.18) !important;
-}
-
-.premium-function-card.function-card-highlight::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(84, 147, 179, 0.18), rgba(255, 255, 255, 0) 45%, rgba(84, 147, 179, 0.06));
-  opacity: 0.9;
-  box-shadow: inset 0 0 0 1px rgba(84, 147, 179, 0.18), 0 0 26px rgba(84, 147, 179, 0.12);
-  animation: premiumGlowRing 3.8s ease-in-out infinite;
-}
-
-@keyframes functionCardShimmer {
-  0% {
-    transform: translateX(-70%) skewX(-16deg);
-    opacity: 0;
-  }
-  18% {
-    opacity: 1;
-  }
-  55% {
-    opacity: 0.9;
-  }
-  100% {
-    transform: translateX(70%) skewX(-16deg);
-    opacity: 0;
-  }
-}
-
-.premium-function-card.function-card-highlight::after {
-  content: "";
-  position: absolute;
-  inset: -16% -24%;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(115deg, transparent 32%, rgba(84, 147, 179, 0.2) 44%, rgba(255, 255, 255, 0.42) 50%, rgba(84, 147, 179, 0.2) 56%, transparent 68%);
-  mix-blend-mode: screen;
-  animation: functionCardShimmer 4.2s ease-in-out infinite;
+  animation: premiumPulse 3.5s ease-in-out infinite;
+  transition: all 0.3s ease;
 }
 
 @keyframes premiumPulse {
-  0%, 100% {
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(84, 147, 179, 0.10);
-    transform: translateY(0) scale(1);
+  0% {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03), 0 0 0 0 rgba(0, 0, 0, 0.04);
   }
   50% {
-    box-shadow: 0 18px 40px rgba(84, 147, 179, 0.16), 0 0 0 2px rgba(84, 147, 179, 0.30), 0 0 0 12px rgba(84, 147, 179, 0.08);
-    transform: translateY(-4px) scale(1.015); 
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 0 0 6px rgba(0, 0, 0, 0.02);
+    transform: translateY(-2px);
   }
-}
-
-@keyframes premiumGlowRing {
-  0%, 100% {
-    opacity: 0.28;
-  }
-  50% {
-    opacity: 0.9;
+  100% {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03), 0 0 0 0 rgba(0, 0, 0, 0);
+    transform: translateY(0);
   }
 }
