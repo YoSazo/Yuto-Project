@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 
-// Server-side: use SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in Vercel (VITE_* may not be available in API routes).
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -23,11 +22,9 @@ async function processIntaSendWebhook(payload: {
   state?: string;
   currency?: string;
   api_ref?: string;
-  challenge?: string;
   provider?: string;
   [key: string]: unknown;
 }) {
-  // 2) Only process completed KES payments
   const state = payload.state;
   if (payload.currency !== "KES") return;
   if (state !== "COMPLETE") return;
@@ -37,8 +34,6 @@ async function processIntaSendWebhook(payload: {
   let groupId: string | null = null;
   let userId: string | null = null;
 
-  // Primary: look up by invoice_id — this is always saved to DB by charge.ts
-  // before the webhook fires, so it's the most reliable identifier.
   if (payload.invoice_id) {
     const { data: match, error: matchError } = await supabase
       .from("group_members")
@@ -52,9 +47,6 @@ async function processIntaSendWebhook(payload: {
     }
   }
 
-  // Fallback: parse api_ref in the short format yuto-{shortGroupId}-{shortUserId}
-  // This is a last resort in case invoice_id wasn't persisted (e.g. Supabase was
-  // temporarily unavailable during the charge call).
   if ((!groupId || !userId) && payload.api_ref) {
     const parts = payload.api_ref.split("-");
     if (parts.length >= 3 && parts[0] === "yuto") {
@@ -116,18 +108,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       state?: string;
       currency?: string;
       api_ref?: string;
-      challenge?: string;
       provider?: string;
       [key: string]: unknown;
     };
-
-    // 1) Verify webhook challenge (body-based; adjust to header if IntaSend sends it there)
-    if (
-      !payload.challenge ||
-      payload.challenge !== process.env.INTASEND_WEBHOOK_SECRET
-    ) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
 
     console.log(
       "IntaSend webhook received:",
@@ -139,8 +122,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     );
 
-    // Await DB work BEFORE responding — Vercel terminates the function as soon
-    // as the response is sent, so fire-and-forget will never complete.
     try {
       await processIntaSendWebhook(payload);
     } catch (err) {
@@ -152,7 +133,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("Webhook handler error:", err);
-    // Always return a response even if something unexpected happens.
     return res.status(200).json({ ok: true });
   }
 }
