@@ -33,7 +33,7 @@ export const router = createBrowserRouter([
       { path: "/friends", element: <FriendsScreen /> },
       { path: "/yuto/:groupId", element: <YutoGroupScreen /> },
       { path: "/yuto/:groupId/chat", element: <YutoChatScreen /> },
-      { path: "/user/:username", element: <UserProfileScreen /> },
+      { path: "/user/:id", element: <UserProfileScreen /> },
       { path: "/home", element: <HomeScreen /> },
       { path: "/add-to-home", element: <AddToHomeScreen /> },
     ],
