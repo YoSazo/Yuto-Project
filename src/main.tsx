@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { router } from "./router";
 import "./index.css";
+import "./styles/globals.css";
 
 // Register service worker for PWA
 if ("serviceWorker" in navigator) {
