@@ -2,13 +2,27 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates, uploadPlanImage, getFunctionsPublic, createFunction, joinFunction, leaveFunction, getFunctionMessages, sendFunctionMessage, getSavedPhoneNumber, saveProfilePhoneNumber } from "../lib/supabase";
+import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates, uploadPlanImage, getFunctionsPublic, createFunction, joinFunction, leaveFunction, getFunctionMessages, sendFunctionMessage, getSavedPhoneNumber, saveProfilePhoneNumber, getPlanMessages, sendPlanMessage } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe, ImagePlus, X, CalendarDays, MapPin, BadgeDollarSign, Sparkles, PartyPopper, MessageCircle } from "lucide-react";
 
 interface PlanMember {
   id: string;
   user_id: string;
+  profiles: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  };
+}
+
+interface PlanMessage {
+  id: string;
+  plan_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
   profiles: {
     id: string;
     username: string;
@@ -106,6 +120,32 @@ function formatEventDate(dateValue: string | null) {
     month: "short",
     day: "numeric",
   });
+}
+
+const FUNCTION_THREAD_SEEN_PREFIX = "yuto_function_thread_seen:";
+
+function getFunctionThreadSeenAt(userId: string, functionId: string) {
+  if (typeof window === "undefined") return 0;
+  const value = window.localStorage.getItem(`${FUNCTION_THREAD_SEEN_PREFIX}${userId}:${functionId}`);
+  return value ? Number(value) || 0 : 0;
+}
+
+function setFunctionThreadSeenAt(userId: string, functionId: string, timestamp: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(`${FUNCTION_THREAD_SEEN_PREFIX}${userId}:${functionId}`, String(new Date(timestamp).getTime()));
+}
+
+function getUnreadFunctionMessageCount(
+  userId: string,
+  functionId: string,
+  messages: Array<{ user_id: string; created_at: string }>,
+) {
+  const seenAt = getFunctionThreadSeenAt(userId, functionId);
+  return messages.reduce((count, message) => {
+    if (message.user_id === userId) return count;
+    const messageAt = new Date(message.created_at).getTime();
+    return messageAt > seenAt ? count + 1 : count;
+  }, 0);
 }
 
 function FunctionPayModal({
@@ -251,10 +291,12 @@ function FunctionPayModal({
 function FunctionMessagesModal({
   functionItem,
   currentUserId,
+  onMessagesRead,
   onClose,
 }: {
   functionItem: FunctionListing;
   currentUserId: string;
+  onMessagesRead?: (functionId: string) => void;
   onClose: () => void;
 }) {
   const [messages, setMessages] = useState<FunctionMessage[]>([]);
@@ -268,12 +310,22 @@ function FunctionMessagesModal({
     try {
       const data = await getFunctionMessages(functionItem.id);
       setMessages((data as FunctionMessage[]) || []);
+      const latest = (data as FunctionMessage[]).reduce((max, message) => {
+        const current = new Date(message.created_at).getTime();
+        return current > max ? current : max;
+      }, 0);
+      if (latest > 0) {
+        setFunctionThreadSeenAt(currentUserId, functionItem.id, new Date(latest).toISOString());
+      }
+      onMessagesRead?.(functionItem.id);
     } catch (err) {
       console.error("load function messages error:", err);
     } finally {
       setLoadingMessages(false);
     }
   };
+
+  
 
   useEffect(() => {
     loadMessages();
@@ -307,6 +359,10 @@ function FunctionMessagesModal({
     }
     setSendingMessage(false);
   };
+
+  
+
+  
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
@@ -401,14 +457,144 @@ function FunctionMessagesModal({
   );
 }
 
+
+function PlanMessagesModal({
+  plan,
+  currentUserId,
+  onClose,
+}: {
+  plan: Plan;
+  currentUserId: string;
+  onClose: () => void;
+}) {
+  const [messages, setMessages] = useState<PlanMessage[]>([]);
+  const [messageInput, setMessageInput] = useState("");
+  const [loadingMessages, setLoadingMessages] = useState(true);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [error, setError] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const loadMessages = async () => {
+    setLoadingMessages(true);
+    try {
+      const data = await getPlanMessages(plan.id);
+      setMessages((data as PlanMessage[]) || []);
+    } catch (err) {
+      console.error("load plan messages error:", err);
+    }
+    setLoadingMessages(false);
+  };
+
+  useEffect(() => {
+    loadMessages();
+    const channel = supabase
+      .channel(`plan-messages-${plan.id}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "plan_messages", filter: `plan_id=eq.${plan.id}` },
+        () => loadMessages()
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [plan.id]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async () => {
+    const content = messageInput.trim();
+    if (!content) return;
+    setSendingMessage(true);
+    setError("");
+    try {
+      await sendPlanMessage(plan.id, currentUserId, content);
+      setMessageInput("");
+      await loadMessages();
+    } catch (err) {
+      console.error("send plan message error:", err);
+      setError(err instanceof Error ? err.message : "Couldn't send message. Try again.");
+    }
+    setSendingMessage(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50">
+      <div className="bg-white rounded-t-3xl w-full max-w-md flex flex-col" style={{ height: "75vh" }}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+          <div>
+            <h2 className="font-bold text-lg text-black">{plan.title}</h2>
+            <p className="text-xs text-gray-400">{plan.plan_members.length} people in this plan</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-black text-2xl bg-transparent border-none cursor-pointer">✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+          {loadingMessages ? (
+            <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-gray-200 border-t-black rounded-full animate-spin" /></div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center py-10">
+              <MessageCircle size={32} className="text-gray-200 mb-2" />
+              <p className="text-sm text-gray-400">No messages yet. Start the chat!</p>
+            </div>
+          ) : (
+            messages.map((message) => {
+              const isMe = message.user_id === currentUserId;
+              const isCreator = message.user_id === plan.creator_id;
+              return (
+                <div key={message.id} className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                  {!isMe && <UserAvatar name={message.profiles.display_name} avatarUrl={message.profiles.avatar_url} size="sm" className="shrink-0 mb-1" />}
+                  <div className={`max-w-[75%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-0.5`}>
+                    {!isMe && (
+                      <span className="text-[11px] text-gray-400 ml-1">
+                        {message.profiles.display_name}{isCreator && " · Creator"}
+                      </span>
+                    )}
+                    <div className={`px-3 py-2 rounded-2xl text-sm ${isMe ? "bg-black text-white rounded-br-sm" : "bg-gray-100 text-black rounded-bl-sm"}`}>
+                      {message.content}
+                    </div>
+                    <span className="text-[10px] text-gray-400 mx-1">
+                      {new Date(message.created_at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  {isMe && <UserAvatar name={message.profiles.display_name} avatarUrl={message.profiles.avatar_url} size="sm" className="shrink-0 mb-1" />}
+                </div>
+              );
+            })
+          )}
+          <div ref={bottomRef} />
+        </div>
+        {error && <p className="text-xs text-red-500 text-center px-4 pb-1">{error}</p>}
+        <div className="px-4 pb-6 pt-2 border-t border-gray-100 flex gap-2 items-center">
+          <input
+            type="text"
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !sendingMessage && handleSend()}
+            placeholder="Say something..."
+            className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm outline-none focus:bg-gray-200 transition-colors"
+            maxLength={500}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!messageInput.trim() || sendingMessage}
+            className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center disabled:opacity-30 shrink-0"
+          >
+            <Send size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomeScreen() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"public" | "friends">("public");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [functionsFeed, setFunctionsFeed] = useState<FunctionListing[]>([]);
+  const [functionUnreadCounts, setFunctionUnreadCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-
+  const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
   const [composeMode, setComposeMode] = useState<"plan" | "function">("plan");
@@ -454,6 +640,7 @@ export default function HomeScreen() {
       .on("postgres_changes", { event: "*", schema: "public", table: "plan_members" }, () => loadFeed())
       .on("postgres_changes", { event: "*", schema: "public", table: "functions" }, () => loadFeed())
       .on("postgres_changes", { event: "*", schema: "public", table: "function_members" }, () => loadFeed())
+      .on("postgres_changes", { event: "*", schema: "public", table: "function_messages" }, () => loadFeed())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -478,9 +665,29 @@ export default function HomeScreen() {
         tab === "public" ? getFunctionsPublic() : Promise.resolve([]),
       ]);
       const planList = (planData as Plan[]) || [];
+      const functionList = (functionData as FunctionListing[]) || [];
       setPlans(planList);
-      setFunctionsFeed((functionData as FunctionListing[]) || []);
+      setFunctionsFeed(functionList);
       const updatesMap: Record<string, PlanUpdate[]> = {};
+      if (tab === "public" && functionList.length > 0) {
+        const { data: messageRows, error: messageError } = await supabase
+          .from("function_messages")
+          .select("function_id, user_id, created_at")
+          .in("function_id", functionList.map((item) => item.id));
+        if (messageError) {
+          console.error("loadFeed function unread error:", messageError);
+          setFunctionUnreadCounts({});
+        } else {
+          const counts: Record<string, number> = {};
+          const groupedMessages = (messageRows || []) as Array<{ function_id: string; user_id: string; created_at: string }>;
+          for (const functionItem of functionList) {
+            counts[functionItem.id] = getUnreadFunctionMessageCount(user.id, functionItem.id, groupedMessages.filter((message) => message.function_id === functionItem.id));
+          }
+          setFunctionUnreadCounts(counts);
+        }
+      } else {
+        setFunctionUnreadCounts({});
+      }
       await Promise.all(planList.map(async (plan) => {
         try {
           const updates = await getPlanUpdates(plan.id);
@@ -735,6 +942,7 @@ export default function HomeScreen() {
               const isFull = eventFunction.max_capacity ? joinedCount >= eventFunction.max_capacity && !isMember : false;
               const canJoin = !isHost && !isMember && !isFull;
               const canPay = isMember && !me?.has_paid;
+              const unreadCount = functionUnreadCounts[eventFunction.id] || 0;
 
               return (
                 <div key={eventFunction.id} className={`bg-white border border-gray-100 rounded-2xl p-4 shadow-sm ${activeTab === "public" ? "function-card-highlight" : ""}`}>
@@ -783,14 +991,19 @@ export default function HomeScreen() {
                       <span>{paidCount} paid</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setActiveFunctionThread(eventFunction)}
-                        className="w-11 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
-                        aria-label={`Ask questions about ${eventFunction.title}`}
-                        title="Ask questions"
-                      >
-                        <MessageCircle size={16} />
-                      </button>
+                        <button
+                          onClick={() => setActiveFunctionThread(eventFunction)}
+                          className="relative w-11 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                          aria-label={`Ask questions about ${eventFunction.title}`}
+                          title="Ask questions"
+                        >
+                          <MessageCircle size={16} />
+                          {unreadCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                              {unreadCount}
+                            </span>
+                          )}
+                        </button>
                       {isHost ? (
                         <span className="text-sm font-semibold text-gray-500">Hosting</span>
                       ) : isMember && me?.has_paid ? (
@@ -929,6 +1142,8 @@ export default function HomeScreen() {
                         >
                           <span className="flex items-center justify-center gap-1.5"><Rocket size={15} /> Yuto it!</span>
                         </button>
+
+                        
                       )}
                     </div>
                   </div>
@@ -972,6 +1187,13 @@ export default function HomeScreen() {
                               >
                                 ↑
                               </button>
+
+                              <button
+  onClick={() => setActivePlanChat(plan)}
+  className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors shrink-0"
+>
+  <MessageCircle size={18} />
+</button>
                             )}
                           </div>
                         </div>
@@ -1214,8 +1436,17 @@ export default function HomeScreen() {
         <FunctionMessagesModal
           functionItem={activeFunctionThread}
           currentUserId={user.id}
+          onMessagesRead={(functionId) => setFunctionUnreadCounts((prev) => ({ ...prev, [functionId]: 0 }))}
           onClose={() => setActiveFunctionThread(null)}
         />
+
+        {activePlanChat && user && (
+  <PlanMessagesModal
+    plan={activePlanChat}
+    currentUserId={user.id}
+    onClose={() => setActivePlanChat(null)}
+  />
+)}
       )}
 
       {/* Floating compose button */}

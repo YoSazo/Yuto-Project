@@ -536,3 +536,26 @@ export async function getWaitlistPosition(phone: string) {
   if (error) throw error;
   return data?.id || 0;
 }
+
+export async function getPlanMessages(planId: string) {
+  const { data, error } = await supabase
+    .from("plan_messages")
+    .select(`id, plan_id, user_id, content, created_at,
+       profiles(id, username, display_name, avatar_url)`)
+    .eq("plan_id", planId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function sendPlanMessage(planId: string, userId: string, content: string) {
+  const response = await fetch("/api/plan-message", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan_id: planId, user_id: userId, content }),
+  });
+  const data = (await response.json()) as { success?: boolean; message?: string };
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || "Couldn't send message. Try again.");
+  }
+}
