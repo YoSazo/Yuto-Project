@@ -1158,52 +1158,9 @@ export default function HomeScreen() {
                     </div>
                   </div>
                 );
-
-
-
-{/* Update input — creator only */}
-{isMine && (
-  <div className="flex gap-2 mt-2">
-    <div className="flex flex-col items-center w-5 shrink-0">
-      <div className="w-px bg-gray-200 h-3" />
-    </div>
-    <div className="flex-1 flex gap-2 items-center pb-2">
-      <UserAvatar name={profile?.display_name || ""} avatarUrl={profile?.avatar_url} size="sm" className="w-7! h-7! shrink-0" />
-      <input
-        type="text"
-        value={updateInputs[plan.id] || ""}
-        onChange={(e) => setUpdateInputs((prev) => ({ ...prev, [plan.id]: e.target.value }))}
-        onKeyDown={(e) => e.key === "Enter" && handlePostUpdate(plan.id)}
-        placeholder="Add an update..."
-        className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 text-sm focus:outline-none focus:border-black transition-colors"
-        maxLength={200}
-      />
-      {updateInputs[plan.id]?.trim() ? (
-        <button
-          onClick={() => handlePostUpdate(plan.id)}
-          disabled={postingUpdate[plan.id]}
-          className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center text-sm shrink-0"
-        >
-          ↑
-        </button>
-      ) : (
-        <button
-          onClick={() => setActivePlanChat(plan)}
-          className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors shrink-0"
-        >
-          <MessageCircle size={18} />
-        </button>
-      )}
-    </div>
-  </div>
-)}
-                    </div>
-                  )}
-                  </div>
-              );
-            })}
-          </div>
-        )}
+              })}
+            </div>
+          )}
         </>
 
       {/* Compose sheet */}
