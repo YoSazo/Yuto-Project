@@ -2,11 +2,17 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
+import { useNavigate, useLocation } from
 
 export default function AuthScreen() {
   const navigate = useNavigate();
+  const location = useLocation(); // <--- Add this
   const { user, signUp, signIn } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  
+  // <--- Update this to check the location state
+  const [mode, setMode] = useState<"login" | "signup">(
+    location.state?.defaultMode === "signup" ? "signup" : "login"
+  );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -84,7 +90,7 @@ export default function AuthScreen() {
         <p className="text-gray-400 text-sm mb-6">
           {mode === "login"
             ? "Log in to your Yuto account"
-            : "Join Yuto and start splitting fares"}
+            : "Join Yuto and start splitting with friends!"}
         </p>
 
         <div className="w-full space-y-3 mb-5">

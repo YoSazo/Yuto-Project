@@ -39,7 +39,8 @@ export default function InviteScreen() {
   const handleAddFriend = async () => {
     if (!user) {
       sessionStorage.setItem("joinAfterAuth", `/invite/${username}`);
-      navigate("/auth");
+      // Pass the state to default to signup
+      navigate("/auth", { state: { defaultMode: "signup" } });
       return;
     }
     setAdding(true);
