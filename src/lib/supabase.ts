@@ -15,6 +15,29 @@ export async function signUp(username: string, password: string, displayName: st
     options: { data: { username: clean, display_name: displayName.trim() } },
   });
   if (error) throw error;
+
+  // Catch referral parameter from the URL if it exists
+  if (typeof window !== "undefined" && data.user) {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) {
+      // Find the referrer by username
+      const { data: refUser } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", ref.toLowerCase())
+        .single();
+        
+      if (refUser) {
+        // Log the referral (converted: false by default)
+        await supabase.from("referrals").insert({
+          referrer_id: refUser.id,
+          referred_id: data.user.id
+        });
+      }
+    }
+  }
+
   return data;
 }
 

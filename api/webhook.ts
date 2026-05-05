@@ -100,6 +100,30 @@ async function processIntaSendWebhook(payload: {
     `Webhook: set has_paid=true for ${membershipTable} parent_id=${groupId} user_id=${userId}`,
   );
 
+  // --- NEW REFERRAL AWARD LOGIC ---
+  // Check if this user was referred and hasn't converted yet
+  const { data: referral } = await supabase
+    .from("referrals")
+    .select("id, referrer_id")
+    .eq("referred_id", userId)
+    .eq("converted", false)
+    .maybeSingle();
+
+  if (referral) {
+    // Mark the referral as converted
+    await supabase
+      .from("referrals")
+      .update({ converted: true })
+      .eq("id", referral.id);
+
+    // Securely award 10 points to the referrer
+    await supabase.rpc("increment_points", {
+      user_id_param: referral.referrer_id,
+      amount_param: 10,
+    });
+    console.log(`Webhook: Awarded 10 Yuto Points to referrer ${referral.referrer_id}`);
+  }
+
   const { data: members, error: membersError } = await supabase
     .from(membershipTable)
     .select("has_paid")

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getFriends, getMyGroups, getPendingRequests, getSavedPhoneNumber, saveProfilePhoneNumber, uploadAvatar, supabase } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
+import { Sparkles, Copy, Check } from "lucide-react"; // Make sure these are available
+
 
 function ChevronRight() {
   return (
@@ -75,6 +77,8 @@ export default function ProfileScreen() {
   const [phoneMessage, setPhoneMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [points, setPoints] = useState(0);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -124,7 +128,8 @@ export default function ProfileScreen() {
       getFriends(user.id),
       getPendingRequests(user.id),
       supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", user.id),
-    ]).then(([groups, friends, pending, plansRes]) => {
+      supabase.from("yuto_points").select("balance").eq("user_id", user.id).maybeSingle(), // <-- Added this line
+    ]).then(([groups, friends, pending, plansRes, pointsRes]) => {
       const paidGroups = (groups as any[]).filter((g: any) =>
         g.group_members.some((m: any) => m.user_id === user.id && m.has_paid)
       );
@@ -136,6 +141,7 @@ export default function ProfileScreen() {
         plansCount: (plansRes as { count?: number })?.count ?? 0,
       });
       setPendingCount(pending.length);
+      setPoints(pointsRes.data?.balance || 0); // <-- Set the points state
     });
   }, [user]);
 
@@ -286,6 +292,41 @@ export default function ProfileScreen() {
       <div className="text-center -mt-2 mb-6">
         <p className="font-bold text-xl text-black">{userName}</p>
         <p className="text-sm text-gray-400">{userHandle}</p>
+      </div>
+
+      {/* YUTO POINTS REWARDS CARD */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <span className="bg-yellow-50 text-yellow-600 p-1.5 rounded-full">
+              <Sparkles size={16} fill="currentColor" />
+            </span>
+            <p className="font-bold text-black text-lg">Yuto Points</p>
+          </div>
+          <p className="font-extrabold text-2xl text-black">{points}</p>
+        </div>
+        <p className="text-xs text-gray-500 mb-4 ml-1">
+          Earn 10 points (KSH 10) for every friend who signs up using your link and pays for their first split.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/invite/${profile?.username}`);
+              setCopiedLink(true);
+              setTimeout(() => setCopiedLink(false), 2000);
+            }}
+            className="flex-1 flex justify-center items-center gap-1.5 bg-black text-white py-3 rounded-xl text-sm font-bold transition-colors active:bg-gray-800"
+          >
+            {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+            {copiedLink ? "Copied!" : "Copy Link"}
+          </button>
+          <button
+            disabled
+            className="flex-1 bg-gray-100 text-gray-400 py-3 rounded-xl text-sm font-bold cursor-not-allowed"
+          >
+            Redeem (Soon)
+          </button>
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
