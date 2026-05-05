@@ -1120,17 +1120,8 @@ export default function HomeScreen() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex gap-2">
-                      {/* NEW: Standalone Message Button */}
-                      <button
-                        onClick={() => setActivePlanChat(plan)}
-                        className="relative w-11 h-11 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
-                        aria-label={`Chat about ${plan.title}`}
-                        title="Open chat"
-                      >
-                        <MessageCircle size={16} />
-                      </button>
-
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
                       {!isMine && !allIn && (
                         <button
                           onClick={() => handleJoin(plan)}
@@ -1155,6 +1146,16 @@ export default function HomeScreen() {
                           <span className="flex items-center justify-center gap-1.5"><Rocket size={15} /> Yuto it!</span>
                         </button>
                       )}
+                      </div>
+
+                      <button
+                        onClick={() => setActivePlanChat(plan)}
+                        className="relative w-11 h-11 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        aria-label={`Chat about ${plan.title}`}
+                        title="Open chat"
+                      >
+                        <MessageCircle size={16} />
+                      </button>
                     </div>
                   </div>
                 );
