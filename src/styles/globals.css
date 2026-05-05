@@ -188,8 +188,9 @@ html {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  animation: premiumPulse 3.8s ease-in-out infinite;
+  animation: premiumPulse 3.8s ease-in-out infinite, premiumFunctionTint 3.8s ease-in-out infinite;
   will-change: transform, box-shadow;
+  background: linear-gradient(180deg, #ffffff 0%, #fffdf7 100%);
 }
 
 .function-card-highlight::before {
@@ -232,13 +233,20 @@ html {
 
 @keyframes premiumPulse {
   0%, 100% {
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.04);
     transform: translateY(0) scale(1);
   }
   50% {
-    /* Massive, dark shadow so it's impossible to miss */
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 0 0 0 8px rgba(0, 0, 0, 0.1);
-    /* Lifts and grows noticeably */
-    transform: translateY(-6px) scale(1.04); 
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12), 0 0 0 2px rgba(84, 147, 179, 0.18), 0 0 0 10px rgba(84, 147, 179, 0.06);
+    transform: translateY(-4px) scale(1.015); 
+  }
+}
+
+@keyframes premiumFunctionTint {
+  0%, 100% {
+    background-color: #ffffff;
+  }
+  50% {
+    background-color: #f8fcff;
   }
 }
