@@ -945,7 +945,10 @@ export default function HomeScreen() {
               const unreadCount = functionUnreadCounts[eventFunction.id] || 0;
 
               return (
-                <div key={eventFunction.id} className={`bg-white border border-gray-100 rounded-2xl p-4 shadow-sm ${activeTab === "public" ? "function-card-highlight" : ""}`}>
+                <div 
+                  key={eventFunction.id} 
+                  className="bg-white border border-gray-200/60 rounded-3xl p-5 mb-6 relative overflow-hidden premium-function-card function-card-highlight"
+                >
                   <div 
                   className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity" 
                   onClick={() => navigate(`/user/${eventFunction.host.id}`)}
