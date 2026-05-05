@@ -4,7 +4,7 @@ import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates, uploadPlanImage, getFunctionsPublic, createFunction, joinFunction, leaveFunction } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
-import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe, ImagePlus, X, CalendarDays, MapPin, BadgeDollarSign, Sparkles } from "lucide-react";
+import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe, ImagePlus, X, CalendarDays, MapPin, BadgeDollarSign, Sparkles, PartyPopper } from "lucide-react";
 
 interface PlanMember {
   id: string;
@@ -781,7 +781,7 @@ export default function HomeScreen() {
                   onClick={() => setComposeMode("function")}
                   className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${composeMode === "function" ? "bg-white text-black shadow-sm" : "text-gray-400"}`}
                 >
-                  <span className="flex items-center gap-1.5"><CalendarDays size={14} /> Function</span>
+                  <span className="flex items-center gap-1.5"><PartyPopper size={14} /> Function</span>
                 </button>
               </div>
             </div>
