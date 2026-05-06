@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { Ticket } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 
+function extractFulfillmentLine(description: string | null): string | null {
+  if (!description) return null;
+  const m = description.match(/(?:^|\n)\s*Fulfillment:\s*(.+)\s*$/i);
+  return m?.[1]?.trim() ? m[1].trim() : null;
+}
+
 function liveEntryCode(seed: string, windowIdx: number): string {
   const s = `${seed}:${windowIdx}`;
   let h = 2166136261 >>> 0;
@@ -39,6 +45,7 @@ export function FunctionTicketModal({
   const me = (functionItem.function_members ?? []).find((m) => m.user_id === userId);
   const isSell = functionItem.location === "__SELL__";
   const intentLabel = isSell ? "Proof" : "Ticket";
+  const fulfillment = isSell ? extractFulfillmentLine(functionItem.description) : null;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
@@ -90,6 +97,11 @@ export function FunctionTicketModal({
                   </>
                 )}
               </p>
+              {fulfillment && (
+                <p className="relative text-sm text-gray-600 mt-2">
+                  <span className="font-semibold text-gray-800">Pickup / contact:</span> {fulfillment}
+                </p>
+              )}
               <div className="relative flex flex-wrap gap-2 mt-3 text-xs text-gray-600">
                 {!isSell && (
                   <span className="px-2.5 py-1 rounded-full bg-white border border-gray-200 font-semibold">

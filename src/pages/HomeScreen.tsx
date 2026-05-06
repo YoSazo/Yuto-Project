@@ -59,6 +59,7 @@ export default function HomeScreen() {
   const [functionLocation, setFunctionLocation] = useState("");
   const [functionAmount, setFunctionAmount] = useState("");
   const [functionCapacity, setFunctionCapacity] = useState("");
+  const [sellFulfillment, setSellFulfillment] = useState("");
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const planImageInputRef = useRef<HTMLInputElement>(null);
@@ -235,6 +236,7 @@ export default function HomeScreen() {
     setFunctionLocation("");
     setFunctionAmount("");
     setFunctionCapacity("");
+    setSellFulfillment("");
   };
 
   const handlePost = async () => {
@@ -295,10 +297,11 @@ export default function HomeScreen() {
             imageUrl = null;
           }
         }
+        const fulfillmentLine = sellFulfillment.trim() ? `\n\nFulfillment: ${sellFulfillment.trim()}` : "";
         await createFunction(
           user.id,
           functionTitle.trim(),
-          functionDescription.trim() || null,
+          ((functionDescription.trim() || "") + fulfillmentLine).trim() || null,
           null,
           "__SELL__",
           parseInt(functionAmount),
@@ -493,6 +496,8 @@ export default function HomeScreen() {
         onFunctionAmountChange={setFunctionAmount}
         functionCapacity={functionCapacity}
         onFunctionCapacityChange={setFunctionCapacity}
+        sellFulfillment={sellFulfillment}
+        onSellFulfillmentChange={setSellFulfillment}
         functionImagePreview={functionImagePreview}
         functionImageInputRef={functionImageInputRef}
         onFunctionImageChange={handleFunctionImageChange}

@@ -64,6 +64,8 @@ export function FunctionFeedSection({
           const canPay = isMember && !me?.has_paid;
           const unreadCount = functionUnreadCounts[eventFunction.id] || 0;
           const isSell = eventFunction.location === "__SELL__";
+          const remainingStock =
+            isSell && eventFunction.max_capacity != null ? Math.max(0, eventFunction.max_capacity - paidCount) : null;
 
           return (
             <div
@@ -108,23 +110,38 @@ export function FunctionFeedSection({
                 <span className="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                   <BadgeDollarSign size={14} /> KSH {eventFunction.amount_per_person.toLocaleString()}
                 </span>
-                <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Users size={14} /> {joinedCount} {isSell ? "buying" : "joining"}
+                {isSell ? (
+                  <>
+                    {remainingStock != null && (
+                      <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                        <Sparkles size={14} /> {remainingStock} left
+                      </span>
+                    )}
+                    {paidCount > 0 && (
+                      <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                        <Users size={14} /> {paidCount} bought
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Users size={14} /> {joinedCount} joining
+                    </span>
+                    <span className="text-gray-400 font-semibold px-0.5" aria-hidden>
+                      ·
+                    </span>
+                    <span>{paidCount} paid</span>
                   </span>
-                  <span className="text-gray-400 font-semibold px-0.5" aria-hidden>
-                    ·
-                  </span>
-                  <span>{paidCount} paid</span>
-                </span>
+                )}
                 {eventFunction.location && !isSell && (
                   <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                     <MapPin size={14} /> {eventFunction.location}
                   </span>
                 )}
-                {eventFunction.max_capacity && (
+                {eventFunction.max_capacity && !isSell && (
                   <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                    <Sparkles size={14} /> {eventFunction.max_capacity} {isSell ? "in stock" : "max"}
+                    <Sparkles size={14} /> {eventFunction.max_capacity} max
                   </span>
                 )}
               </div>

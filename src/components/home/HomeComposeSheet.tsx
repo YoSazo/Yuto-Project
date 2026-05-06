@@ -30,6 +30,8 @@ export function HomeComposeSheet({
   onFunctionAmountChange,
   functionCapacity,
   onFunctionCapacityChange,
+  sellFulfillment,
+  onSellFulfillmentChange,
   functionImagePreview,
   functionImageInputRef,
   onFunctionImageChange,
@@ -64,6 +66,8 @@ export function HomeComposeSheet({
   onFunctionAmountChange: (value: string) => void;
   functionCapacity: string;
   onFunctionCapacityChange: (value: string) => void;
+  sellFulfillment: string;
+  onSellFulfillmentChange: (value: string) => void;
   functionImagePreview: string | null;
   functionImageInputRef: RefObject<HTMLInputElement | null>;
   onFunctionImageChange: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -144,7 +148,11 @@ export function HomeComposeSheet({
             <textarea
               value={functionDescription}
               onChange={(e) => onFunctionDescriptionChange(e.target.value)}
-              placeholder={composeMode === "sell" ? "What are you selling? Add details..." : "Add a short description..."}
+              placeholder={
+                composeMode === "sell"
+                  ? "What are you selling? (mandazis, photography, jerseys...)"
+                  : "Add a short description..."
+              }
               className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors"
               maxLength={240}
             />
@@ -242,7 +250,7 @@ export function HomeComposeSheet({
               </div>
               <div className="flex-1">
                 <p className="text-xs text-gray-400 mb-1 font-semibold">
-                  {composeMode === "sell" ? "Stock" : "Capacity"}
+                  {composeMode === "sell" ? "Stock / Available" : "Capacity"}
                 </p>
                 <input
                   type="number"
@@ -253,6 +261,19 @@ export function HomeComposeSheet({
                 />
               </div>
             </div>
+            {composeMode === "sell" && (
+              <div>
+                <p className="text-xs text-gray-400 mb-1 font-semibold">Pickup / delivery / contact</p>
+                <input
+                  type="text"
+                  value={sellFulfillment}
+                  onChange={(e) => onSellFulfillmentChange(e.target.value)}
+                  placeholder="e.g. Pick up Westlands · DM @ali · Delivery available"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                  maxLength={140}
+                />
+              </div>
+            )}
             {composeMode !== "sell" && (
               <>
                 <div className="flex gap-3">
@@ -293,7 +314,7 @@ export function HomeComposeSheet({
           ) : (
             <span className="flex items-center justify-center gap-2">
               <Send size={16} />{" "}
-              {composeMode === "plan" ? "Post Plan" : composeMode === "sell" ? "Post Sell" : "Post Function"}
+              {composeMode === "plan" ? "Post Plan" : composeMode === "sell" ? "Post Listing" : "Post Function"}
             </span>
           )}
         </button>
