@@ -773,7 +773,7 @@ export default function HomeScreen() {
       // Notify plan members
       const plan = plans.find((p) => p.id === planId);
       if (plan) {
-        const memberIds = plan.plan_members.map((m) => m.user_id);
+        const memberIds = (plan.plan_members ?? []).map((m) => m.user_id);
         await Promise.all(memberIds.map((memberId) =>
           fetch("/api/notify", {
             method: "POST",

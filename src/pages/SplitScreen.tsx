@@ -49,6 +49,10 @@ export default function SplitScreen() {
 
   const handleSplit = async () => {
     if (!isValid || !user) return;
+    if (splitMode === "custom") {
+      setError("Custom split isn’t wired to your group yet — use Equal split.");
+      return;
+    }
     setIsCreating(true);
     setError("");
     try {

@@ -43,6 +43,10 @@ export default function InviteScreen() {
       navigate("/auth", { state: { defaultMode: "signup" } });
       return;
     }
+    if (!profile?.id) {
+      setError("Profile not loaded. Try refreshing.");
+      return;
+    }
     setAdding(true);
     try {
       await sendFriendRequest(user.id, profile.id);

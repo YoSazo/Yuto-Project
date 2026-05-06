@@ -18,7 +18,7 @@ export default function JoinGroupScreen() {
   useEffect(() => {
     if (!groupId) return;
     fetchGroup();
-  }, [groupId]);
+  }, [groupId, user?.id]);
 
   const fetchGroup = async () => {
     try {
@@ -30,7 +30,8 @@ export default function JoinGroupScreen() {
       if (error) throw error;
       setGroup(data);
       if (user) {
-        const isMember = data.group_members.some((m: any) => m.user_id === user.id);
+        const gm = data.group_members ?? [];
+        const isMember = gm.some((m: any) => m.user_id === user.id);
         setAlreadyMember(isMember);
       }
     } catch {
@@ -95,8 +96,9 @@ export default function JoinGroupScreen() {
     );
   }
 
-  const memberCount = group.group_members.length;
-  const hostName = group.group_members.find((m: any) => m.user_id === group.created_by)?.profiles?.display_name || "Someone";
+  const gm = group.group_members ?? [];
+  const memberCount = gm.length;
+  const hostName = gm.find((m: any) => m.user_id === group.created_by)?.profiles?.display_name || "Someone";
   const perPerson = group.per_person;
   const groupType = group.group_type || "single";
 
@@ -128,7 +130,7 @@ export default function JoinGroupScreen() {
         <div className="flex justify-between items-center">
           <span className="text-gray-500 text-sm">Members</span>
           <div className="flex items-center gap-1">
-            {group.group_members.slice(0, 3).map((m: any, i: number) => (
+            {gm.slice(0, 3).map((m: any, i: number) => (
               <div
                 key={i}
                 className="w-7 h-7 rounded-full bg-black text-white text-xs flex items-center justify-center font-bold -ml-1 first:ml-0"
@@ -147,7 +149,7 @@ export default function JoinGroupScreen() {
       <div className="mb-8">
         <p className="text-sm text-gray-500 mb-3">Who's in</p>
         <div className="space-y-2">
-          {group.group_members.map((m: any, i: number) => (
+          {gm.map((m: any, i: number) => (
             <div key={i} className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">
                 {m.profiles?.display_name?.[0]?.toUpperCase() || "?"}

@@ -204,7 +204,12 @@ export default function ProfileScreen() {
       if (data.success) {
         alert("Success! KSH " + amountNum + " has been sent to your M-PESA.");
         setShowWithdrawModal(false);
-        setPoints(points - amountNum); // Update UI optimistically
+        setWithdrawAmount("");
+        try {
+          setPoints(await fetchYutoBalance(user.id));
+        } catch {
+          setPoints((p) => Math.max(0, p - amountNum));
+        }
       } else {
         setWithdrawError(data.message || "Withdrawal failed. Your Yuto Balance has been refunded.");
       }
@@ -279,7 +284,7 @@ export default function ProfileScreen() {
         ]);
   
         const paidGroups = (groups as any[]).filter((g: any) =>
-          g.group_members.some((m: any) => m.user_id === user.id && m.has_paid)
+          (g.group_members ?? []).some((m: any) => m.user_id === user.id && m.has_paid)
         );
         const totalSpent = paidGroups.reduce((sum: number, g: any) => sum + g.per_person, 0);
   

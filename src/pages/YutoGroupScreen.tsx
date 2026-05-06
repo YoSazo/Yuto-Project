@@ -425,7 +425,9 @@ export default function YutoGroupScreen() {
         setGroupType(data.group_type || "single");
         setGroupStatus(data.status || "active");
 
-        const list: Member[] = data.group_members.map((gm: any) => ({
+        const gmem = data.group_members ?? [];
+
+        const list: Member[] = gmem.map((gm: any) => ({
           user_id: gm.user_id,
           name: gm.profiles.display_name,
           avatarUrl: gm.profiles.avatar_url ?? null,
@@ -436,12 +438,12 @@ export default function YutoGroupScreen() {
           rideAmount: gm.ride_amount ?? null,
         }));
 
-        const myMembership = data.group_members.find((gm: any) => gm.user_id === user.id);
+        const myMembership = gmem.find((gm: any) => gm.user_id === user.id);
         if (myMembership?.ride_amount) setMyRideAmount(String(myMembership.ride_amount));
         setMembers(list);
 
         // Auto-join
-        const me = data.group_members.find((gm: any) => gm.user_id === user.id);
+        const me = gmem.find((gm: any) => gm.user_id === user.id);
         if (me && !me.has_joined) {
           await joinGroup(groupId, user.id);
           setMembers((prev) => prev.map((m) => m.user_id === user.id ? { ...m, hasJoined: true } : m));
@@ -547,7 +549,8 @@ export default function YutoGroupScreen() {
       setCreatedBy(data.created_by);
       setGroupType(data.group_type || "single");
       setGroupStatus(data.status || "active");
-      const list: Member[] = data.group_members.map((gm: any) => ({
+      const gmem = data.group_members ?? [];
+      const list: Member[] = gmem.map((gm: any) => ({
         user_id: gm.user_id,
         name: gm.profiles.display_name,
         avatarUrl: gm.profiles.avatar_url ?? null,
@@ -557,7 +560,7 @@ export default function YutoGroupScreen() {
         justJoined: false,
         rideAmount: gm.ride_amount ?? null,
       }));
-      const myMembership = data.group_members.find((gm: any) => gm.user_id === user.id);
+      const myMembership = gmem.find((gm: any) => gm.user_id === user.id);
       if (myMembership?.ride_amount) setMyRideAmount(String(myMembership.ride_amount));
       setMembers(list);
       return data;

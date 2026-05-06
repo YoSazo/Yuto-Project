@@ -34,7 +34,7 @@ function timeAgo(dateStr: string) {
 }
 
 function YutoCard({ group, onClick, onDelete }: { group: GroupData; onClick: () => void; onDelete?: () => void }) {
-  const members = group.group_members;
+  const members = group.group_members ?? [];
   const paidCount = members.filter((m) => m.has_paid).length;
   const progress = members.length > 0 ? (paidCount / members.length) * 100 : 0;
   const isActive = group.status === "active";
