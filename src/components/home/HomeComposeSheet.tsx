@@ -169,8 +169,9 @@ export function HomeComposeSheet({
 
     const shell = document.getElementById("app-shell");
     const shellRect = shell?.getBoundingClientRect();
-    const tL = shellRect?.left ?? 0;
-    const tW = shellRect?.width ?? window.innerWidth;
+    const fallbackW = Math.min(448, window.innerWidth);
+    const tW = shellRect?.width ?? fallbackW;
+    const tL = shellRect?.left ?? (window.innerWidth - tW) / 2;
     const tB = shellRect ? window.innerHeight - shellRect.bottom : 0;
     const tH = Math.min(560, Math.floor((shellRect?.height ?? window.innerHeight) * 0.9));
 
@@ -220,10 +221,14 @@ export function HomeComposeSheet({
       const brTop = 100 - (100 - 28) * e;
       const brBot = 100 * (1 - e);
 
-      const l = sL + (tL - sL) * e;
+      const startCx = sL + sW / 2;
+      const targetCx = tL + tW / 2;
+      const cx = startCx + (targetCx - startCx) * e;
+
       const b = sB + (tB - sB) * e;
       const w = sW + (tW - sW) * e;
       const h = sH + (tH - sH) * e;
+      const l = cx - w / 2;
       const lum = Math.round(24 + (245 - 24) * e);
       const bA = 0.18 * (1 - e);
 
@@ -271,10 +276,14 @@ export function HomeComposeSheet({
 
     await go(400, (p) => {
       const e = outQuint(p);
-      const l = tL + (sL - tL) * e;
+      const startCx = tL + tW / 2;
+      const targetCx = sL + sW / 2;
+      const cx = startCx + (targetCx - startCx) * e;
+
       const b = tB + (sB - tB) * e;
       const w = tW + (sW - tW) * e;
       const h = tH + (sH - tH) * e;
+      const l = cx - w / 2;
       const brTop = 28 + (100 - 28) * e;
       const brBot = 0 + 100 * e;
       const lum = Math.round(245 - (245 - 24) * e);
