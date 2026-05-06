@@ -298,23 +298,6 @@ export default function ProfileScreen() {
         : "https://yuto.social";
   const inviteUrl = profile?.username ? `${publicOrigin}/i/${profile.username}` : "";
 
-  const handleShareInvite = async () => {
-    if (!inviteUrl) return;
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "Join me on Yuto",
-          text: "Pay together with me on Yuto 🚗",
-          url: inviteUrl,
-        });
-        return;
-      }
-    } catch {
-      // fall back to copy
-    }
-    await handleCopyInvite();
-  };
-
   const handleCopyInvite = async () => {
     if (!inviteUrl) return;
     try {
@@ -548,31 +531,33 @@ export default function ProfileScreen() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => void handleShareInvite()}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-sm font-bold transition-colors"
+                  disabled
+                  className="flex-1 bg-white/10 text-white/60 py-3 rounded-xl text-sm font-bold cursor-not-allowed"
                 >
-                  Share
+                  Redeem (Soon)
                 </button>
               </div>
             )}
           </div>
         )}
 
-        <div className="relative z-10 mt-5 flex justify-center gap-3">
-          <button
-            onClick={() => setShowWithdrawModal(true)}
-            className="text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm"
-          >
-            Cash Out
-          </button>
-          <button
-            onClick={handleOpenHistory}
-            className="text-sm font-bold bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5"
-          >
-            <History size={12} />
-            History
-          </button>
-        </div>
+        {walletTab === "balance" && (
+          <div className="relative z-10 mt-5 flex justify-center gap-3">
+            <button
+              onClick={() => setShowWithdrawModal(true)}
+              className="text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm"
+            >
+              Cash Out
+            </button>
+            <button
+              onClick={handleOpenHistory}
+              className="text-sm font-bold bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5"
+            >
+              <History size={12} />
+              History
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
