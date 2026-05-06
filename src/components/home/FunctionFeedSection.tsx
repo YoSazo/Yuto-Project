@@ -43,7 +43,7 @@ export function FunctionFeedSection({
           return (
             <div
               key={eventFunction.id}
-              className="bg-white border border-gray-200/80 rounded-3xl p-4 relative overflow-hidden premium-function-card function-card-highlight"
+              className="bg-white border border-gray-200/80 rounded-3xl p-5 relative overflow-hidden premium-function-card function-card-highlight"
             >
               <div
                 className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
@@ -73,79 +73,86 @@ export function FunctionFeedSection({
               )}
               {eventFunction.description && <p className="text-sm text-gray-600 mb-3">{eventFunction.description}</p>}
 
-              <div className="flex flex-wrap gap-2 mb-3">
-                <span className="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                   <BadgeDollarSign size={14} /> KSH {eventFunction.amount_per_person.toLocaleString()}
                 </span>
-                <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
-                  <Users size={14} /> {joinedCount} joining
+                <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Users size={14} /> {joinedCount} joining
+                  </span>
+                  <span className="text-gray-400 font-semibold px-0.5" aria-hidden>
+                    ·
+                  </span>
+                  <span>{paidCount} paid</span>
                 </span>
                 {eventFunction.location && (
-                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                     <MapPin size={14} /> {eventFunction.location}
                   </span>
                 )}
                 {eventFunction.max_capacity && (
-                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                     <Sparkles size={14} /> {eventFunction.max_capacity} max
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-xs text-gray-400 flex items-center gap-1.5">
-                  <CalendarDays size={13} /> {formatEventDate(eventFunction.date)}
-                  <span>•</span>
-                  <span>{paidCount} paid</span>
-                </div>
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-4 pt-1 border-t border-gray-100">
+                <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                  <CalendarDays size={14} className="shrink-0" />
+                  <span>{formatEventDate(eventFunction.date)}</span>
+                </p>
+                <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
                   <button
                     type="button"
                     onClick={() => onOpenFunctionThread(eventFunction)}
-                    className="relative w-11 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                    className="relative w-12 h-12 shrink-0 rounded-2xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
                     aria-label={`Ask questions about ${eventFunction.title}`}
                     title="Ask questions"
                   >
-                    <MessageCircle size={16} />
+                    <MessageCircle size={18} />
                     {unreadCount > 0 && (
                       <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
                         {unreadCount}
                       </span>
                     )}
                   </button>
-                  {isHost ? (
-                    <span className="text-sm font-semibold text-gray-500">Hosting</span>
-                  ) : isMember && me?.has_paid ? (
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <span className="text-sm font-semibold text-green-600">You&apos;re in</span>
+                  <div className="flex flex-1 flex-wrap items-center justify-end gap-3 min-w-0">
+                    {isHost ? (
+                      <span className="text-sm font-semibold text-gray-500 py-2">Hosting</span>
+                    ) : isMember && me?.has_paid ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-right sm:text-right w-full sm:w-auto">
+                        <span className="text-sm font-semibold text-green-600 sm:mr-1">You&apos;re in</span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenTicket(eventFunction)}
+                          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl border border-green-200 bg-green-50 text-green-800 font-bold text-sm hover:bg-green-100 transition-colors tap-scale w-full sm:w-auto"
+                        >
+                          <Ticket size={16} aria-hidden />
+                          Show ticket
+                        </button>
+                      </div>
+                    ) : canPay ? (
                       <button
                         type="button"
-                        onClick={() => onOpenTicket(eventFunction)}
-                        className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-green-200 bg-green-50 text-green-800 font-bold text-xs hover:bg-green-100 transition-colors tap-scale"
+                        onClick={() => onJoinFunction(eventFunction)}
+                        className="px-6 py-2.5 bg-black text-white rounded-2xl font-bold text-sm hover:bg-gray-800 transition-colors w-full sm:w-auto"
                       >
-                        <Ticket size={14} aria-hidden />
-                        Ticket
+                        Pay &amp; join
                       </button>
-                    </div>
-                  ) : canPay ? (
-                    <button
-                      type="button"
-                      onClick={() => onJoinFunction(eventFunction)}
-                      className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
-                    >
-                      Pay &amp; join
-                    </button>
-                  ) : canJoin ? (
-                    <button
-                      type="button"
-                      onClick={() => onJoinFunction(eventFunction)}
-                      className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
-                    >
-                      Join Function
-                    </button>
-                  ) : (
-                    <span className="text-sm font-semibold text-gray-500">{isFull ? "Full" : "Joined"}</span>
-                  )}
+                    ) : canJoin ? (
+                      <button
+                        type="button"
+                        onClick={() => onJoinFunction(eventFunction)}
+                        className="px-6 py-2.5 bg-black text-white rounded-2xl font-bold text-sm hover:bg-gray-800 transition-colors w-full sm:w-auto"
+                      >
+                        Join Function
+                      </button>
+                    ) : (
+                      <span className="text-sm font-semibold text-gray-500 py-2">{isFull ? "Full" : "Joined"}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
