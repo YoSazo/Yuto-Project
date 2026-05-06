@@ -49,7 +49,12 @@ export default function CreateGroupChatScreen() {
       navigate(`/messages/group/${chat.id}`, { replace: true });
     } catch (e) {
       console.error(e);
-      alert(e instanceof Error ? e.message : "Couldn't create group. Try again.");
+      const msg =
+        (e as { message?: string })?.message ||
+        (e as { details?: string })?.details ||
+        (e as { hint?: string })?.hint ||
+        (typeof e === "string" ? e : "");
+      alert(msg || "Couldn't create group. Try again.");
     } finally {
       setCreating(false);
     }

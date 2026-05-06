@@ -5,6 +5,8 @@ import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import {
   getMyDmUnreadCounts,
+  getMyGroupUnreadCounts,
+  getGroupMemberIds,
   listMyDmConversations,
   listMyGroupChats,
   supabase,
@@ -14,6 +16,61 @@ import {
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
+function StackedGroupMemberAvatars({
+  memberIds,
+  profilesById,
+  excludeUserId,
+}: {
+  memberIds: string[];
+  profilesById: Record<string, ProfileRow>;
+  excludeUserId: string | null;
+}) {
+  const others = useMemo(
+    () => memberIds.filter((id) => id && id !== excludeUserId),
+    [memberIds, excludeUserId],
+  );
+
+  if (others.length === 0) {
+    return (
+      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-black shrink-0">
+        <Users size={22} />
+      </div>
+    );
+  }
+
+  const useOverlap = others.length >= 5;
+  /** Many members: four faces plus +N for the rest */
+  const showOverflowPill = others.length > 5;
+  const maxFaces = useOverlap ? (showOverflowPill ? 4 : Math.min(5, others.length)) : others.length;
+  const visibleIds = others.slice(0, maxFaces);
+  const extra = showOverflowPill ? others.length - 4 : 0;
+
+  return (
+    <div className={`flex shrink-0 items-center ${useOverlap ? "pl-0.5" : "gap-1"}`}>
+      {visibleIds.map((id, i) => {
+        const p = profilesById[id];
+        return (
+          <div
+            key={id}
+            className={useOverlap ? "relative rounded-full ring-2 ring-white bg-white" : "shrink-0"}
+            style={useOverlap && i > 0 ? { marginLeft: -10 } : undefined}
+          >
+            <UserAvatar name={p?.display_name || "Member"} avatarUrl={p?.avatar_url || null} size="sm" />
+          </div>
+        );
+      })}
+      {extra > 0 && (
+        <div
+          className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[11px] font-extrabold text-black ring-2 ring-white"
+          style={{ marginLeft: -10 }}
+        >
+          +{extra > 99 ? 99 : extra}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MessagesScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -21,7 +78,9 @@ export default function MessagesScreen() {
   const [groups, setGroups] = useState<GroupChatRow[]>([]);
   const [convos, setConvos] = useState<DmConversation[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, ProfileRow>>({});
+  const [groupMemberIds, setGroupMemberIds] = useState<Record<string, string[]>>({});
   const [unreadByConvo, setUnreadByConvo] = useState<Record<string, number>>({});
+  const [unreadByGroup, setUnreadByGroup] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -38,24 +97,46 @@ export default function MessagesScreen() {
         setConvos(rows);
         setGroups(groupRows);
 
-        const unread = await getMyDmUnreadCounts(user.id);
-        setUnreadByConvo(unread.byConversationId);
+        const [unreadDm, unreadGr] = await Promise.all([
+          getMyDmUnreadCounts(user.id),
+          getMyGroupUnreadCounts(user.id).catch(() => ({ total: 0, byGroupId: {} as Record<string, number> })),
+        ]);
+        setUnreadByConvo(unreadDm.byConversationId);
+        setUnreadByGroup(unreadGr.byGroupId);
 
-        const otherIds = Array.from(
+        const memberPairs = await Promise.all(
+          groupRows.map(async (g) => {
+            try {
+              const ids = await getGroupMemberIds(g.id);
+              return [g.id, ids] as const;
+            } catch {
+              return [g.id, [] as string[]] as const;
+            }
+          }),
+        );
+        const byGroup: Record<string, string[]> = {};
+        memberPairs.forEach(([id, ids]) => {
+          byGroup[id] = ids;
+        });
+        setGroupMemberIds(byGroup);
+
+        const dmOtherIds = Array.from(
           new Set(
             rows
               .map((c) => (c.user_low === user.id ? c.user_high : c.user_low))
               .filter(Boolean),
           ),
         );
-        if (otherIds.length === 0) {
+        const groupProfileIds = Array.from(new Set(memberPairs.flatMap(([, ids]) => ids)));
+        const allIds = Array.from(new Set([...dmOtherIds, ...groupProfileIds]));
+        if (allIds.length === 0) {
           setProfilesById({});
           return;
         }
         const { data, error } = await supabase
           .from("profiles")
           .select("id, username, display_name, avatar_url")
-          .in("id", otherIds);
+          .in("id", allIds);
         if (error) throw error;
         const map: Record<string, ProfileRow> = {};
         (data || []).forEach((p) => (map[p.id] = p as ProfileRow));
@@ -75,9 +156,16 @@ export default function MessagesScreen() {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel("dm-inbox")
+      .channel("dm-group-inbox")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_messages" }, () => {
-        void getMyDmUnreadCounts(user.id).then((u) => setUnreadByConvo(u.byConversationId)).catch(() => {});
+        void getMyDmUnreadCounts(user.id)
+          .then((u) => setUnreadByConvo(u.byConversationId))
+          .catch(() => {});
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "group_chat_messages" }, () => {
+        void getMyGroupUnreadCounts(user.id)
+          .then((u) => setUnreadByGroup(u.byGroupId))
+          .catch(() => {});
       })
       .subscribe();
     return () => {
@@ -141,13 +229,20 @@ export default function MessagesScreen() {
                   onClick={() => navigate(`/messages/group/${g.id}`)}
                   className="w-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
                 >
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-black shrink-0">
-                    <Users size={22} />
-                  </div>
+                  <StackedGroupMemberAvatars
+                    memberIds={groupMemberIds[g.id] || []}
+                    profilesById={profilesById}
+                    excludeUserId={user?.id ?? null}
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-black truncate">{g.title || "Group chat"}</p>
                     <p className="text-sm text-gray-400 truncate">Tap to open</p>
                   </div>
+                  {(unreadByGroup[g.id] || 0) > 0 && (
+                    <span className="min-w-6 h-6 px-2 rounded-full bg-red-500 text-white text-xs font-extrabold flex items-center justify-center">
+                      {Math.min(99, unreadByGroup[g.id])}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

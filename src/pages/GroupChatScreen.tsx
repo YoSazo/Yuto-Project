@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
+import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
-import { getGroupChatMessages, sendGroupChatMessage, supabase, type GroupChatMessage, type GroupChatRow } from "../lib/supabase";
+import {
+  getGroupChatMessages,
+  markGroupChatRead,
+  sendGroupChatMessage,
+  supabase,
+  type GroupChatMessage,
+  type GroupChatRow,
+} from "../lib/supabase";
 
 export default function GroupChatScreen() {
   const { groupId } = useParams<{ groupId: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [meta, setMeta] = useState<GroupChatRow | null>(null);
   const [messages, setMessages] = useState<GroupChatMessage[]>([]);
@@ -28,6 +36,11 @@ export default function GroupChatScreen() {
         if (cancelled) return;
         setMeta(g as GroupChatRow);
         setMessages(rows);
+        try {
+          await markGroupChatRead(groupId, user.id);
+        } catch {
+          // `group_chat_reads` missing until migration is applied
+        }
       } catch (e) {
         console.error(e);
         setMeta(null);
@@ -50,6 +63,8 @@ export default function GroupChatScreen() {
         { event: "INSERT", schema: "public", table: "group_chat_messages", filter: `group_id=eq.${groupId}` },
         async (payload) => {
           const row = payload.new as GroupChatMessage;
+          const uid = user?.id;
+          if (uid) void markGroupChatRead(groupId!, uid).catch(() => {});
           const { data: sender } = await supabase
             .from("profiles")
             .select("id, username, display_name, avatar_url")
@@ -66,7 +81,7 @@ export default function GroupChatScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [groupId]);
+  }, [groupId, user]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -108,19 +123,30 @@ export default function GroupChatScreen() {
         ) : !meta ? (
           <div className="py-16 text-center text-gray-400 font-semibold">Group not found</div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {messages.map((m) => {
               const mine = m.sender_id === user?.id;
               const label = mine ? "You" : m.sender?.display_name?.trim() || "Member";
+              const avatarName = mine
+                ? profile?.display_name?.trim() || "You"
+                : m.sender?.display_name?.trim() || "Member";
+              const avatarUrl = mine ? profile?.avatar_url ?? null : m.sender?.avatar_url ?? null;
+
               return (
-                <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
-                  {!mine && <span className="text-[11px] font-semibold text-gray-400 px-2 mb-0.5">{label}</span>}
-                  <div
-                    className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm font-semibold whitespace-pre-wrap break-words ${
-                      mine ? "bg-black text-white rounded-br-md" : "bg-gray-100 text-black rounded-bl-md"
-                    }`}
-                  >
-                    {m.content}
+                <div
+                  key={m.id}
+                  className={`flex gap-2.5 items-start max-w-[85%] ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
+                >
+                  <UserAvatar name={avatarName} avatarUrl={avatarUrl} size="sm" className="ring-2 ring-white shrink-0" />
+                  <div className={`min-w-0 flex flex-col gap-1 ${mine ? "items-end" : "items-start"}`}>
+                    <span className="text-[11px] font-semibold text-gray-500 leading-none px-0.5">{label}</span>
+                    <div
+                      className={`px-4 py-3 rounded-2xl text-sm font-semibold whitespace-pre-wrap break-words ${
+                        mine ? "bg-black text-white rounded-br-md" : "bg-gray-100 text-black rounded-bl-md"
+                      }`}
+                    >
+                      {m.content}
+                    </div>
                   </div>
                 </div>
               );

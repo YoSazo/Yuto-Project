@@ -911,3 +911,66 @@ export async function sendGroupChatMessage(groupId: string, senderId: string, co
   });
   if (error) throw error;
 }
+
+export async function markGroupChatRead(groupId: string, userId: string) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("group_chat_reads")
+    .upsert(
+      { group_id: groupId, user_id: userId, last_read_at: now, updated_at: now },
+      { onConflict: "group_id,user_id" },
+    );
+  if (error) throw error;
+}
+
+/** Member user ids for a group; requires `group_chat_member_ids` RPC (see migration). */
+export async function getGroupMemberIds(groupId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc("group_chat_member_ids", { p_group_id: groupId });
+  if (error) throw error;
+  return ((data as string[] | null) || []).filter(Boolean);
+}
+
+export async function getMyGroupUnreadCounts(userId: string) {
+  const groups = await listMyGroupChats(userId);
+  if (groups.length === 0) return { total: 0, byGroupId: {} as Record<string, number> };
+
+  const groupIds = groups.map((g) => g.id);
+  const { data: reads, error: readsErr } = await supabase
+    .from("group_chat_reads")
+    .select("group_id, last_read_at")
+    .eq("user_id", userId)
+    .in("group_id", groupIds);
+  if (readsErr) throw readsErr;
+
+  const lastReadByGroup: Record<string, string> = {};
+  (reads || []).forEach((r) => {
+    lastReadByGroup[r.group_id] = r.last_read_at;
+  });
+
+  const { data: msgs, error: msgsErr } = await supabase
+    .from("group_chat_messages")
+    .select("id, group_id, sender_id, created_at")
+    .in("group_id", groupIds)
+    .neq("sender_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(400);
+  if (msgsErr) throw msgsErr;
+
+  const byGroupId: Record<string, number> = {};
+  (msgs || []).forEach((m) => {
+    const lastRead = lastReadByGroup[m.group_id];
+    if (lastRead && new Date(m.created_at).getTime() <= new Date(lastRead).getTime()) return;
+    byGroupId[m.group_id] = (byGroupId[m.group_id] || 0) + 1;
+  });
+
+  const total = Object.values(byGroupId).reduce((a, b) => a + b, 0);
+  return { total, byGroupId };
+}
+
+export async function getMyDmAndGroupUnreadTotal(userId: string) {
+  const [dm, gr] = await Promise.all([
+    getMyDmUnreadCounts(userId),
+    getMyGroupUnreadCounts(userId).catch(() => ({ total: 0, byGroupId: {} as Record<string, number> })),
+  ]);
+  return dm.total + gr.total;
+}

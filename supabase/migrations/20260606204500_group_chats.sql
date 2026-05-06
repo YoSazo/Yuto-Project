@@ -36,14 +36,16 @@ create policy "Members can read their group chats" on group_chats
     id in (select group_id from group_chat_members where user_id = auth.uid())
   );
 
+-- Creators must see the row before members exist (RETURNING + member-insert EXISTS subquery runs SELECT with RLS)
+create policy "Creators can read their group chats" on group_chats
+  for select using (auth.uid() = created_by);
+
 create policy "Users can create group chats" on group_chats
   for insert with check (auth.uid() = created_by);
 
--- Members rows: creators add members during setup; anyone can see member list for chats they belong to
-create policy "Members can read group membership" on group_chat_members
-  for select using (
-    group_id in (select group_id from group_chat_members where user_id = auth.uid())
-  );
+-- Only read your own membership rows (avoid self-referential SELECT policy → infinite recursion 42P17)
+create policy "Members can read own membership row" on group_chat_members
+  for select using (user_id = auth.uid());
 
 create policy "Creator can add group members" on group_chat_members
   for insert with check (

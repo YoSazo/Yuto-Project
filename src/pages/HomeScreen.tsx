@@ -19,7 +19,7 @@ import {
   joinFunction,
   leaveFunction,
   getSavedPhoneNumber,
-  getMyDmUnreadCounts,
+  getMyDmAndGroupUnreadTotal,
 } from "../lib/supabase";
 import { FunctionPayModal } from "../components/home/FunctionPayModal";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
@@ -102,7 +102,10 @@ export default function HomeScreen() {
       .on("postgres_changes", { event: "*", schema: "public", table: "function_members" }, () => loadFeed())
       .on("postgres_changes", { event: "*", schema: "public", table: "function_messages" }, () => loadFeed())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_messages" }, () => {
-        void getMyDmUnreadCounts(user.id).then((u) => setDmUnreadTotal(u.total)).catch(() => {});
+        void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "group_chat_messages" }, () => {
+        void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
       })
       .subscribe();
 
@@ -111,7 +114,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!user) return;
-    void getMyDmUnreadCounts(user.id).then((u) => setDmUnreadTotal(u.total)).catch(() => {});
+    void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
   }, [user]);
 
   useEffect(() => {
