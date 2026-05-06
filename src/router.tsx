@@ -16,6 +16,8 @@ import HomeScreen from "./pages/HomeScreen";
 import AddToHomeScreen from "./pages/AddToHomeScreen";
 import MessagesScreen from "./pages/MessagesScreen";
 import DirectMessageScreen from "./pages/DirectMessageScreen";
+import CreateGroupChatScreen from "./pages/CreateGroupChatScreen";
+import GroupChatScreen from "./pages/GroupChatScreen";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthScreen /> },
@@ -36,6 +38,8 @@ export const router = createBrowserRouter([
       { path: "/user/:id", element: <UserProfileScreen /> },
       { path: "/home", element: <HomeScreen /> },
       { path: "/messages", element: <MessagesScreen /> },
+      { path: "/messages/group/new", element: <CreateGroupChatScreen /> },
+      { path: "/messages/group/:groupId", element: <GroupChatScreen /> },
       { path: "/messages/:conversationId", element: <DirectMessageScreen /> },
       { path: "/add-to-home", element: <AddToHomeScreen /> },
     ],

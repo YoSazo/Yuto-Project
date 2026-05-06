@@ -833,3 +833,81 @@ export async function getMyDmUnreadCounts(userId: string) {
   const total = Object.values(byConversationId).reduce((a, b) => a + b, 0);
   return { total, byConversationId };
 }
+
+// ─── Group chats ───────────────────────────────────────
+
+export type GroupChatRow = {
+  id: string;
+  created_by: string;
+  title: string | null;
+  created_at: string;
+};
+
+export type GroupChatMessage = {
+  id: string;
+  group_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  sender?: { id: string; username: string; display_name: string; avatar_url: string | null };
+};
+
+export async function createGroupChat(creatorId: string, memberIds: string[], title = "Group chat") {
+  const unique = Array.from(new Set([creatorId, ...memberIds]));
+  if (unique.length < 2) throw new Error("Pick at least one friend.");
+
+  const { data: chat, error: cErr } = await supabase
+    .from("group_chats")
+    .insert({ created_by: creatorId, title: title.trim() || "Group chat" })
+    .select("id, created_by, title, created_at")
+    .single();
+  if (cErr) throw cErr;
+
+  const rows = unique.map((uid) => ({ group_id: chat.id, user_id: uid }));
+  const { error: mErr } = await supabase.from("group_chat_members").insert(rows);
+  if (mErr) throw mErr;
+
+  return chat as GroupChatRow;
+}
+
+export async function listMyGroupChats(userId: string) {
+  const { data: memberships, error: memErr } = await supabase
+    .from("group_chat_members")
+    .select("group_id, joined_at")
+    .eq("user_id", userId);
+  if (memErr) throw memErr;
+  const groupIds = (memberships || []).map((m) => m.group_id);
+  if (groupIds.length === 0) return [] as GroupChatRow[];
+
+  const { data: chats, error: chErr } = await supabase
+    .from("group_chats")
+    .select("id, created_by, title, created_at")
+    .in("id", groupIds)
+    .order("created_at", { ascending: false });
+  if (chErr) throw chErr;
+  return (chats || []) as GroupChatRow[];
+}
+
+export async function getGroupChatMessages(groupId: string) {
+  const { data, error } = await supabase
+    .from("group_chat_messages")
+    .select(
+      `id, group_id, sender_id, content, created_at,
+       sender:profiles!group_chat_messages_sender_id_fkey(id, username, display_name, avatar_url)`,
+    )
+    .eq("group_id", groupId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data || []) as GroupChatMessage[];
+}
+
+export async function sendGroupChatMessage(groupId: string, senderId: string, content: string) {
+  const trimmed = content.trim();
+  if (!trimmed) return;
+  const { error } = await supabase.from("group_chat_messages").insert({
+    group_id: groupId,
+    sender_id: senderId,
+    content: trimmed,
+  });
+  if (error) throw error;
+}
