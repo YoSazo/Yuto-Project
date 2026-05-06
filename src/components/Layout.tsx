@@ -45,7 +45,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-[100dvh] bg-gray-100 flex items-center justify-center">
-      <div className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white relative overflow-hidden md:rounded-[40px] md:shadow-2xl">
+      <div id="app-shell" className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white relative overflow-hidden md:rounded-[40px] md:shadow-2xl">
         <div className={`h-full overflow-y-auto ${showNav ? "pb-24" : ""}`}>
           <Outlet />
         </div>

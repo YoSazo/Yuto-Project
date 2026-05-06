@@ -90,6 +90,10 @@ export function HomeComposeSheet({
   onPost: () => void;
 }) {
   const [mounted, setMounted] = useState(true);
+  const startGeoRef = useMemo(
+    () => ({ current: null as null | { sL: number; sB: number; sW: number; sH: number; tL: number; tB: number; tW: number; tH: number } }),
+    [],
+  );
 
   const morphRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
   const rippleRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
@@ -156,9 +160,6 @@ export function HomeComposeSheet({
     const shCont = sheetRef.current;
     if (!morph || !ripple || !btnLabel || !btnIco || !btnTxt || !shCont) return;
 
-    // ask parent to mark open (so content is interactive after morph)
-    onRequestOpen();
-
     // snapshot real position
     const mr = morph.getBoundingClientRect();
     const sL = mr.left;
@@ -166,15 +167,21 @@ export function HomeComposeSheet({
     const sW = mr.width;
     const sH = mr.height;
 
+    const shell = document.getElementById("app-shell");
+    const shellRect = shell?.getBoundingClientRect();
+    const tL = shellRect?.left ?? 0;
+    const tW = shellRect?.width ?? window.innerWidth;
+    const tB = shellRect ? window.innerHeight - shellRect.bottom : 0;
+    const tH = Math.min(560, Math.floor((shellRect?.height ?? window.innerHeight) * 0.9));
+
+    startGeoRef.current = { sL, sB, sW, sH, tL, tB, tW, tH };
+
     // lock to absolute coords (viewport)
     morph.style.transform = "none";
     morph.style.left = `${sL}px`;
     morph.style.bottom = `${sB}px`;
     morph.style.width = `${sW}px`;
     morph.style.height = `${sH}px`;
-
-    const TW = window.innerWidth;
-    const TH = Math.min(560, Math.floor(window.innerHeight * 0.9));
 
     // phase 1 — press
     await go(90, (p) => {
@@ -204,23 +211,26 @@ export function HomeComposeSheet({
     });
     btnLabel.style.visibility = "hidden";
 
+    // mark open now (backdrop becomes interactive during morph)
+    onRequestOpen();
+
     // phase 4 — morph (grow upward/outward)
     await go(500, (p) => {
       const e = outQuint(p);
       const brTop = 100 - (100 - 28) * e;
       const brBot = 100 * (1 - e);
 
-      const l = sL + (0 - sL) * e;
-      const b = sB + (0 - sB) * e;
-      const w = sW + (TW - sW) * e;
-      const h = sH + (TH - sH) * e;
+      const l = sL + (tL - sL) * e;
+      const b = sB + (tB - sB) * e;
+      const w = sW + (tW - sW) * e;
+      const h = sH + (tH - sH) * e;
       const lum = Math.round(24 + (245 - 24) * e);
       const bA = 0.18 * (1 - e);
 
       geo(l, b, w, h, brTop, brTop, brBot, brBot, lum, bA);
     });
 
-    geo(0, 0, TW, TH, 28, 28, 0, 0, 245, 0);
+    geo(tL, tB, tW, tH, 28, 28, 0, 0, 245, 0);
     morph.style.background = "#f5f5f5";
 
     // phase 5 — reveal content (stagger)
@@ -252,19 +262,19 @@ export function HomeComposeSheet({
     shCont.style.opacity = "0";
     shCont.style.pointerEvents = "none";
 
-    const PW = window.innerWidth;
-    const BTW = 120;
-    const BTH = 50;
-    const BTL = (PW - BTW) / 2;
-    const BTB = 96; // matches bottom-24-ish
-    const TH = Math.min(560, Math.floor(window.innerHeight * 0.9));
+    const start = startGeoRef.current;
+    if (!start) {
+      onDismiss();
+      return;
+    }
+    const { sL, sB, sW, sH, tL, tB, tW, tH } = start;
 
     await go(400, (p) => {
       const e = outQuint(p);
-      const l = BTL * e;
-      const b = BTB * e;
-      const w = PW - (PW - BTW) * e;
-      const h = TH - (TH - BTH) * e;
+      const l = tL + (sL - tL) * e;
+      const b = tB + (sB - tB) * e;
+      const w = tW + (sW - tW) * e;
+      const h = tH + (sH - tH) * e;
       const brTop = 28 + (100 - 28) * e;
       const brBot = 0 + 100 * e;
       const lum = Math.round(245 - (245 - 24) * e);
