@@ -17,6 +17,8 @@ import {
 } from "../lib/supabase";
 import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
 import type { Plan, FunctionListing } from "./home/types";
+import { PlanCard } from "../components/cards/PlanCard";
+import { FunctionCard } from "../components/cards/FunctionCard";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -226,91 +228,87 @@ export default function DirectMessageScreen() {
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   {share ? (
-                    <div
-                      type="button"
-                      className={[
-                        "max-w-[82%] w-[82%] md:w-[360px] px-4 py-4 rounded-2xl border text-left",
-                        mine ? "bg-black text-white border-white/10" : "bg-white text-black border-gray-200",
-                      ].join(" ")}
-                    >
-                      <p className={["text-[11px] font-extrabold uppercase tracking-wider", mine ? "text-white/70" : "text-gray-400"].join(" ")}>
-                        {share.kind === "plan" ? "Plan" : share.kind === "function" ? "Function" : share.listing_kind === "sell" ? "Sell" : "Service"} shared
-                      </p>
-                      <p className={["mt-1 font-extrabold text-base", mine ? "text-white" : "text-black"].join(" ")}>
-                        {sharedItem
-                          ? (sharedItem as any).title
-                          : share.kind === "plan"
-                            ? `Plan #${share.plan_id.slice(0, 6)}`
-                            : `Item #${share.function_id.slice(0, 6)}`}
-                      </p>
-                      <p className={["mt-1 text-sm font-semibold", mine ? "text-white/75" : "text-gray-500"].join(" ")}>
-                        {sharedItem
-                          ? share.kind === "plan"
-                            ? (sharedItem as Plan).creator.display_name
-                            : (sharedItem as FunctionListing).host.display_name
-                          : "Loading…"}
-                      </p>
-                      <div className="mt-3 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const kindLabel =
-                              share.kind === "plan"
-                                ? "Plan"
-                                : share.kind === "function"
-                                  ? "Function"
-                                  : share.listing_kind === "sell"
-                                    ? "Sell"
-                                    : "Service";
-                            navigate("/home", { state: { focus: { kind: share.kind === "plan" ? "plan" : "function", id: share.kind === "plan" ? share.plan_id : share.function_id } } });
-                            setPreviewShare({
-                              title: "Opening…",
-                              subtitle: `Scrolling to shared ${kindLabel}`,
-                              kindLabel,
-                            });
-                            setTimeout(() => setPreviewShare(null), 1000);
-                          }}
-                          className={["inline-flex items-center justify-center px-3 py-2 rounded-xl font-bold text-sm", mine ? "bg-white text-black" : "bg-black text-white"].join(" ")}
-                        >
-                          View
-                        </button>
-
-                        {sharedItem && user && (
-                          <button
-                            type="button"
-                            disabled={shareBusyId === shareKey}
-                            onClick={async () => {
-                              if (!shareKey) return;
+                    <div className="max-w-[95%] w-[95%] md:w-[420px]">
+                      {sharedItem ? (
+                        share.kind === "plan" ? (
+                          <PlanCard
+                            plan={sharedItem as Plan}
+                            currentUserId={user?.id}
+                            joiningPlanId={null}
+                            onJoinOrLeavePlan={async (p) => {
+                              if (!user) return;
+                              const pm = p.plan_members ?? [];
+                              const isMember = pm.some((mm) => mm.user_id === user.id);
+                              if (shareBusyId) return;
                               setShareBusyId(shareKey);
                               try {
-                                if (share.kind === "plan") {
-                                  const p = sharedItem as Plan;
-                                  const pm = p.plan_members ?? [];
-                                  const isMember = pm.some((mm) => mm.user_id === user.id);
-                                  if (isMember) {
-                                    await leavePlan(p.id, user.id);
-                                  } else {
-                                    await joinPlan(p.id, user.id, (profile?.display_name || profile?.username || "Someone") as string, p.creator_id);
-                                  }
-                                } else {
-                                  const f = sharedItem as FunctionListing;
-                                  await joinFunction(f.id, user.id);
-                                }
-                              } catch (e) {
-                                console.error(e);
-                                alert("Couldn't complete that action. Try again.");
+                                if (isMember) await leavePlan(p.id, user.id);
+                                else await joinPlan(p.id, user.id, (profile?.display_name || profile?.username || "Someone") as string, p.creator_id);
+                                // refresh this plan in cache
+                                const { data } = await supabase
+                                  .from("plans")
+                                  .select("*, creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url), plan_members(id, user_id, profiles(id, username, display_name, avatar_url))")
+                                  .eq("id", p.id)
+                                  .single();
+                                setShareCache((prev) => ({ ...prev, [`plan:${p.id}`]: data as any }));
                               } finally {
                                 setShareBusyId(null);
                               }
                             }}
-                            className={[
-                              "inline-flex items-center justify-center px-3 py-2 rounded-xl font-bold text-sm border",
-                              mine ? "border-white/15 bg-white/12 text-white" : "border-gray-200 bg-gray-100 text-black",
-                            ].join(" ")}
-                          >
-                            {share.kind === "plan" ? "Join/Leave" : "Join"}
-                          </button>
-                        )}
+                            onOpenPlanChat={() => navigate("/home", { state: { focus: { kind: "plan", id: (sharedItem as Plan).id } } })}
+                            onNavigateToCreator={(creatorId) => navigate(`/user/${creatorId}`)}
+                            onNavigateToYutoGroup={(groupId) => navigate(`/yuto/${groupId}`)}
+                            onOpenPeople={() => navigate("/home", { state: { focus: { kind: "plan", id: (sharedItem as Plan).id } } })}
+                          />
+                        ) : (
+                          <FunctionCard
+                            eventFunction={sharedItem as FunctionListing}
+                            currentUserId={user?.id}
+                            unreadCount={0}
+                            onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
+                            onOpenFunctionThread={() => navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })}
+                            onJoinFunction={async (f) => {
+                              if (!user) return;
+                              if (shareBusyId) return;
+                              setShareBusyId(shareKey);
+                              try {
+                                await joinFunction(f.id, user.id);
+                                const { data } = await supabase
+                                  .from("functions")
+                                  .select("*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))")
+                                  .eq("id", f.id)
+                                  .single();
+                                setShareCache((prev) => ({ ...prev, [`fn:${f.id}`]: data as any }));
+                              } finally {
+                                setShareBusyId(null);
+                              }
+                            }}
+                            onOpenTicket={() => navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })}
+                            onOpenPeople={() => navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })}
+                          />
+                        )
+                      ) : (
+                        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 font-semibold">
+                          Loading…
+                        </div>
+                      )}
+                      <div className="mt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate("/home", {
+                              state: {
+                                focus: {
+                                  kind: share.kind === "plan" ? "plan" : "function",
+                                  id: share.kind === "plan" ? share.plan_id : share.function_id,
+                                },
+                              },
+                            })
+                          }
+                          className="text-xs font-bold text-gray-500 hover:text-black"
+                        >
+                          View on Home
+                        </button>
                       </div>
                     </div>
                   ) : (
