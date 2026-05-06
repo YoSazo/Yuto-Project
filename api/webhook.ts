@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const INTASEND_BASE = process.env.INTASEND_HOST || "https://sandbox.intasend.com";
 
 function getSupabaseClient() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -18,6 +19,42 @@ function getSupabaseClient() {
 }
 
 const REFERRAL_BONUS_KES = 10;
+
+function extractKesAmount(payload: Record<string, unknown>): number {
+  const candidates: unknown[] = [
+    payload.value,
+    payload.amount,
+    (payload.invoice as any)?.value,
+    (payload.invoice as any)?.amount,
+    (payload.data as any)?.value,
+    (payload.data as any)?.amount,
+    payload.net_amount,
+  ];
+  for (const v of candidates) {
+    const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : Number(v);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
+async function fetchAmountFromStatus(invoiceId: string): Promise<number> {
+  try {
+    const res = await fetch(`${INTASEND_BASE}/api/v1/payment/status/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.INTASEND_SECRET_KEY!}`,
+      },
+      body: JSON.stringify({ invoice_id: invoiceId }),
+    });
+    const data = (await res.json()) as any;
+    if (!res.ok) return 0;
+    const n = Number(data?.invoice?.value ?? data?.invoice?.amount ?? 0);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
 
 async function maybeConvertReferralOnFirstTopUp(supabase: ReturnType<typeof createClient>, referredUserId: string) {
   // If this user has a referral row and it hasn't converted yet, convert it and credit the referrer once.
@@ -59,7 +96,7 @@ async function processIntaSendWebhook(payload: {
   [key: string]: unknown;
 }) {
   const state = payload.state;
-  if (payload.currency !== "KES") return;
+  if (String(payload.currency || "").toUpperCase() !== "KES") return;
   if (state !== "COMPLETE") return;
 
   const supabase = getSupabaseClient();
@@ -73,11 +110,24 @@ async function processIntaSendWebhook(payload: {
       return;
     }
     const uid = `${raw.slice(0,8)}-${raw.slice(8,12)}-${raw.slice(12,16)}-${raw.slice(16,20)}-${raw.slice(20)}`;
-    const amount = Number((payload as any).value ?? (payload as any).amount ?? 0);
+    let amount = extractKesAmount(payload as any);
+    if (!amount && payload.invoice_id) {
+      amount = await fetchAmountFromStatus(String(payload.invoice_id));
+    }
     if (amount > 0) {
-      await supabase.rpc("topup_balance", { p_user_id: uid, p_amount: amount });
+      const { error: topUpErr } = await supabase.rpc("topup_balance", { p_user_id: uid, p_amount: amount });
+      if (topUpErr) {
+        console.error("[webhook] topup_balance rpc error:", topUpErr);
+        return;
+      }
       // If this is their first ever top-up conversion, reward referrer.
       await maybeConvertReferralOnFirstTopUp(supabase, uid);
+    } else {
+      console.error("[webhook] TOPUP amount missing/zero:", {
+        invoice_id: payload.invoice_id,
+        api_ref: apiref,
+        keys: Object.keys(payload),
+      });
     }
     return;
 
