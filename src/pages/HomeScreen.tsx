@@ -860,9 +860,9 @@ export default function HomeScreen() {
       }
 
       // 2. Instantly charge the Yuto Balance
+      // ✅ Correct — one param only
       const { error } = await supabase.rpc('pay_for_function', {
-        p_function_id: eventFunction.id,
-        p_amount: eventFunction.price
+        p_function_id: eventFunction.id
       });
 
       if (error) {
