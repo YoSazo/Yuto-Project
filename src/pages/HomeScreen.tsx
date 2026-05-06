@@ -45,7 +45,8 @@ export default function HomeScreen() {
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
-  const [composeMode, setComposeMode] = useState<"plan" | "function" | "sell">("plan");
+  const [composeMode, setComposeMode] = useState<"plan" | "function" | "sell" | "service">("plan");
+  const [composeOriginRect, setComposeOriginRect] = useState<DOMRect | null>(null);
   const [planTitle, setPlanTitle] = useState("");
   const [planAmount, setPlanAmount] = useState("");
   const [planSlots, setPlanSlots] = useState("");
@@ -60,6 +61,7 @@ export default function HomeScreen() {
   const [functionAmount, setFunctionAmount] = useState("");
   const [functionCapacity, setFunctionCapacity] = useState("");
   const [sellFulfillment, setSellFulfillment] = useState("");
+  const [serviceFulfillment, setServiceFulfillment] = useState("");
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const planImageInputRef = useRef<HTMLInputElement>(null);
@@ -237,6 +239,7 @@ export default function HomeScreen() {
     setFunctionAmount("");
     setFunctionCapacity("");
     setSellFulfillment("");
+    setServiceFulfillment("");
   };
 
   const handlePost = async () => {
@@ -285,7 +288,7 @@ export default function HomeScreen() {
           functionCapacity ? parseInt(functionCapacity) : null,
           imageUrl,
         );
-      } else {
+      } else if (composeMode === "sell") {
         // Sell: stored in the existing functions table, but marked via a sentinel location value.
         let imageUrl: string | null = null;
         if (functionImageFile) {
@@ -304,6 +307,29 @@ export default function HomeScreen() {
           ((functionDescription.trim() || "") + fulfillmentLine).trim() || null,
           null,
           "__SELL__",
+          parseInt(functionAmount),
+          functionCapacity ? parseInt(functionCapacity) : null,
+          imageUrl,
+        );
+      } else {
+        // Service: stored in the existing functions table, but marked via a sentinel location value.
+        let imageUrl: string | null = null;
+        if (functionImageFile) {
+          try {
+            imageUrl = await uploadPlanImage(user.id, functionImageFile);
+          } catch (uploadErr) {
+            console.error("Service image upload failed:", uploadErr);
+            setPostError("Couldn't upload photo — posting without it.");
+            imageUrl = null;
+          }
+        }
+        const fulfillmentLine = serviceFulfillment.trim() ? `\n\nFulfillment: ${serviceFulfillment.trim()}` : "";
+        await createFunction(
+          user.id,
+          functionTitle.trim(),
+          ((functionDescription.trim() || "") + fulfillmentLine).trim() || null,
+          null,
+          "__SERVICE__",
           parseInt(functionAmount),
           functionCapacity ? parseInt(functionCapacity) : null,
           imageUrl,
@@ -472,6 +498,7 @@ export default function HomeScreen() {
       <HomeComposeSheet
         open={showCompose}
         onDismiss={resetCompose}
+        originRect={composeOriginRect}
         composeMode={composeMode}
         onComposeModeChange={setComposeMode}
         planTitle={planTitle}
@@ -498,6 +525,8 @@ export default function HomeScreen() {
         onFunctionCapacityChange={setFunctionCapacity}
         sellFulfillment={sellFulfillment}
         onSellFulfillmentChange={setSellFulfillment}
+        serviceFulfillment={serviceFulfillment}
+        onServiceFulfillmentChange={setServiceFulfillment}
         functionImagePreview={functionImagePreview}
         functionImageInputRef={functionImageInputRef}
         onFunctionImageChange={handleFunctionImageChange}
@@ -577,7 +606,11 @@ export default function HomeScreen() {
 
       {/* Floating compose button */}
       <button
-        onClick={() => setShowCompose(true)}
+        onClick={(e) => {
+          const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+          setComposeOriginRect(rect);
+          setShowCompose(true);
+        }}
         className="fixed bottom-24 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
       >
         <Send size={16} /> Post

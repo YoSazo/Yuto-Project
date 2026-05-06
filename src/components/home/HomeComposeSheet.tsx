@@ -1,11 +1,12 @@
-import type { ChangeEvent, RefObject } from "react";
-import { ClipboardList, PartyPopper, Store, ImagePlus, X, Send } from "lucide-react";
+import { useEffect, useMemo, useState, type ChangeEvent, type RefObject } from "react";
+import { ClipboardList, PartyPopper, Store, Briefcase, ImagePlus, X, Send } from "lucide-react";
 
-export type ComposeMode = "plan" | "function" | "sell";
+export type ComposeMode = "plan" | "function" | "sell" | "service";
 
 export function HomeComposeSheet({
   open,
   onDismiss,
+  originRect,
   composeMode,
   onComposeModeChange,
   planTitle,
@@ -32,6 +33,8 @@ export function HomeComposeSheet({
   onFunctionCapacityChange,
   sellFulfillment,
   onSellFulfillmentChange,
+  serviceFulfillment,
+  onServiceFulfillmentChange,
   functionImagePreview,
   functionImageInputRef,
   onFunctionImageChange,
@@ -42,6 +45,7 @@ export function HomeComposeSheet({
 }: {
   open: boolean;
   onDismiss: () => void;
+  originRect?: DOMRect | null;
   composeMode: ComposeMode;
   onComposeModeChange: (mode: ComposeMode) => void;
   planTitle: string;
@@ -68,6 +72,8 @@ export function HomeComposeSheet({
   onFunctionCapacityChange: (value: string) => void;
   sellFulfillment: string;
   onSellFulfillmentChange: (value: string) => void;
+  serviceFulfillment: string;
+  onServiceFulfillmentChange: (value: string) => void;
   functionImagePreview: string | null;
   functionImageInputRef: RefObject<HTMLInputElement | null>;
   onFunctionImageChange: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -76,7 +82,29 @@ export function HomeComposeSheet({
   isPosting: boolean;
   onPost: () => void;
 }) {
-  if (!open) return null;
+  const [mounted, setMounted] = useState(open);
+  const [animateIn, setAnimateIn] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      // allow first paint, then animate
+      requestAnimationFrame(() => setAnimateIn(true));
+      return;
+    }
+    setAnimateIn(false);
+    const id = window.setTimeout(() => setMounted(false), 220);
+    return () => window.clearTimeout(id);
+  }, [open]);
+
+  const transformOrigin = useMemo(() => {
+    if (!originRect) return "50% 100%";
+    const x = originRect.left + originRect.width / 2;
+    const y = originRect.top + originRect.height / 2;
+    return `${x}px ${y}px`;
+  }, [originRect]);
+
+  if (!mounted) return null;
 
   const canSubmit =
     composeMode === "plan"
@@ -85,43 +113,68 @@ export function HomeComposeSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm compose-backdrop-in" onClick={onDismiss} />
-      <div className="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10 max-h-[90vh] overflow-y-auto compose-sheet-up">
+      <div
+        className={[
+          "absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-200",
+          animateIn ? "opacity-100" : "opacity-0",
+        ].join(" ")}
+        onClick={onDismiss}
+      />
+      <div
+        className="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10 max-h-[90vh] overflow-y-auto"
+        style={{
+          transformOrigin,
+          transform: animateIn ? "translateY(0) scale(1)" : "translateY(18px) scale(0.18)",
+          opacity: animateIn ? 1 : 0,
+          transition: "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease-out",
+        }}
+      >
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <p className="font-bold text-xl text-black">Post something</p>
-          <div className="flex bg-gray-100 rounded-full p-1">
+        <div className="mb-4">
+          <p className="font-bold text-xl text-black text-left">Post something</p>
+          <div className="mt-3 flex bg-gray-100 rounded-2xl p-1">
             <button
               type="button"
               onClick={() => onComposeModeChange("plan")}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 composeMode === "plan" ? "bg-white text-black shadow-sm" : "text-gray-400"
               }`}
             >
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center justify-center gap-1.5">
                 <ClipboardList size={14} /> Plan
               </span>
             </button>
             <button
               type="button"
               onClick={() => onComposeModeChange("function")}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 composeMode === "function" ? "bg-white text-black shadow-sm" : "text-gray-400"
               }`}
             >
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center justify-center gap-1.5">
                 <PartyPopper size={14} /> Function
               </span>
             </button>
             <button
               type="button"
               onClick={() => onComposeModeChange("sell")}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 composeMode === "sell" ? "bg-white text-black shadow-sm" : "text-gray-400"
               }`}
             >
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center justify-center gap-1.5">
                 <Store size={14} /> Sell
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onComposeModeChange("service")}
+              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                composeMode === "service" ? "bg-white text-black shadow-sm" : "text-gray-400"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <Briefcase size={14} /> Services
               </span>
             </button>
           </div>
@@ -141,7 +194,13 @@ export function HomeComposeSheet({
               type="text"
               value={functionTitle}
               onChange={(e) => onFunctionTitleChange(e.target.value)}
-              placeholder={composeMode === "sell" ? "Shawarma Saturday?" : "Friday Night Westlands"}
+              placeholder={
+                composeMode === "sell"
+                  ? "Shawarma Saturday?"
+                  : composeMode === "service"
+                    ? "Photography session"
+                    : "Friday Night Westlands"
+              }
               className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
               maxLength={120}
             />
@@ -151,7 +210,9 @@ export function HomeComposeSheet({
               placeholder={
                 composeMode === "sell"
                   ? "What are you selling? (mandazis, photography, jerseys...)"
-                  : "Add a short description..."
+                  : composeMode === "service"
+                    ? "What service are you offering? (hair, photos, lessons...)"
+                    : "Add a short description..."
               }
               className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors"
               maxLength={240}
@@ -230,7 +291,9 @@ export function HomeComposeSheet({
                   className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
                 >
                   <ImagePlus size={20} />
-                  <span className="text-sm font-medium">{composeMode === "sell" ? "Add photo" : "Add function photo"}</span>
+                  <span className="text-sm font-medium">
+                    {composeMode === "sell" || composeMode === "service" ? "Add photo" : "Add function photo"}
+                  </span>
                 </button>
               )}
               <input ref={functionImageInputRef} type="file" accept="image/*" className="hidden" onChange={onFunctionImageChange} />
@@ -238,7 +301,7 @@ export function HomeComposeSheet({
             <div className="flex gap-3">
               <div className="flex-1">
                 <p className="text-xs text-gray-400 mb-1 font-semibold">
-                  {composeMode === "sell" ? "Price (KSH)" : "Amount per person (KSH)"}
+                  {composeMode === "sell" || composeMode === "service" ? "Price (KSH)" : "Amount per person (KSH)"}
                 </p>
                 <input
                   type="number"
@@ -250,31 +313,41 @@ export function HomeComposeSheet({
               </div>
               <div className="flex-1">
                 <p className="text-xs text-gray-400 mb-1 font-semibold">
-                  {composeMode === "sell" ? "Stock / Available" : "Capacity"}
+                  {composeMode === "sell" || composeMode === "service" ? "Stock / Available" : "Capacity"}
                 </p>
                 <input
                   type="number"
                   value={functionCapacity}
                   onChange={(e) => onFunctionCapacityChange(e.target.value)}
-                  placeholder={composeMode === "sell" ? "e.g. 50" : "e.g. 25"}
+                  placeholder={composeMode === "sell" || composeMode === "service" ? "e.g. 50" : "e.g. 25"}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
                 />
               </div>
             </div>
-            {composeMode === "sell" && (
+            {(composeMode === "sell" || composeMode === "service") && (
               <div>
-                <p className="text-xs text-gray-400 mb-1 font-semibold">Pickup / delivery / contact</p>
+                <p className="text-xs text-gray-400 mb-1 font-semibold">
+                  {composeMode === "service" ? "How to book / contact" : "Pickup / delivery / contact"}
+                </p>
                 <input
                   type="text"
-                  value={sellFulfillment}
-                  onChange={(e) => onSellFulfillmentChange(e.target.value)}
-                  placeholder="e.g. Pick up Westlands · DM @ali · Delivery available"
+                  value={composeMode === "service" ? serviceFulfillment : sellFulfillment}
+                  onChange={(e) =>
+                    composeMode === "service"
+                      ? onServiceFulfillmentChange(e.target.value)
+                      : onSellFulfillmentChange(e.target.value)
+                  }
+                  placeholder={
+                    composeMode === "service"
+                      ? "e.g. DM @ali · Call 07xx · Book 2 days ahead"
+                      : "e.g. Pick up Westlands · DM @ali · Delivery available"
+                  }
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
                   maxLength={140}
                 />
               </div>
             )}
-            {composeMode !== "sell" && (
+            {composeMode !== "sell" && composeMode !== "service" && (
               <>
                 <div className="flex gap-3">
                   <div className="flex-1">
@@ -314,7 +387,13 @@ export function HomeComposeSheet({
           ) : (
             <span className="flex items-center justify-center gap-2">
               <Send size={16} />{" "}
-              {composeMode === "plan" ? "Post Plan" : composeMode === "sell" ? "Post Listing" : "Post Function"}
+              {composeMode === "plan"
+                ? "Post Plan"
+                : composeMode === "sell"
+                  ? "Post Listing"
+                  : composeMode === "service"
+                    ? "Post Service"
+                    : "Post Function"}
             </span>
           )}
         </button>

@@ -44,8 +44,10 @@ export function FunctionTicketModal({
 
   const me = (functionItem.function_members ?? []).find((m) => m.user_id === userId);
   const isSell = functionItem.location === "__SELL__";
-  const intentLabel = isSell ? "Proof" : "Ticket";
-  const fulfillment = isSell ? extractFulfillmentLine(functionItem.description) : null;
+  const isService = functionItem.location === "__SERVICE__";
+  const isListing = isSell || isService;
+  const intentLabel = isListing ? "Proof" : "Ticket";
+  const fulfillment = isListing ? extractFulfillmentLine(functionItem.description) : null;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
@@ -67,10 +69,10 @@ export function FunctionTicketModal({
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">
-                    {isSell ? "Yuto purchase" : "Yuto entry"}
+                    {isSell ? "Yuto purchase" : isService ? "Yuto booking" : "Yuto entry"}
                   </p>
                   <p className="font-bold text-lg text-black leading-tight">
-                    {isSell ? "Proof of purchase" : "Function ticket"}
+                    {isSell ? "Proof of purchase" : isService ? "Proof of booking" : "Function ticket"}
                   </p>
                 </div>
               </div>
@@ -91,6 +93,10 @@ export function FunctionTicketModal({
                   <>
                     Sold by <span className="font-semibold text-gray-800">{functionItem.host.display_name}</span>
                   </>
+                ) : isService ? (
+                  <>
+                    Provided by <span className="font-semibold text-gray-800">{functionItem.host.display_name}</span>
+                  </>
                 ) : (
                   <>
                     Hosted by <span className="font-semibold text-gray-800">{functionItem.host.display_name}</span>
@@ -99,11 +105,14 @@ export function FunctionTicketModal({
               </p>
               {fulfillment && (
                 <p className="relative text-sm text-gray-600 mt-2">
-                  <span className="font-semibold text-gray-800">Pickup / contact:</span> {fulfillment}
+                  <span className="font-semibold text-gray-800">
+                    {isService ? "Contact / booking:" : "Pickup / contact:"}
+                  </span>{" "}
+                  {fulfillment}
                 </p>
               )}
               <div className="relative flex flex-wrap gap-2 mt-3 text-xs text-gray-600">
-                {!isSell && (
+                {!isListing && (
                   <span className="px-2.5 py-1 rounded-full bg-white border border-gray-200 font-semibold">
                     {formatEventDate(functionItem.date)}
                   </span>
@@ -121,7 +130,7 @@ export function FunctionTicketModal({
 
             <div className="text-center mb-1">
               <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">
-                {isSell ? "Buyer" : "Guest"}
+                {isSell ? "Buyer" : isService ? "Client" : "Guest"}
               </p>
               <p className="font-bold text-2xl text-black tracking-tight">{attendeeDisplayName}</p>
               {me?.joined_at ? (
