@@ -482,7 +482,7 @@ export default function ProfileScreen() {
               <button onClick={() => setShowTopUpModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
             </div>
             
-            <div className="mb-6 flex flex-col items-center">
+            <div className="mb-6 flex flex-col items-center w-full">
               <span className="text-sm text-gray-400 font-semibold mb-2 uppercase tracking-wide">Amount (KSH)</span>
               <input
                 type="text"
@@ -490,8 +490,22 @@ export default function ProfileScreen() {
                 value={topUpAmount}
                 onChange={(e) => setTopUpAmount(e.target.value.replace(/\D/g, ""))}
                 placeholder="0"
-                className="text-[48px] font-bold text-center text-black bg-transparent border-none outline-none w-full"
+                className="text-[48px] font-bold text-center text-black bg-transparent border-none outline-none w-full mb-4"
               />
+              
+              {/* NEW: Frictionless Quick Buttons */}
+              <div className="flex gap-2 w-full mb-2">
+                {[100, 250, 500, 1000].map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => setTopUpAmount(preset.toString())}
+                    className="flex-1 py-3 rounded-2xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors active:scale-95"
+                  >
+                    +{preset}
+                  </button>
+                ))}
+              </div>
+            </div>
               <div className="w-16 h-1 bg-gray-200 rounded-full mt-2" />
             </div>
 

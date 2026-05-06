@@ -287,6 +287,8 @@ function PayDriverModal({
     }
   };
 
+  const [isClaiming, setIsClaiming] = useState(false);
+
   const tabClass = (t: PaymentTab) =>
     `px-4 py-2 rounded-full text-sm font-semibold border transition-all cursor-pointer ${
       tab === t
@@ -470,6 +472,7 @@ export default function YutoGroupScreen() {
   const [isSubmittingRide, setIsSubmittingRide] = useState(false);
   const [rideSubmitError, setRideSubmitError] = useState("");
   const justJoinedTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [isPayingShare, setIsPayingShare] = useState(false);
 
   // Fetch group data on mount
   useEffect(() => {
@@ -652,7 +655,56 @@ export default function YutoGroupScreen() {
     return () => clearTimeout(t);
   }, [showPayModal, groupId, user]);
 
-  const handlePayShare = () => setShowPayModal(true);
+  const handlePayShare = async () => {
+    if (!groupId || !user) return;
+    
+    setIsPayingShare(true);
+    try {
+      const { error } = await supabase.rpc('pay_for_plan', {
+        p_group_id: groupId,
+        p_amount: perPersonAmount
+      });
+
+      if (error) {
+        // If they don't have enough balance, tell them to top up
+        alert("Insufficient Yuto Balance! Please go to your Profile tab to top up.");
+        return;
+      }
+
+      // If successful, we do NOTHING else! 
+      // Your real-time Supabase subscription will instantly detect the has_paid=true change
+      // and automatically trigger the green glow and line animations!
+      
+    } catch (err) {
+      console.error("Payment error:", err);
+      alert("An unexpected error occurred.");
+    } finally {
+      setIsPayingShare(false);
+    }
+  };
+
+  const handleClaimFunds = async () => {
+    if (!groupId) return;
+    setIsClaiming(true);
+    try {
+      const { error } = await supabase.rpc('claim_split_funds', {
+        p_group_id: groupId
+      });
+
+      if (error) {
+        alert(error.message || "Failed to claim funds.");
+        return;
+      }
+      
+      alert("Success! The funds have been added to your Yuto Balance.");
+      // The real-time listener will automatically pick up the status change to 'completed'
+    } catch (err) {
+      console.error("Claim error:", err);
+      alert("An unexpected error occurred.");
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
   const myRideSubmitted =
     members.find((m) => m.user_id === user?.id)?.rideAmount !== null;
@@ -1169,9 +1221,12 @@ export default function YutoGroupScreen() {
         ) : !youPaid ? (
           <button
             onClick={handlePayShare}
-            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale"
+            disabled={isPayingShare}
+            className={`w-full py-5 rounded-full font-bold text-lg transition-colors tap-scale ${
+              isPayingShare ? "bg-gray-800 text-gray-300" : "bg-black text-white hover:bg-gray-800"
+            }`}
           >
-            Pay KSH {perPersonAmount.toLocaleString()}
+            {isPayingShare ? "Paying..." : `Pay KSH ${perPersonAmount.toLocaleString()}`}
           </button>
         ) : !allPaid ? (
           <button
@@ -1180,14 +1235,15 @@ export default function YutoGroupScreen() {
           >
             Waiting for others...
           </button>
-        ) : user?.id === createdBy ? (
+        ) : user?.id === createdBy && groupDetails?.status !== "completed" ? (
           <button
-            onClick={() => setShowPayDriverModal(true)}
-            className="w-full py-5 bg-black text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-colors tap-scale"
+            onClick={handleClaimFunds}
+            disabled={isClaiming}
+            className={`w-full py-5 rounded-full font-bold text-lg transition-colors tap-scale ${
+              isClaiming ? "bg-gray-800 text-gray-300" : "bg-green-500 text-white hover:bg-green-600"
+            }`}
           >
-            {groupType === "single" && groupName !== "Fare Share"
-              ? "Pay Now"
-              : "Pay Driver"}
+            {isClaiming ? "Claiming..." : "Claim to Yuto Balance"}
           </button>
         ) : (
           <button className="w-full py-5 bg-green-500 text-white rounded-full font-bold text-lg cursor-default">
