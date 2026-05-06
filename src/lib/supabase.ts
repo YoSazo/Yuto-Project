@@ -772,7 +772,8 @@ export async function sendDmMessage(conversationId: string, senderId: string, co
 export type DmSharePayload =
   | { kind: "plan"; plan_id: string }
   | { kind: "function"; function_id: string }
-  | { kind: "listing"; function_id: string; listing_kind: "sell" | "service" };
+  | { kind: "listing"; function_id: string; listing_kind: "sell" | "service" }
+  | { kind: "profile"; user_id: string };
 
 export async function sendDmShareMessage(conversationId: string, senderId: string, payload: DmSharePayload) {
   const { error } = await supabase.from("dm_messages").insert({

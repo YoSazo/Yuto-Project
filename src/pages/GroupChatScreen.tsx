@@ -23,6 +23,7 @@ import { PlanCard } from "../components/cards/PlanCard";
 import { FunctionCard } from "../components/cards/FunctionCard";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
+import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
 
 function parseShare(m: GroupChatMessage): DmSharePayload | null {
   if ((m.message_type ?? "text") !== "share") return null;
@@ -38,6 +39,7 @@ function parseShare(m: GroupChatMessage): DmSharePayload | null {
   ) {
     return { kind: "listing", function_id: p.function_id, listing_kind: p.listing_kind };
   }
+  if (p.kind === "profile" && typeof p.user_id === "string") return { kind: "profile", user_id: p.user_id };
   return null;
 }
 
@@ -129,10 +131,11 @@ export default function GroupChatScreen() {
     if (!groupId) return;
     const shares = messages
       .map((m) => ({ id: m.id, payload: parseShare(m) }))
-      .filter((x): x is { id: string; payload: DmSharePayload } => !!x.payload);
+      .filter((x): x is { id: string; payload: DmSharePayload } => !!x.payload && x.payload.kind !== "profile");
 
     const missing = shares.filter((s) => {
-      const key = s.payload.kind === "plan" ? `plan:${s.payload.plan_id}` : `fn:${s.payload.function_id}`;
+      const key =
+        s.payload.kind === "plan" ? `plan:${s.payload.plan_id}` : `fn:${(s.payload as { function_id: string }).function_id}`;
       return !shareCache[key];
     });
     if (missing.length === 0) return;
@@ -262,7 +265,7 @@ export default function GroupChatScreen() {
     }
   };
 
-  const renderShareBlock = (share: DmSharePayload, shareKey: string, mine: boolean) => {
+  const renderListedShareBlock = (share: Exclude<DmSharePayload, { kind: "profile" }>, shareKey: string, mine: boolean) => {
     const sharedItem = shareCache[shareKey];
     const focusKind = share.kind === "plan" ? "plan" : "function";
     const focusId = share.kind === "plan" ? share.plan_id : share.function_id;
@@ -363,20 +366,28 @@ export default function GroupChatScreen() {
                 ? profile?.display_name?.trim() || "You"
                 : m.sender?.display_name?.trim() || "Member";
               const avatarUrl = mine ? profile?.avatar_url ?? null : m.sender?.avatar_url ?? null;
-              const share = parseShare(m);
+              const shareFull = parseShare(m);
+              const profileShare = shareFull?.kind === "profile" ? shareFull : null;
+              const listedShare =
+                shareFull && shareFull.kind !== "profile"
+                  ? (shareFull as Exclude<DmSharePayload, { kind: "profile" }>)
+                  : null;
               const shareKey =
-                share?.kind === "plan" ? `plan:${share.plan_id}` : share ? `fn:${share.function_id}` : null;
+                listedShare?.kind === "plan" ? `plan:${listedShare.plan_id}` : listedShare ? `fn:${listedShare.function_id}` : null;
+              const isShareRow = !!(profileShare || (listedShare && shareKey));
 
               return (
                 <div
                   key={m.id}
-                  className={`flex gap-2.5 items-start ${share ? "max-w-full" : "max-w-[85%]"} ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
+                  className={`flex gap-2.5 items-start ${isShareRow ? "max-w-full" : "max-w-[85%]"} ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
                 >
                   <UserAvatar name={avatarName} avatarUrl={avatarUrl} size="sm" className="ring-2 ring-white shrink-0" />
                   <div className={`min-w-0 flex flex-col gap-1 flex-1 ${mine ? "items-end" : "items-start"}`}>
                     <span className="text-[11px] font-semibold text-gray-500 leading-none px-0.5">{label}</span>
-                    {share && shareKey ? (
-                      renderShareBlock(share, shareKey, mine)
+                    {profileShare ? (
+                      user?.id ? <DmSharedProfileCard viewerUserId={user.id} sharedUserId={profileShare.user_id} /> : null
+                    ) : listedShare && shareKey ? (
+                      renderListedShareBlock(listedShare, shareKey, mine)
                     ) : (
                       <div
                         className={`px-4 py-3 rounded-2xl text-sm font-semibold whitespace-pre-wrap break-words ${

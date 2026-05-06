@@ -17,6 +17,7 @@ import {
   type DmSharePayload,
 } from "../lib/supabase";
 import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
+import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
 import type { Plan, FunctionListing } from "./home/types";
 import { PlanCard } from "../components/cards/PlanCard";
 import { FunctionCard } from "../components/cards/FunctionCard";
@@ -54,6 +55,7 @@ export default function DirectMessageScreen() {
     if (p.kind === "listing" && typeof p.function_id === "string" && (p.listing_kind === "sell" || p.listing_kind === "service")) {
       return { kind: "listing", function_id: p.function_id, listing_kind: p.listing_kind };
     }
+    if (p.kind === "profile" && typeof p.user_id === "string") return { kind: "profile", user_id: p.user_id };
     return null;
   };
 
@@ -200,7 +202,7 @@ export default function DirectMessageScreen() {
     if (!conversationId) return;
     const shares = messages
       .map((m) => ({ id: m.id, payload: parseShare(m) }))
-      .filter((x): x is { id: string; payload: DmSharePayload } => !!x.payload);
+      .filter((x): x is { id: string; payload: DmSharePayload } => !!x.payload && x.payload.kind !== "profile");
 
     const missing = shares.filter((s) => {
       const key = s.payload.kind === "plan" ? `plan:${s.payload.plan_id}` : `fn:${s.payload.function_id}`;
@@ -273,19 +275,28 @@ export default function DirectMessageScreen() {
             {messages.map((m) => {
               const mine = m.sender_id === user?.id;
               const share = parseShare(m);
+              const profileShare = share?.kind === "profile" ? share : null;
+              const listedShare =
+                share && share.kind !== "profile" ? (share as Exclude<DmSharePayload, { kind: "profile" }>) : null;
               const shareKey =
-                share?.kind === "plan"
-                  ? `plan:${share.plan_id}`
-                  : share
-                    ? `fn:${share.function_id}`
+                listedShare?.kind === "plan"
+                  ? `plan:${listedShare.plan_id}`
+                  : listedShare
+                    ? `fn:${listedShare.function_id}`
                     : null;
               const sharedItem = shareKey ? shareCache[shareKey] : null;
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  {share ? (
+                  {profileShare ? (
+                    <div className="max-w-[95%] w-[95%] md:w-[340px]">
+                      {user?.id ? (
+                        <DmSharedProfileCard viewerUserId={user.id} sharedUserId={profileShare.user_id} />
+                      ) : null}
+                    </div>
+                  ) : listedShare ? (
                     <div className="max-w-[95%] w-[95%] md:w-[420px]">
                       {sharedItem ? (
-                        share.kind === "plan" ? (
+                        listedShare.kind === "plan" ? (
                           <PlanCard
                             plan={sharedItem as Plan}
                             currentUserId={user?.id}
@@ -295,7 +306,7 @@ export default function DirectMessageScreen() {
                               const pm = p.plan_members ?? [];
                               const isMember = pm.some((mm) => mm.user_id === user.id);
                               if (shareBusyId) return;
-                              setShareBusyId(shareKey);
+                              setShareBusyId(shareKey!);
                               try {
                                 if (isMember) await leavePlan(p.id, user.id);
                                 else await joinPlan(p.id, user.id, (profile?.display_name || profile?.username || "Someone") as string, p.creator_id);
@@ -338,8 +349,9 @@ export default function DirectMessageScreen() {
                             navigate("/home", {
                               state: {
                                 focus: {
-                                  kind: share.kind === "plan" ? "plan" : "function",
-                                  id: share.kind === "plan" ? share.plan_id : share.function_id,
+                                  kind: listedShare.kind === "plan" ? "plan" : "function",
+                                  id:
+                                    listedShare.kind === "plan" ? listedShare.plan_id : listedShare.function_id,
                                 },
                               },
                             })

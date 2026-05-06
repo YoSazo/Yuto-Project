@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, getProfile, getFriends, sendFriendRequest, getHighlightsByUser, getOrCreateDmConversation, type Highlight } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
-import { ArrowLeft, UserPlus, Check, Clock, MessageCircle } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Plane } from "lucide-react";
+import { SendProfileSheet } from "../components/profile/SendProfileSheet";
 
 const STAT_POSITIONS = [
   { id: "splits", angle: -2.4, label: "Splits" },
@@ -26,6 +27,7 @@ export default function UserProfileScreen() {
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
   const highlightGestureRef = useRef<{ startY: number; moved: boolean } | null>(null);
+  const [sendProfileOpen, setSendProfileOpen] = useState(false);
   const isVideoUrl = (url?: string | null) => {
     if (!url) return false;
     return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
@@ -126,12 +128,34 @@ export default function UserProfileScreen() {
   return (
     <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
       {/* Header with Back Button */}
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 bg-transparent border-none cursor-pointer text-black hover:opacity-70 transition-opacity">
-          <ArrowLeft size={24} />
-        </button>
-        <span className="text-2xl font-bold text-black">Profile</span>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 bg-transparent border-none cursor-pointer text-black hover:opacity-70 transition-opacity shrink-0">
+            <ArrowLeft size={24} />
+          </button>
+          <span className="text-2xl font-bold text-black truncate">Profile</span>
+        </div>
+        {user && targetUserId && (
+          <button
+            type="button"
+            onClick={() => setSendProfileOpen(true)}
+            className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
+            aria-label="Send profile in messages"
+            title="Send profile"
+          >
+            <Plane size={20} strokeWidth={2} />
+          </button>
+        )}
       </div>
+
+      {user && targetUserId && (
+        <SendProfileSheet
+          open={sendProfileOpen}
+          onClose={() => setSendProfileOpen(false)}
+          currentUserId={user.id}
+          sharedProfileUserId={targetUserId}
+        />
+      )}
 
       {/* Radial Graph */}
       <div className="relative w-full max-w-[380px] mx-auto flex-shrink-0" style={{ height: 380 }}>
