@@ -2,6 +2,18 @@ import UserAvatar from "../UserAvatar";
 import { MessageCircle, Users, MapPin, BadgeDollarSign, Sparkles, CalendarDays, Ticket, Share2 } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 
+function extractFulfillmentLine(description: string | null): string | null {
+  if (!description) return null;
+  const m = description.match(/(?:^|\n)\s*Fulfillment:\s*(.+)\s*$/i);
+  return m?.[1]?.trim() ? m[1].trim() : null;
+}
+
+function stripFulfillmentFromDescription(description: string | null): string | null {
+  if (!description) return null;
+  const stripped = description.replace(/(?:^|\n)\s*Fulfillment:\s*.+\s*$/i, "").trim();
+  return stripped ? stripped : null;
+}
+
 export function FunctionFeedSection({
   functionsFeed,
   currentUserId,
@@ -66,6 +78,10 @@ export function FunctionFeedSection({
           const isSell = eventFunction.location === "__SELL__";
           const remainingStock =
             isSell && eventFunction.max_capacity != null ? Math.max(0, eventFunction.max_capacity - paidCount) : null;
+          const fulfillment = isSell ? extractFulfillmentLine(eventFunction.description) : null;
+          const cleanedDescription = isSell
+            ? stripFulfillmentFromDescription(eventFunction.description)
+            : eventFunction.description;
 
           return (
             <div
@@ -104,7 +120,15 @@ export function FunctionFeedSection({
                   <img src={eventFunction.image_url} alt="Function cover" className="block w-full h-auto" />
                 </div>
               )}
-              {eventFunction.description && <p className="text-sm text-gray-600 mb-3">{eventFunction.description}</p>}
+              {cleanedDescription && <p className="text-sm text-gray-600 mb-3">{cleanedDescription}</p>}
+
+              {isSell && fulfillment && (
+                <div className="mb-3">
+                  <span className="w-full bg-green-50 text-green-800 font-bold text-sm px-3 py-2 rounded-full inline-flex items-center justify-center border border-green-200">
+                    {fulfillment}
+                  </span>
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-2 mb-4">
                 <span className="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
