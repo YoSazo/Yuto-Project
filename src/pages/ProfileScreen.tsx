@@ -470,71 +470,61 @@ export default function ProfileScreen() {
       <div className="bg-black rounded-3xl p-6 text-white mb-6 relative overflow-hidden shadow-lg">
         <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex items-center justify-between mb-4 relative z-10">
-            <div className="flex items-center gap-3">
-              <Wallet size={16} className="text-white/70" />
-              <div className="flex items-center gap-4 text-sm font-bold">
-                <button
-                  type="button"
-                  onClick={() => setWalletTab("balance")}
-                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${
-                    walletTab === "balance" ? "text-white" : "text-white/40"
-                  }`}
-                >
-                  Balance
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWalletTab("points")}
-                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${
-                    walletTab === "points" ? "text-white" : "text-white/40"
-                  }`}
-                >
-                  Points
-                </button>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowWithdrawModal(true)} className="text-xs font-bold bg-white text-black hover:bg-gray-200 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm">
-                Cash Out
-              </button>
-              <button onClick={handleOpenHistory} className="text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1">
-                <History size={12} />
-                History
-              </button>
-            </div>
+        <div className="relative z-10 mb-5">
+          <div className="absolute left-0 top-0">
+            <Wallet size={16} className="text-white/70" />
           </div>
+          <div className="flex items-center justify-center gap-6 text-base font-extrabold">
+            <button
+              type="button"
+              onClick={() => setWalletTab("balance")}
+              className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${
+                walletTab === "balance" ? "text-white" : "text-white/40"
+              }`}
+            >
+              Balance
+            </button>
+            <button
+              type="button"
+              onClick={() => setWalletTab("points")}
+              className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${
+                walletTab === "points" ? "text-white" : "text-white/40"
+              }`}
+            >
+              Points
+            </button>
+          </div>
+        </div>
 
         {walletTab === "balance" ? (
-          <div className="flex items-end justify-between relative z-10">
-            <div>
-              <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
-              <span className="text-4xl font-bold tracking-tight">
-                {points.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
+          <div className="relative z-10">
+            <div className="flex items-end justify-center">
+              <div className="text-center">
+                <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
+                <span className="text-5xl font-bold tracking-tight">
+                  {points.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
-
             <button
               onClick={() => setShowTopUpModal(true)}
-              className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-md"
+              className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-md"
+              aria-label="Top up"
             >
               <Plus size={20} strokeWidth={3} />
             </button>
           </div>
         ) : (
           <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-white/70 text-sm font-semibold">Earned</span>
-                <div className="mt-1">
-                  <span className="text-white/60 text-lg font-medium mr-1">KSH</span>
-                  <span className="text-4xl font-bold tracking-tight">{referralEarned.toLocaleString()}</span>
-                </div>
+            <div className="text-center">
+              <span className="text-white/70 text-sm font-semibold">Earned</span>
+              <div className="mt-1">
+                <span className="text-white/60 text-lg font-medium mr-1">KSH</span>
+                <span className="text-5xl font-bold tracking-tight">{referralEarned.toLocaleString()}</span>
               </div>
-              <div className="text-right">
-                <p className="text-white/70 text-xs font-semibold uppercase tracking-wide">Converted</p>
-                <p className="text-2xl font-extrabold">{referralCount}</p>
-              </div>
+              <p className="text-xs text-white/55 mt-2">
+                {referralCount} converted
+              </p>
             </div>
 
             <p className="text-xs text-white/60 mt-4">
@@ -562,6 +552,22 @@ export default function ProfileScreen() {
             )}
           </div>
         )}
+
+        <div className="relative z-10 mt-5 flex justify-end gap-2">
+          <button
+            onClick={() => setShowWithdrawModal(true)}
+            className="text-xs font-bold bg-white text-black hover:bg-gray-200 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm"
+          >
+            Cash Out
+          </button>
+          <button
+            onClick={handleOpenHistory}
+            className="text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1"
+          >
+            <History size={12} />
+            History
+          </button>
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
