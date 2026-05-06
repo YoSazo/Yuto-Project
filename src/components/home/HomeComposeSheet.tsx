@@ -330,10 +330,12 @@ export function HomeComposeSheet({
         className={[
           "pointer-events-auto fixed",
           "bottom-24 w-[120px] h-[50px] rounded-full",
-          "bg-black text-white border border-white/15 shadow-lg overflow-hidden",
+          "bg-black border border-white/15 shadow-lg overflow-hidden",
           "select-none",
           // Idle: center via CSS. Morph/open: JS controls left/bottom/width/height.
           (open || isMorphing) ? "" : "left-1/2 -translate-x-1/2",
+          // Color context: button is white-on-black, sheet is black-on-light.
+          (open || isMorphing) ? "text-black" : "text-white",
         ].join(" ")}
         style={{ zIndex: 100 }}
       >
@@ -364,7 +366,7 @@ export function HomeComposeSheet({
         {/* Sheet content */}
         <div
           ref={(el) => { sheetRef.current = el; }}
-          className="absolute inset-0 opacity-0 pointer-events-none overflow-hidden"
+          className="absolute inset-0 opacity-0 pointer-events-none overflow-y-auto"
           style={{ padding: "0 18px 24px" }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -624,29 +626,37 @@ export function HomeComposeSheet({
           </div>
         )}
 
-        {postError && <p className="mb-3 text-sm text-red-600">{postError}</p>}
-        <button
-          type="button"
-          onClick={onPost}
-          disabled={isPosting || !canSubmit}
-          className="w-full py-4 bg-black text-white rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
+        <div
           data-si
+          className="sticky bottom-0 -mx-[18px] px-[18px] pt-3 pb-[max(20px,env(safe-area-inset-bottom))]"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(245,245,245,1) 70%, rgba(245,245,245,0.65) 85%, rgba(245,245,245,0) 100%)",
+          }}
         >
-          {isPosting ? (
-            "Posting..."
-          ) : (
-            <span className="flex items-center justify-center gap-2">
-              <Send size={16} />{" "}
-              {composeMode === "plan"
-                ? "Post Plan"
-                : composeMode === "sell"
-                  ? "Post Listing"
-                  : composeMode === "service"
-                    ? "Post Service"
-                    : "Post Function"}
-            </span>
-          )}
-        </button>
+          {postError && <p className="mb-3 text-sm text-red-600">{postError}</p>}
+          <button
+            type="button"
+            onClick={onPost}
+            disabled={isPosting || !canSubmit}
+            className="w-full py-4 bg-black text-white rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
+          >
+            {isPosting ? (
+              "Posting..."
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <Send size={16} />{" "}
+                {composeMode === "plan"
+                  ? "Post Plan"
+                  : composeMode === "sell"
+                    ? "Post Listing"
+                    : composeMode === "service"
+                      ? "Post Service"
+                      : "Post Function"}
+              </span>
+            )}
+          </button>
+        </div>
         </div>
       </div>
     </div>
