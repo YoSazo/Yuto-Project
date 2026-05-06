@@ -511,7 +511,7 @@ export default function YutoGroupScreen() {
         return;
       }
 
-      // The real-time subscription will catch the success and turn the avatar green!
+      // The real-time subscription will catch thee success and turn the avatar green!
     } catch (err) {
       console.error("Payment exception:", err);
       alert("A network error occurred.");
