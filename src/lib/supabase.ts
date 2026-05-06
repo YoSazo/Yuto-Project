@@ -849,6 +849,8 @@ export type GroupChatMessage = {
   sender_id: string;
   content: string;
   created_at: string;
+  message_type?: "text" | "share";
+  payload?: unknown;
   sender?: { id: string; username: string; display_name: string; avatar_url: string | null };
 };
 
@@ -892,7 +894,7 @@ export async function getGroupChatMessages(groupId: string) {
   const { data, error } = await supabase
     .from("group_chat_messages")
     .select(
-      `id, group_id, sender_id, content, created_at,
+      `id, group_id, sender_id, content, created_at, message_type, payload,
        sender:profiles!group_chat_messages_sender_id_fkey(id, username, display_name, avatar_url)`,
     )
     .eq("group_id", groupId)
@@ -908,6 +910,17 @@ export async function sendGroupChatMessage(groupId: string, senderId: string, co
     group_id: groupId,
     sender_id: senderId,
     content: trimmed,
+  });
+  if (error) throw error;
+}
+
+export async function sendGroupChatShareMessage(groupId: string, senderId: string, payload: DmSharePayload) {
+  const { error } = await supabase.from("group_chat_messages").insert({
+    group_id: groupId,
+    sender_id: senderId,
+    content: "",
+    message_type: "share",
+    payload,
   });
   if (error) throw error;
 }

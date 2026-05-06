@@ -1,16 +1,45 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Plus, Send } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import {
   getGroupChatMessages,
+  getSavedPhoneNumber,
+  joinFunction,
+  joinPlan,
+  leavePlan,
   markGroupChatRead,
   sendGroupChatMessage,
+  sendGroupChatShareMessage,
   supabase,
+  type DmSharePayload,
   type GroupChatMessage,
   type GroupChatRow,
 } from "../lib/supabase";
+import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
+import type { Plan, FunctionListing } from "./home/types";
+import { PlanCard } from "../components/cards/PlanCard";
+import { FunctionCard } from "../components/cards/FunctionCard";
+import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
+import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
+
+function parseShare(m: GroupChatMessage): DmSharePayload | null {
+  if ((m.message_type ?? "text") !== "share") return null;
+  const p = m.payload as Record<string, unknown> | null;
+  if (!p || typeof p !== "object") return null;
+  if (p.kind === "plan" && typeof p.plan_id === "string") return { kind: "plan", plan_id: p.plan_id };
+  if (p.kind === "function" && typeof p.function_id === "string")
+    return { kind: "function", function_id: p.function_id };
+  if (
+    p.kind === "listing" &&
+    typeof p.function_id === "string" &&
+    (p.listing_kind === "sell" || p.listing_kind === "service")
+  ) {
+    return { kind: "listing", function_id: p.function_id, listing_kind: p.listing_kind };
+  }
+  return null;
+}
 
 export default function GroupChatScreen() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -21,6 +50,15 @@ export default function GroupChatScreen() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [showSharePicker, setShowSharePicker] = useState(false);
+  const [previewShare, setPreviewShare] = useState<{ title: string; subtitle: string; kindLabel: string } | null>(
+    null,
+  );
+  const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
+  const [shareBusyId, setShareBusyId] = useState<string | null>(null);
+  const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
+  const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
+  const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
 
   useEffect(() => {
     if (!groupId || !user) return;
@@ -87,7 +125,128 @@ export default function GroupChatScreen() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
+  useEffect(() => {
+    if (!groupId) return;
+    const shares = messages
+      .map((m) => ({ id: m.id, payload: parseShare(m) }))
+      .filter((x): x is { id: string; payload: DmSharePayload } => !!x.payload);
+
+    const missing = shares.filter((s) => {
+      const key = s.payload.kind === "plan" ? `plan:${s.payload.plan_id}` : `fn:${s.payload.function_id}`;
+      return !shareCache[key];
+    });
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const planIds = missing.filter((m) => m.payload.kind === "plan").map((m) => (m.payload as { plan_id: string }).plan_id);
+        const fnIds = missing.filter((m) => m.payload.kind !== "plan").map((m) => (m.payload as { function_id: string }).function_id);
+
+        const planPromise =
+          planIds.length === 0
+            ? Promise.resolve({ data: [] as Record<string, unknown>[], error: null })
+            : supabase
+                .from("plans")
+                .select(
+                  "*, creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url), plan_members(id, user_id, profiles(id, username, display_name, avatar_url))",
+                )
+                .in("id", planIds);
+
+        const fnPromise =
+          fnIds.length === 0
+            ? Promise.resolve({ data: [] as Record<string, unknown>[], error: null })
+            : supabase
+                .from("functions")
+                .select(
+                  "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))",
+                )
+                .in("id", fnIds);
+
+        const [{ data: planRows, error: planErr }, { data: fnRows, error: fnErr }] = await Promise.all([planPromise, fnPromise]);
+
+        if (planErr) throw planErr;
+        if (fnErr) throw fnErr;
+
+        if (cancelled) return;
+        setShareCache((prev) => {
+          const next = { ...prev };
+          (planRows || []).forEach((p) => (next[`plan:${(p as { id: string }).id}`] = p as Plan));
+          (fnRows || []).forEach((f) => (next[`fn:${(f as { id: string }).id}`] = f as FunctionListing));
+          return next;
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, shareCache, groupId]);
+
   const title = useMemo(() => meta?.title?.trim() || "Group chat", [meta]);
+
+  const sendShare = async (payload: DmSharePayload, preview: { title: string; subtitle: string; kindLabel: string }) => {
+    if (!user || !groupId) return;
+    try {
+      await sendGroupChatShareMessage(groupId, user.id, payload);
+      setPreviewShare(preview);
+      setTimeout(() => setPreviewShare(null), 1400);
+    } catch (e) {
+      console.error(e);
+      alert("Couldn't send. Try again.");
+    }
+  };
+
+  const handleJoinFunction = async (eventFunction: FunctionListing) => {
+    if (!user) return;
+    const members = eventFunction.function_members ?? [];
+    const isMember = members.some((m) => m.user_id === user.id);
+    const cap = eventFunction.max_capacity;
+    const isFull = cap != null ? members.length >= cap && !isMember : false;
+    if (isFull) {
+      alert("This function is currently full!");
+      return;
+    }
+
+    try {
+      if (!isMember) await joinFunction(eventFunction.id, user.id);
+
+      const { error } = await supabase.rpc("pay_for_function", { p_function_id: eventFunction.id });
+
+      if (error) {
+        await supabase
+          .from("function_members")
+          .delete()
+          .eq("function_id", eventFunction.id)
+          .eq("user_id", user.id)
+          .eq("has_paid", false);
+
+        const topUp = await computeFunctionTopUpGapKes({
+          shareKes: eventFunction.amount_per_person,
+          rpcErrorMessage: error.message,
+          userId: user.id,
+        });
+        setFunctionTopUpAmount(topUp);
+        setPendingJoinFunction(eventFunction);
+        setShowFunctionTopUp(true);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("functions")
+        .select(
+          "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))",
+        )
+        .eq("id", eventFunction.id)
+        .single();
+      setShareCache((prev) => ({ ...prev, [`fn:${eventFunction.id}`]: data as FunctionListing }));
+    } catch (err) {
+      console.error("Error joining function", err);
+      alert("Couldn't complete that action. Try again.");
+    }
+  };
 
   const onSend = async () => {
     if (!user || !groupId) return;
@@ -101,6 +260,79 @@ export default function GroupChatScreen() {
       alert("Couldn't send. Try again.");
       setText(content);
     }
+  };
+
+  const renderShareBlock = (share: DmSharePayload, shareKey: string, mine: boolean) => {
+    const sharedItem = shareCache[shareKey];
+    const focusKind = share.kind === "plan" ? "plan" : "function";
+    const focusId = share.kind === "plan" ? share.plan_id : share.function_id;
+    const flexBtn = mine ? "justify-end" : "justify-start";
+
+    return (
+      <div className="w-full max-w-[min(100vw-4rem,28rem)]">
+        {sharedItem ? (
+          share.kind === "plan" ? (
+            <PlanCard
+              plan={sharedItem as Plan}
+              currentUserId={user?.id}
+              joiningPlanId={null}
+              onJoinOrLeavePlan={async (p) => {
+                if (!user) return;
+                const pm = p.plan_members ?? [];
+                const isMember = pm.some((mm) => mm.user_id === user.id);
+                if (shareBusyId) return;
+                setShareBusyId(shareKey);
+                try {
+                  if (isMember) await leavePlan(p.id, user.id);
+                  else
+                    await joinPlan(
+                      p.id,
+                      user.id,
+                      (profile?.display_name || profile?.username || "Someone") as string,
+                      p.creator_id,
+                    );
+                  const { data } = await supabase
+                    .from("plans")
+                    .select(
+                      "*, creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url), plan_members(id, user_id, profiles(id, username, display_name, avatar_url))",
+                    )
+                    .eq("id", p.id)
+                    .single();
+                  setShareCache((prev) => ({ ...prev, [`plan:${p.id}`]: data as Plan }));
+                } finally {
+                  setShareBusyId(null);
+                }
+              }}
+              onNavigateToCreator={(creatorId) => navigate(`/user/${creatorId}`)}
+              onNavigateToYutoGroup={(gid) => navigate(`/yuto/${gid}`)}
+              onOpenPeople={() => navigate("/home", { state: { focus: { kind: "plan", id: (sharedItem as Plan).id } } })}
+            />
+          ) : (
+            <FunctionCard
+              eventFunction={sharedItem as FunctionListing}
+              currentUserId={user?.id}
+              unreadCount={0}
+              onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
+              onJoinFunction={(f) => void handleJoinFunction(f)}
+              onOpenPeople={() =>
+                navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })
+              }
+            />
+          )
+        ) : (
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 font-semibold">Loading…</div>
+        )}
+        <div className={`mt-2 flex ${flexBtn}`}>
+          <button
+            type="button"
+            onClick={() => navigate("/home", { state: { focus: { kind: focusKind, id: focusId } } })}
+            className="text-xs font-bold text-gray-500 hover:text-black"
+          >
+            View on Home
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -131,22 +363,29 @@ export default function GroupChatScreen() {
                 ? profile?.display_name?.trim() || "You"
                 : m.sender?.display_name?.trim() || "Member";
               const avatarUrl = mine ? profile?.avatar_url ?? null : m.sender?.avatar_url ?? null;
+              const share = parseShare(m);
+              const shareKey =
+                share?.kind === "plan" ? `plan:${share.plan_id}` : share ? `fn:${share.function_id}` : null;
 
               return (
                 <div
                   key={m.id}
-                  className={`flex gap-2.5 items-start max-w-[85%] ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
+                  className={`flex gap-2.5 items-start ${share ? "max-w-full" : "max-w-[85%]"} ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
                 >
                   <UserAvatar name={avatarName} avatarUrl={avatarUrl} size="sm" className="ring-2 ring-white shrink-0" />
-                  <div className={`min-w-0 flex flex-col gap-1 ${mine ? "items-end" : "items-start"}`}>
+                  <div className={`min-w-0 flex flex-col gap-1 flex-1 ${mine ? "items-end" : "items-start"}`}>
                     <span className="text-[11px] font-semibold text-gray-500 leading-none px-0.5">{label}</span>
-                    <div
-                      className={`px-4 py-3 rounded-2xl text-sm font-semibold whitespace-pre-wrap break-words ${
-                        mine ? "bg-black text-white rounded-br-md" : "bg-gray-100 text-black rounded-bl-md"
-                      }`}
-                    >
-                      {m.content}
-                    </div>
+                    {share && shareKey ? (
+                      renderShareBlock(share, shareKey, mine)
+                    ) : (
+                      <div
+                        className={`px-4 py-3 rounded-2xl text-sm font-semibold whitespace-pre-wrap break-words ${
+                          mine ? "bg-black text-white rounded-br-md" : "bg-gray-100 text-black rounded-bl-md"
+                        }`}
+                      >
+                        {m.content}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -158,6 +397,15 @@ export default function GroupChatScreen() {
 
       <div className="px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-3 border-t border-gray-100 shrink-0">
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowSharePicker(true)}
+            className="w-12 h-12 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+            aria-label="Share"
+            title="Share"
+          >
+            <Plus size={18} />
+          </button>
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -172,6 +420,72 @@ export default function GroupChatScreen() {
           </button>
         </div>
       </div>
+
+      <DmSharePickerModal
+        open={showSharePicker}
+        onClose={() => setShowSharePicker(false)}
+        onPickPlan={(p: Plan) => {
+          setShowSharePicker(false);
+          void sendShare(
+            { kind: "plan", plan_id: p.id },
+            { title: p.title, subtitle: p.creator.display_name, kindLabel: "Plan" },
+          );
+        }}
+        onPickFunction={(fn: FunctionListing, kind) => {
+          setShowSharePicker(false);
+          if (kind === "function") {
+            void sendShare(
+              { kind: "function", function_id: fn.id },
+              { title: fn.title, subtitle: fn.host.display_name, kindLabel: "Function" },
+            );
+            return;
+          }
+          void sendShare(
+            { kind: "listing", function_id: fn.id, listing_kind: kind },
+            { title: fn.title, subtitle: fn.host.display_name, kindLabel: kind === "sell" ? "Sell" : "Service" },
+          );
+        }}
+      />
+
+      {previewShare && (
+        <div className="fixed inset-x-0 bottom-[calc(100px+env(safe-area-inset-bottom))] z-50 flex justify-center px-5 pointer-events-none">
+          <div className="pointer-events-auto bg-black text-white rounded-2xl px-4 py-3 shadow-lg max-w-md w-full">
+            <p className="font-extrabold">{previewShare.title}</p>
+            <p className="text-sm text-white/70">{previewShare.subtitle}</p>
+            <button type="button" className="mt-2 w-full py-2 rounded-xl bg-white text-black font-bold" onClick={() => navigate("/home")}>
+              View on Home
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showFunctionTopUp && user && pendingJoinFunction && (
+        <YutoBalanceTopUpModal
+          open
+          onClose={() => {
+            setShowFunctionTopUp(false);
+            setPendingJoinFunction(null);
+            setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
+          }}
+          userId={user.id}
+          mpesaPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          initialAmount={functionTopUpAmount}
+          contextLine={
+            functionTopUpAmount < pendingJoinFunction.amount_per_person
+              ? `Joining costs KSH ${pendingJoinFunction.amount_per_person.toLocaleString()}. You're about KSH ${functionTopUpAmount.toLocaleString()} short — add at least that to continue.`
+              : `Joining costs KSH ${pendingJoinFunction.amount_per_person.toLocaleString()}. Add at least KSH ${functionTopUpAmount.toLocaleString()} to your balance to continue.`
+          }
+          retryCtaLabel="I've paid — try joining again"
+          onRetryAfterPaid={async () => {
+            const fn = pendingJoinFunction;
+            if (!fn) return;
+            setShowFunctionTopUp(false);
+            setPendingJoinFunction(null);
+            setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
+            await handleJoinFunction(fn);
+          }}
+        />
+      )}
     </div>
   );
 }
