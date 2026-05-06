@@ -12,6 +12,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
+  // Enforce minimum wallet top-up
+  if (is_topup) {
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n < 50) {
+      return res.status(400).json({ success: false, message: "Minimum top-up is KSH 50." });
+    }
+  }
+
   // Generate the API Reference string based on the payment type
   let api_ref = "";
   let targetType: "group" | "function" | null = null;

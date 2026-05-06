@@ -1,6 +1,6 @@
 import { fetchYutoBalance } from "../../lib/supabase";
 
-export const MIN_MPESA_TOPUP_KES = 10;
+export const MIN_MPESA_TOPUP_KES = 50;
 
 /** Gap to cover via M-PESA when join fails — uses RPC `(have …, need …)` if present, else wallet balance vs share */
 export async function computeFunctionTopUpGapKes(opts: {
