@@ -87,6 +87,10 @@ export default function ProfileScreen() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState("");
 
   const handleTopUp = async () => {
     if (!user || !phoneNumber || phoneNumber.length < 12) {
@@ -143,6 +147,60 @@ export default function ProfileScreen() {
       console.error("Failed to load history", err);
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!user || !phoneNumber || phoneNumber.length < 12) {
+      setWithdrawError("Please save a valid M-PESA number first.");
+      return;
+    }
+    const amountNum = parseInt(withdrawAmount);
+    if (!amountNum || amountNum < 100) {
+      setWithdrawError("Minimum withdrawal is KSH 100.");
+      return;
+    }
+    if (amountNum > points) {
+      setWithdrawError("Insufficient Yuto Balance.");
+      return;
+    }
+
+    setIsWithdrawing(true);
+    setWithdrawError("");
+
+    try {
+      // 1. Lock funds in Supabase
+      const { data: transactionId, error: dbError } = await supabase.rpc("initiate_withdrawal", {
+        p_amount: amountNum
+      });
+
+      if (dbError) throw new Error(dbError.message);
+
+      // 2. Ping IntaSend B2C
+      const res = await fetch("/api/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone_number: phoneNumber,
+          amount: amountNum,
+          user_id: user.id,
+          transaction_id: transactionId
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        alert("Success! KSH " + amountNum + " has been sent to your M-PESA.");
+        setShowWithdrawModal(false);
+        setPoints(points - amountNum); // Update UI optimistically
+      } else {
+        setWithdrawError(data.message || "Withdrawal failed. Your Yuto Balance has been refunded.");
+      }
+    } catch (err: any) {
+      setWithdrawError(err.message || "Network error. Try again.");
+    } finally {
+      setIsWithdrawing(false);
     }
   };
 
@@ -398,18 +456,20 @@ export default function ProfileScreen() {
         <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex items-center justify-between mb-4 relative z-10">
-          <h2 className="text-gray-400 font-medium text-sm flex items-center gap-2">
-            <Wallet size={16} />
-            Yuto Balance
-          </h2>
-          <button 
-              onClick={handleOpenHistory}
-              className="text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1"
-            >
-              <History size={12} />
-              History
-            </button>
-        </div>
+            <h2 className="text-gray-400 font-medium text-sm flex items-center gap-2">
+              <Wallet size={16} />
+              Yuto Balance
+            </h2>
+            <div className="flex gap-2">
+              <button onClick={() => setShowWithdrawModal(true)} className="text-xs font-bold bg-white text-black hover:bg-gray-200 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm">
+                Cash Out
+              </button>
+              <button onClick={handleOpenHistory} className="text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1">
+                <History size={12} />
+                History
+              </button>
+            </div>
+          </div>
 
         <div className="flex items-end justify-between relative z-10">
           <div>
@@ -598,6 +658,54 @@ export default function ProfileScreen() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
+          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="font-bold text-xl text-black">Withdraw to M-PESA</h2>
+              <button onClick={() => setShowWithdrawModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+            </div>
+            
+            <div className="mb-6 flex flex-col items-center w-full">
+              <span className="text-sm text-gray-400 font-semibold mb-2 uppercase tracking-wide">Amount (KSH)</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value.replace(/\D/g, ""))}
+                placeholder="0"
+                className="text-[48px] font-bold text-center text-black bg-transparent border-none outline-none w-full mb-2"
+              />
+              <p className="text-sm text-gray-500 font-medium mb-4">Available: KSH {points.toLocaleString()}</p>
+              
+              <div className="flex gap-2 w-full mb-2">
+                {[100, 500, 'MAX'].map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => setWithdrawAmount(preset === 'MAX' ? points.toString() : preset.toString())}
+                    className="flex-1 py-3 rounded-2xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors active:scale-95"
+                  >
+                    {preset === 'MAX' ? 'MAX' : `+${preset}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {withdrawError && <p className="text-sm text-center font-medium mb-4 text-red-500">{withdrawError}</p>}
+
+            <button
+              onClick={handleWithdraw}
+              disabled={isWithdrawing || !withdrawAmount || parseInt(withdrawAmount) > points}
+              className="w-full py-4 bg-black text-white rounded-full font-bold text-lg disabled:opacity-50 transition-all active:scale-[0.98]"
+            >
+              {isWithdrawing ? "Processing..." : "Withdraw"}
+            </button>
           </div>
         </div>
       )}
