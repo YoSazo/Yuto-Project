@@ -31,7 +31,7 @@ import { PlansFeedSection } from "../components/home/PlansFeedSection";
 import { type Plan, type PlanUpdate, type FunctionListing } from "./home/types";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { getUnreadFunctionMessageCount } from "./home/threadStorage";
-import { Send, Users, Globe } from "lucide-react";
+import { Users, Globe } from "lucide-react";
 
 export default function HomeScreen() {
   const { user, profile } = useAuth();
@@ -46,7 +46,6 @@ export default function HomeScreen() {
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
   const [composeMode, setComposeMode] = useState<"plan" | "function" | "sell" | "service">("plan");
-  const [composeOriginRect, setComposeOriginRect] = useState<DOMRect | null>(null);
   const [planTitle, setPlanTitle] = useState("");
   const [planAmount, setPlanAmount] = useState("");
   const [planSlots, setPlanSlots] = useState("");
@@ -498,7 +497,7 @@ export default function HomeScreen() {
       <HomeComposeSheet
         open={showCompose}
         onDismiss={resetCompose}
-        originRect={composeOriginRect}
+        onRequestOpen={() => setShowCompose(true)}
         composeMode={composeMode}
         onComposeModeChange={setComposeMode}
         planTitle={planTitle}
@@ -604,17 +603,6 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* Floating compose button */}
-      <button
-        onClick={(e) => {
-          const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-          setComposeOriginRect(rect);
-          setShowCompose(true);
-        }}
-        className="fixed bottom-24 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
-      >
-        <Send size={16} /> Post
-      </button>
     </div>
   );
 }

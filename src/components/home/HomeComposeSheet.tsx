@@ -13,7 +13,7 @@ const composeTabs = [
 export function HomeComposeSheet({
   open,
   onDismiss,
-  originRect,
+  onRequestOpen,
   composeMode,
   onComposeModeChange,
   planTitle,
@@ -52,7 +52,7 @@ export function HomeComposeSheet({
 }: {
   open: boolean;
   onDismiss: () => void;
-  originRect?: DOMRect | null;
+  onRequestOpen: () => void;
   composeMode: ComposeMode;
   onComposeModeChange: (mode: ComposeMode) => void;
   planTitle: string;
@@ -89,29 +89,195 @@ export function HomeComposeSheet({
   isPosting: boolean;
   onPost: () => void;
 }) {
-  const [mounted, setMounted] = useState(open);
-  const [animateIn, setAnimateIn] = useState(false);
+  const [mounted, setMounted] = useState(true);
 
+  const morphRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
+  const rippleRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
+  const btnLabelRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
+  const btnIconRef = useMemo(() => ({ current: null as HTMLSpanElement | null }), []);
+  const btnTextRef = useMemo(() => ({ current: null as HTMLSpanElement | null }), []);
+  const sheetRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
+
+  // keep mounted (morph element is always present)
   useEffect(() => {
-    if (open) {
-      setMounted(true);
-      // allow first paint, then animate
-      requestAnimationFrame(() => setAnimateIn(true));
-      return;
-    }
-    setAnimateIn(false);
-    const id = window.setTimeout(() => setMounted(false), 220);
-    return () => window.clearTimeout(id);
-  }, [open]);
-
-  const transformOrigin = useMemo(() => {
-    if (!originRect) return "50% 100%";
-    const x = originRect.left + originRect.width / 2;
-    const y = originRect.top + originRect.height / 2;
-    return `${x}px ${y}px`;
-  }, [originRect]);
+    setMounted(true);
+  }, []);
 
   if (!mounted) return null;
+
+  const outCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+  const outBack = (t: number) => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2;
+  const outQuint = (t: number) => 1 - Math.pow(1 - t, 5);
+
+  const go = (ms: number, fn: (p: number) => void) =>
+    new Promise<void>((resolve) => {
+      let t0: number | null = null;
+      const f = (ts: number) => {
+        if (t0 == null) t0 = ts;
+        const p = Math.min((ts - t0) / ms, 1);
+        fn(p);
+        if (p < 1) requestAnimationFrame(f);
+        else resolve();
+      };
+      requestAnimationFrame(f);
+    });
+
+  const geo = (
+    left: number,
+    bottom: number,
+    w: number,
+    h: number,
+    brTL: number,
+    brTR: number,
+    brBR: number,
+    brBL: number,
+    lum: number,
+    bA: number,
+  ) => {
+    const morph = morphRef.current;
+    if (!morph) return;
+    morph.style.left = `${left}px`;
+    morph.style.bottom = `${bottom}px`;
+    morph.style.width = `${w}px`;
+    morph.style.height = `${h}px`;
+    morph.style.borderRadius = `${brTL}px ${brTR}px ${brBR}px ${brBL}px`;
+    morph.style.background = `rgb(${lum},${lum},${lum})`;
+    morph.style.border = `0.5px solid rgba(255,255,255,${bA})`;
+    morph.style.transform = "none";
+  };
+
+  const openMorph = async () => {
+    if (open) return;
+    const morph = morphRef.current;
+    const ripple = rippleRef.current;
+    const btnLabel = btnLabelRef.current;
+    const btnIco = btnIconRef.current;
+    const btnTxt = btnTextRef.current;
+    const shCont = sheetRef.current;
+    if (!morph || !ripple || !btnLabel || !btnIco || !btnTxt || !shCont) return;
+
+    // ask parent to mark open (so content is interactive after morph)
+    onRequestOpen();
+
+    // snapshot real position
+    const mr = morph.getBoundingClientRect();
+    const sL = mr.left;
+    const sB = window.innerHeight - mr.bottom;
+    const sW = mr.width;
+    const sH = mr.height;
+
+    // lock to absolute coords (viewport)
+    morph.style.transform = "none";
+    morph.style.left = `${sL}px`;
+    morph.style.bottom = `${sB}px`;
+    morph.style.width = `${sW}px`;
+    morph.style.height = `${sH}px`;
+
+    const TW = window.innerWidth;
+    const TH = Math.min(560, Math.floor(window.innerHeight * 0.9));
+
+    // phase 1 — press
+    await go(90, (p) => {
+      const e = outCubic(p);
+      morph.style.transform = `scale(${1 - e * 0.1})`;
+      ripple.style.transform = `scale(${1 + e * 2.2})`;
+      ripple.style.opacity = String(e);
+    });
+
+    // phase 2 — spring pop
+    await go(180, (p) => {
+      const e = outBack(p);
+      morph.style.transform = `scale(${1 + (e - 1) * 0.1})`;
+      ripple.style.opacity = String(1 - p);
+    });
+    morph.style.transform = "none";
+    ripple.style.opacity = "0";
+    ripple.style.transform = "scale(0.2)";
+
+    // phase 3 — dissolve label
+    await go(100, (p) => {
+      const e = outCubic(p);
+      btnIco.style.opacity = String(1 - e);
+      btnTxt.style.opacity = String(1 - e);
+      btnIco.style.transform = `translateX(${-e * 12}px)`;
+      btnTxt.style.transform = `translateX(${e * 12}px)`;
+    });
+    btnLabel.style.visibility = "hidden";
+
+    // phase 4 — morph (grow upward/outward)
+    await go(500, (p) => {
+      const e = outQuint(p);
+      const brTop = 100 - (100 - 28) * e;
+      const brBot = 100 * (1 - e);
+
+      const l = sL + (0 - sL) * e;
+      const b = sB + (0 - sB) * e;
+      const w = sW + (TW - sW) * e;
+      const h = sH + (TH - sH) * e;
+      const lum = Math.round(24 + (245 - 24) * e);
+      const bA = 0.18 * (1 - e);
+
+      geo(l, b, w, h, brTop, brTop, brBot, brBot, lum, bA);
+    });
+
+    geo(0, 0, TW, TH, 28, 28, 0, 0, 245, 0);
+    morph.style.background = "#f5f5f5";
+
+    // phase 5 — reveal content (stagger)
+    shCont.style.opacity = "1";
+    shCont.style.pointerEvents = "auto";
+    const children = Array.from(shCont.querySelectorAll<HTMLElement>("[data-si]"));
+    children.forEach((el, i) => {
+      el.style.opacity = "0";
+      el.style.transform = "translateY(16px)";
+      el.style.transition = "none";
+      window.setTimeout(() => {
+        el.style.transition =
+          "opacity 0.28s cubic-bezier(0.32,0.72,0,1), transform 0.28s cubic-bezier(0.32,0.72,0,1)";
+        el.style.opacity = "1";
+        el.style.transform = "translateY(0)";
+      }, i * 44 + 20);
+    });
+  };
+
+  const closeMorph = async () => {
+    const morph = morphRef.current;
+    const btnLabel = btnLabelRef.current;
+    const btnIco = btnIconRef.current;
+    const btnTxt = btnTextRef.current;
+    const shCont = sheetRef.current;
+    if (!morph || !btnLabel || !btnIco || !btnTxt || !shCont) return;
+
+    // hide content
+    shCont.style.opacity = "0";
+    shCont.style.pointerEvents = "none";
+
+    const PW = window.innerWidth;
+    const BTW = 120;
+    const BTH = 50;
+    const BTL = (PW - BTW) / 2;
+    const BTB = 96; // matches bottom-24-ish
+    const TH = Math.min(560, Math.floor(window.innerHeight * 0.9));
+
+    await go(400, (p) => {
+      const e = outQuint(p);
+      const l = BTL * e;
+      const b = BTB * e;
+      const w = PW - (PW - BTW) * e;
+      const h = TH - (TH - BTH) * e;
+      const brTop = 28 + (100 - 28) * e;
+      const brBot = 0 + 100 * e;
+      const lum = Math.round(245 - (245 - 24) * e);
+      geo(l, b, w, h, brTop, brTop, brBot, brBot, lum, 0);
+    });
+
+    // restore "button" look
+    morph.removeAttribute("style");
+    btnLabel.style.visibility = "";
+    btnIco.style.cssText = "";
+    btnTxt.style.cssText = "";
+    onDismiss();
+  };
 
   const canSubmit =
     composeMode === "plan"
@@ -119,67 +285,109 @@ export function HomeComposeSheet({
       : functionTitle.trim().length > 0 && functionAmount.trim().length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end">
-      <div
+    <div className="fixed inset-0 z-50 pointer-events-none">
+      {/* Backdrop */}
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={closeMorph}
         className={[
-          "absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-200",
-          animateIn ? "opacity-100" : "opacity-0",
+          "absolute inset-0 border-none bg-black/0 backdrop-blur-none transition-[background,backdrop-filter] duration-500",
+          open ? "pointer-events-auto bg-black/75 backdrop-blur-sm" : "pointer-events-none bg-black/0 backdrop-blur-none",
         ].join(" ")}
-        onClick={onDismiss}
       />
+
+      {/* Morph element (button -> sheet) */}
       <div
-        className="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-10 z-10 max-h-[90vh] overflow-y-auto"
-        style={{
-          transformOrigin,
-          transform: animateIn ? "translateY(0) scale(1)" : "translateY(18px) scale(0.18)",
-          opacity: animateIn ? 1 : 0,
-          transition: "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease-out",
-        }}
+        ref={(el) => { morphRef.current = el; }}
+        onClick={() => void openMorph()}
+        className={[
+          "pointer-events-auto fixed left-1/2 -translate-x-1/2",
+          "bottom-24 w-[120px] h-[50px] rounded-full",
+          "bg-black text-white border border-white/15 shadow-lg overflow-hidden",
+          "select-none",
+        ].join(" ")}
+        style={{ zIndex: 100 }}
       >
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
-        <div className="mb-4">
-          <p className="font-extrabold text-2xl text-black text-left">Post Something</p>
+        {/* Ripple */}
+        <div
+          ref={(el) => { rippleRef.current = el; }}
+          className="absolute inset-0 opacity-0"
+          style={{
+            background: "radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%)",
+            borderRadius: "inherit",
+            transform: "scale(0.2)",
+            pointerEvents: "none",
+          }}
+        />
 
-          <div className="mt-3 relative h-[54px] w-full">
-            <div
-              className="absolute inset-0 rounded-full overflow-hidden border border-gray-200"
-              style={{
-                background: "rgba(255, 255, 255, 0.7)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                boxShadow: "0 4px 24px rgba(0, 0, 0, 0.06)",
-              }}
-            />
+        {/* Button label */}
+        <div
+          ref={(el) => { btnLabelRef.current = el; }}
+          className="absolute inset-0 flex items-center justify-center gap-2 text-white font-bold text-sm"
+          style={{ pointerEvents: "none" }}
+        >
+          <span ref={(el) => { btnIconRef.current = el; }} className="inline-flex">
+            <Send size={16} />
+          </span>
+          <span ref={(el) => { btnTextRef.current = el; }}>Post</span>
+        </div>
 
-            <div
-              className="absolute top-[5px] bottom-[5px] rounded-full bg-black z-20 transition-all duration-300 ease-out"
-              style={{
-                left: `calc(${composeTabs.findIndex((t) => t.id === composeMode) * 25}% + 5px)`,
-                width: "calc(25% - 10px)",
-              }}
-            />
+        {/* Sheet content */}
+        <div
+          ref={(el) => { sheetRef.current = el; }}
+          className="absolute inset-0 opacity-0 pointer-events-none overflow-hidden"
+          style={{ padding: "0 18px 24px" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div data-si className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 mt-3" />
+          <div data-si className="mb-4">
+            <p className="font-extrabold text-2xl text-black text-left">Post Something</p>
 
-            <div className="relative h-full flex items-center z-30">
-              {composeTabs.map((tab) => {
-                const isLit = tab.id === composeMode;
-                const Icon = tab.Icon;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => onComposeModeChange(tab.id)}
-                    className="flex-1 relative flex flex-col items-center justify-center gap-0.5 h-full cursor-pointer bg-transparent border-none"
-                  >
-                    <Icon size={18} className={isLit ? "text-white" : "text-gray-400"} />
-                    <span className={`text-[10px] font-semibold transition-colors duration-200 ${isLit ? "text-white" : "text-gray-400"}`}>
-                      {tab.label}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="mt-3 relative h-[54px] w-full">
+              <div
+                className="absolute inset-0 rounded-full overflow-hidden border border-gray-200"
+                style={{
+                  background: "rgba(255, 255, 255, 0.7)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  boxShadow: "0 4px 24px rgba(0, 0, 0, 0.06)",
+                }}
+              />
+
+              <div
+                className="absolute top-[5px] bottom-[5px] rounded-full bg-black z-20 transition-all duration-300 ease-out"
+                style={{
+                  left: `calc(${composeTabs.findIndex((t) => t.id === composeMode) * 25}% + 5px)`,
+                  width: "calc(25% - 10px)",
+                }}
+              />
+
+              <div className="relative h-full flex items-center z-30">
+                {composeTabs.map((tab) => {
+                  const isLit = tab.id === composeMode;
+                  const Icon = tab.Icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => onComposeModeChange(tab.id)}
+                      className="flex-1 relative flex flex-col items-center justify-center gap-0.5 h-full cursor-pointer bg-transparent border-none"
+                    >
+                      <Icon size={18} className={isLit ? "text-white" : "text-gray-400"} />
+                      <span
+                        className={`text-[10px] font-semibold transition-colors duration-200 ${
+                          isLit ? "text-white" : "text-gray-400"
+                        }`}
+                      >
+                        {tab.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
 
         {composeMode === "plan" ? (
           <textarea
@@ -188,6 +396,7 @@ export function HomeComposeSheet({
             placeholder="Bowling Saturday? Who's in 🎳"
             className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors mb-3"
             maxLength={200}
+            data-si
           />
         ) : (
           <div className="flex flex-col gap-3 mb-3">
@@ -204,6 +413,7 @@ export function HomeComposeSheet({
               }
               className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
               maxLength={120}
+              data-si
             />
             <textarea
               value={functionDescription}
@@ -217,6 +427,7 @@ export function HomeComposeSheet({
               }
               className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors"
               maxLength={240}
+              data-si
             />
           </div>
         )}
@@ -240,6 +451,7 @@ export function HomeComposeSheet({
                   type="button"
                   onClick={() => planImageInputRef.current?.click()}
                   className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
+                  data-si
                 >
                   <ImagePlus size={20} />
                   <span className="text-sm font-medium">Add photo</span>
@@ -257,6 +469,7 @@ export function HomeComposeSheet({
                   onChange={(e) => onPlanAmountChange(e.target.value)}
                   placeholder="e.g. 500"
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                  data-si
                 />
               </div>
               <div className="flex-1">
@@ -267,6 +480,7 @@ export function HomeComposeSheet({
                   onChange={(e) => onPlanSlotsChange(e.target.value)}
                   placeholder="e.g. 5"
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                  data-si
                 />
               </div>
             </div>
@@ -290,6 +504,7 @@ export function HomeComposeSheet({
                   type="button"
                   onClick={() => functionImageInputRef.current?.click()}
                   className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
+                  data-si
                 >
                   <ImagePlus size={20} />
                   <span className="text-sm font-medium">
@@ -310,6 +525,7 @@ export function HomeComposeSheet({
                   onChange={(e) => onFunctionAmountChange(e.target.value)}
                   placeholder="e.g. 500"
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                  data-si
                 />
               </div>
               <div className="flex-1">
@@ -322,6 +538,7 @@ export function HomeComposeSheet({
                   onChange={(e) => onFunctionCapacityChange(e.target.value)}
                   placeholder={composeMode === "sell" || composeMode === "service" ? "e.g. 50" : "e.g. 25"}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                  data-si
                 />
               </div>
             </div>
@@ -345,6 +562,7 @@ export function HomeComposeSheet({
                   }
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
                   maxLength={140}
+                  data-si
                 />
               </div>
             )}
@@ -358,6 +576,7 @@ export function HomeComposeSheet({
                       value={functionDate}
                       onChange={(e) => onFunctionDateChange(e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                      data-si
                     />
                   </div>
                 </div>
@@ -369,6 +588,7 @@ export function HomeComposeSheet({
                     onChange={(e) => onFunctionLocationChange(e.target.value)}
                     placeholder="Westlands, Nairobi"
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    data-si
                   />
                 </div>
               </>
@@ -382,6 +602,7 @@ export function HomeComposeSheet({
           onClick={onPost}
           disabled={isPosting || !canSubmit}
           className="w-full py-4 bg-black text-white rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
+          data-si
         >
           {isPosting ? (
             "Posting..."
@@ -398,6 +619,7 @@ export function HomeComposeSheet({
             </span>
           )}
         </button>
+        </div>
       </div>
     </div>
   );

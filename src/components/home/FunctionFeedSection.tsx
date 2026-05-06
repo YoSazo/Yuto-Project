@@ -177,7 +177,7 @@ export function FunctionFeedSection({
                   <>
                     {remainingStock != null && (
                       <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                        <Sparkles size={14} /> {remainingStock} left
+                        <Sparkles size={14} /> {remainingStock} {isService ? "spots left" : "left"}
                       </span>
                     )}
                     {paidCount > 0 && (
