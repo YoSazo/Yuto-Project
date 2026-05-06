@@ -90,6 +90,7 @@ export function HomeComposeSheet({
   onPost: () => void;
 }) {
   const [mounted, setMounted] = useState(true);
+  const [isMorphing, setIsMorphing] = useState(false);
   const startGeoRef = useMemo(
     () => ({ current: null as null | { sL: number; sB: number; sW: number; sH: number; tL: number; tB: number; tW: number; tH: number } }),
     [],
@@ -151,7 +152,7 @@ export function HomeComposeSheet({
   };
 
   const openMorph = async () => {
-    if (open) return;
+    if (open || isMorphing) return;
     const morph = morphRef.current;
     const ripple = rippleRef.current;
     const btnLabel = btnLabelRef.current;
@@ -159,6 +160,7 @@ export function HomeComposeSheet({
     const btnTxt = btnTextRef.current;
     const shCont = sheetRef.current;
     if (!morph || !ripple || !btnLabel || !btnIco || !btnTxt || !shCont) return;
+    setIsMorphing(true);
 
     // snapshot real position
     const mr = morph.getBoundingClientRect();
@@ -178,6 +180,7 @@ export function HomeComposeSheet({
     startGeoRef.current = { sL, sB, sW, sH, tL, tB, tW, tH };
 
     // lock to absolute coords (viewport)
+    // neutralize CSS centering transforms before JS-driven left/bottom
     morph.style.transform = "none";
     morph.style.left = `${sL}px`;
     morph.style.bottom = `${sB}px`;
@@ -256,6 +259,8 @@ export function HomeComposeSheet({
   };
 
   const closeMorph = async () => {
+    if (isMorphing) return;
+    setIsMorphing(true);
     const morph = morphRef.current;
     const btnLabel = btnLabelRef.current;
     const btnIco = btnIconRef.current;
@@ -296,6 +301,8 @@ export function HomeComposeSheet({
     btnIco.style.cssText = "";
     btnTxt.style.cssText = "";
     onDismiss();
+    // allow next open on next frame
+    requestAnimationFrame(() => setIsMorphing(false));
   };
 
   const canSubmit =
@@ -321,10 +328,12 @@ export function HomeComposeSheet({
         ref={(el) => { morphRef.current = el; }}
         onClick={() => void openMorph()}
         className={[
-          "pointer-events-auto fixed left-1/2 -translate-x-1/2",
+          "pointer-events-auto fixed",
           "bottom-24 w-[120px] h-[50px] rounded-full",
           "bg-black text-white border border-white/15 shadow-lg overflow-hidden",
           "select-none",
+          // Idle: center via CSS. Morph/open: JS controls left/bottom/width/height.
+          (open || isMorphing) ? "" : "left-1/2 -translate-x-1/2",
         ].join(" ")}
         style={{ zIndex: 100 }}
       >
