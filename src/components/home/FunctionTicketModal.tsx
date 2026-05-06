@@ -37,6 +37,8 @@ export function FunctionTicketModal({
   const nextRefreshMs = WINDOW_MS - (tick % WINDOW_MS);
 
   const me = (functionItem.function_members ?? []).find((m) => m.user_id === userId);
+  const isSell = functionItem.location === "__SELL__";
+  const intentLabel = isSell ? "Proof" : "Ticket";
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
@@ -57,8 +59,12 @@ export function FunctionTicketModal({
                   <Ticket size={20} strokeWidth={2.5} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Yuto entry</p>
-                  <p className="font-bold text-lg text-black leading-tight">Function ticket</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">
+                    {isSell ? "Yuto purchase" : "Yuto entry"}
+                  </p>
+                  <p className="font-bold text-lg text-black leading-tight">
+                    {isSell ? "Proof of purchase" : "Function ticket"}
+                  </p>
                 </div>
               </div>
               <button
@@ -74,16 +80,26 @@ export function FunctionTicketModal({
               <div className="ticket-inner-shimmer absolute inset-0 pointer-events-none" aria-hidden />
               <p className="relative font-bold text-black text-xl leading-snug">{functionItem.title}</p>
               <p className="relative text-sm text-gray-500 mt-2">
-                Hosted by <span className="font-semibold text-gray-800">{functionItem.host.display_name}</span>
+                {isSell ? (
+                  <>
+                    Sold by <span className="font-semibold text-gray-800">{functionItem.host.display_name}</span>
+                  </>
+                ) : (
+                  <>
+                    Hosted by <span className="font-semibold text-gray-800">{functionItem.host.display_name}</span>
+                  </>
+                )}
               </p>
               <div className="relative flex flex-wrap gap-2 mt-3 text-xs text-gray-600">
-                <span className="px-2.5 py-1 rounded-full bg-white border border-gray-200 font-semibold">
-                  {formatEventDate(functionItem.date)}
-                </span>
+                {!isSell && (
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-gray-200 font-semibold">
+                    {formatEventDate(functionItem.date)}
+                  </span>
+                )}
                 <span className="px-2.5 py-1 rounded-full bg-white border border-gray-200 font-semibold">
                   KSH {functionItem.amount_per_person.toLocaleString()}
                 </span>
-                {functionItem.location ? (
+                {functionItem.location && !isSell ? (
                   <span className="px-2.5 py-1 rounded-full bg-white border border-gray-200 font-semibold truncate max-w-full">
                     {functionItem.location}
                   </span>
@@ -92,7 +108,9 @@ export function FunctionTicketModal({
             </div>
 
             <div className="text-center mb-1">
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Guest</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">
+                {isSell ? "Buyer" : "Guest"}
+              </p>
               <p className="font-bold text-2xl text-black tracking-tight">{attendeeDisplayName}</p>
               {me?.joined_at ? (
                 <p className="text-[11px] text-gray-400 mt-1">Confirmed {new Date(me.joined_at).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })}</p>
@@ -101,17 +119,19 @@ export function FunctionTicketModal({
 
             <div className="relative mt-5 py-5 px-4 rounded-2xl bg-black text-white overflow-hidden">
               <div className="absolute inset-0 ticket-code-pulse opacity-40 pointer-events-none" aria-hidden />
-              <p className="relative text-[10px] uppercase tracking-[0.25em] text-white/70 text-center mb-2">Live check-in code</p>
+              <p className="relative text-[10px] uppercase tracking-[0.25em] text-white/70 text-center mb-2">
+                Live {intentLabel} code
+              </p>
               <p className="relative text-4xl font-black tracking-[0.2em] text-center font-mono tabular-nums" key={windowIdx}>
                 {code}
               </p>
               <p className="relative text-[11px] text-white/50 text-center mt-2">
-                Refreshes in ~{Math.ceil(nextRefreshMs / 1000)}s · Animated ticket is harder to fake with a screenshot
+                Refreshes in ~{Math.ceil(nextRefreshMs / 1000)}s · Animated {intentLabel.toLowerCase()} is harder to fake with a screenshot
               </p>
             </div>
 
             <p className="text-[11px] text-gray-400 text-center mt-5 leading-snug px-2">
-              Show this live screen at check-in. The border, shimmer, and code keep moving — a still image won&apos;t match.
+              Show this live screen. The border, shimmer, and code keep moving — a still image won&apos;t match.
             </p>
           </div>
         </div>

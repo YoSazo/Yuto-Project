@@ -63,6 +63,7 @@ export function FunctionFeedSection({
           const canJoin = !isHost && !isMember && !isFull;
           const canPay = isMember && !me?.has_paid;
           const unreadCount = functionUnreadCounts[eventFunction.id] || 0;
+          const isSell = eventFunction.location === "__SELL__";
 
           return (
             <div
@@ -83,10 +84,16 @@ export function FunctionFeedSection({
               >
                 <UserAvatar name={eventFunction.host.display_name} avatarUrl={eventFunction.host.avatar_url} size="sm" />
                 <div className="flex-1">
-                  <p className="font-semibold text-sm text-black">{eventFunction.host.display_name} is hosting a function</p>
-                  <p className="text-xs text-gray-400">{formatEventDate(eventFunction.date)}</p>
+                  <p className="font-semibold text-sm text-black">
+                    {isSell
+                      ? `${eventFunction.host.display_name} has something for you`
+                      : `${eventFunction.host.display_name} is hosting a function`}
+                  </p>
+                  {!isSell && <p className="text-xs text-gray-400">{formatEventDate(eventFunction.date)}</p>}
                 </div>
-                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-black text-white uppercase tracking-wide">Function</span>
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-black text-white uppercase tracking-wide">
+                  {isSell ? "Sell" : "Function"}
+                </span>
               </div>
 
               <p className="font-bold text-black text-lg mb-1">{eventFunction.title}</p>
@@ -103,21 +110,21 @@ export function FunctionFeedSection({
                 </span>
                 <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                   <span className="inline-flex items-center gap-1.5">
-                    <Users size={14} /> {joinedCount} joining
+                    <Users size={14} /> {joinedCount} {isSell ? "buying" : "joining"}
                   </span>
                   <span className="text-gray-400 font-semibold px-0.5" aria-hidden>
                     ·
                   </span>
                   <span>{paidCount} paid</span>
                 </span>
-                {eventFunction.location && (
+                {eventFunction.location && !isSell && (
                   <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                     <MapPin size={14} /> {eventFunction.location}
                   </span>
                 )}
                 {eventFunction.max_capacity && (
                   <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                    <Sparkles size={14} /> {eventFunction.max_capacity} max
+                    <Sparkles size={14} /> {eventFunction.max_capacity} {isSell ? "in stock" : "max"}
                   </span>
                 )}
               </div>
@@ -125,7 +132,7 @@ export function FunctionFeedSection({
               <div className="pt-1 border-t border-gray-100">
                 <div className="flex items-center justify-between gap-2 mt-3">
                   <div className="text-xs text-gray-400 flex items-center gap-1.5">
-                    <CalendarDays size={13} /> {formatEventDate(eventFunction.date)}
+                    <CalendarDays size={13} /> {isSell ? "Available now" : formatEventDate(eventFunction.date)}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -163,7 +170,7 @@ export function FunctionFeedSection({
                         onClick={() => onJoinFunction(eventFunction)}
                         className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
                       >
-                        Pay &amp; join
+                        {isSell ? "Pay & buy" : "Pay & join"}
                       </button>
                     ) : canJoin ? (
                       <button
@@ -171,7 +178,7 @@ export function FunctionFeedSection({
                         onClick={() => onJoinFunction(eventFunction)}
                         className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
                       >
-                        Join Function
+                        {isSell ? "Purchase" : "Join Function"}
                       </button>
                     ) : (
                       <span className="text-sm font-semibold text-gray-500">{isFull ? "Full" : "Joined"}</span>
@@ -186,7 +193,7 @@ export function FunctionFeedSection({
                     className="mt-3 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border border-green-200 bg-green-50 text-green-800 font-bold text-sm hover:bg-green-100 transition-colors tap-scale"
                   >
                     <Ticket size={16} aria-hidden />
-                    Show ticket
+                    {isSell ? "Show proof" : "Show ticket"}
                   </button>
                 )}
               </div>

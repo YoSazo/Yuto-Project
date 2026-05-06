@@ -1,7 +1,7 @@
 import type { ChangeEvent, RefObject } from "react";
-import { ClipboardList, PartyPopper, ImagePlus, X, Send } from "lucide-react";
+import { ClipboardList, PartyPopper, Store, ImagePlus, X, Send } from "lucide-react";
 
-export type ComposeMode = "plan" | "function";
+export type ComposeMode = "plan" | "function" | "sell";
 
 export function HomeComposeSheet({
   open,
@@ -109,6 +109,17 @@ export function HomeComposeSheet({
                 <PartyPopper size={14} /> Function
               </span>
             </button>
+            <button
+              type="button"
+              onClick={() => onComposeModeChange("sell")}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                composeMode === "sell" ? "bg-white text-black shadow-sm" : "text-gray-400"
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <Store size={14} /> Sell
+              </span>
+            </button>
           </div>
         </div>
 
@@ -126,14 +137,14 @@ export function HomeComposeSheet({
               type="text"
               value={functionTitle}
               onChange={(e) => onFunctionTitleChange(e.target.value)}
-              placeholder="Friday Night Westlands"
+              placeholder={composeMode === "sell" ? "Shawarma Saturday?" : "Friday Night Westlands"}
               className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
               maxLength={120}
             />
             <textarea
               value={functionDescription}
               onChange={(e) => onFunctionDescriptionChange(e.target.value)}
-              placeholder="Add a short description..."
+              placeholder={composeMode === "sell" ? "What are you selling? Add details..." : "Add a short description..."}
               className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors"
               maxLength={240}
             />
@@ -211,14 +222,16 @@ export function HomeComposeSheet({
                   className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
                 >
                   <ImagePlus size={20} />
-                  <span className="text-sm font-medium">Add function photo</span>
+                  <span className="text-sm font-medium">{composeMode === "sell" ? "Add photo" : "Add function photo"}</span>
                 </button>
               )}
               <input ref={functionImageInputRef} type="file" accept="image/*" className="hidden" onChange={onFunctionImageChange} />
             </div>
             <div className="flex gap-3">
               <div className="flex-1">
-                <p className="text-xs text-gray-400 mb-1 font-semibold">Amount per person (KSH)</p>
+                <p className="text-xs text-gray-400 mb-1 font-semibold">
+                  {composeMode === "sell" ? "Price (KSH)" : "Amount per person (KSH)"}
+                </p>
                 <input
                   type="number"
                   value={functionAmount}
@@ -228,37 +241,43 @@ export function HomeComposeSheet({
                 />
               </div>
               <div className="flex-1">
-                <p className="text-xs text-gray-400 mb-1 font-semibold">Capacity</p>
+                <p className="text-xs text-gray-400 mb-1 font-semibold">
+                  {composeMode === "sell" ? "Stock" : "Capacity"}
+                </p>
                 <input
                   type="number"
                   value={functionCapacity}
                   onChange={(e) => onFunctionCapacityChange(e.target.value)}
-                  placeholder="e.g. 25"
+                  placeholder={composeMode === "sell" ? "e.g. 50" : "e.g. 25"}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
                 />
               </div>
             </div>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <p className="text-xs text-gray-400 mb-1 font-semibold">Date &amp; time</p>
-                <input
-                  type="datetime-local"
-                  value={functionDate}
-                  onChange={(e) => onFunctionDateChange(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 mb-1 font-semibold">Location</p>
-              <input
-                type="text"
-                value={functionLocation}
-                onChange={(e) => onFunctionLocationChange(e.target.value)}
-                placeholder="Westlands, Nairobi"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
-              />
-            </div>
+            {composeMode !== "sell" && (
+              <>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400 mb-1 font-semibold">Date &amp; time</p>
+                    <input
+                      type="datetime-local"
+                      value={functionDate}
+                      onChange={(e) => onFunctionDateChange(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1 font-semibold">Location</p>
+                  <input
+                    type="text"
+                    value={functionLocation}
+                    onChange={(e) => onFunctionLocationChange(e.target.value)}
+                    placeholder="Westlands, Nairobi"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                  />
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -273,7 +292,8 @@ export function HomeComposeSheet({
             "Posting..."
           ) : (
             <span className="flex items-center justify-center gap-2">
-              <Send size={16} /> {composeMode === "plan" ? "Post Plan" : "Post Function"}
+              <Send size={16} />{" "}
+              {composeMode === "plan" ? "Post Plan" : composeMode === "sell" ? "Post Sell" : "Post Function"}
             </span>
           )}
         </button>

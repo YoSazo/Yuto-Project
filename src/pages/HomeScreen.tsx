@@ -45,7 +45,7 @@ export default function HomeScreen() {
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
-  const [composeMode, setComposeMode] = useState<"plan" | "function">("plan");
+  const [composeMode, setComposeMode] = useState<"plan" | "function" | "sell">("plan");
   const [planTitle, setPlanTitle] = useState("");
   const [planAmount, setPlanAmount] = useState("");
   const [planSlots, setPlanSlots] = useState("");
@@ -240,7 +240,7 @@ export default function HomeScreen() {
   const handlePost = async () => {
     if (!user) return;
     if (composeMode === "plan" && !planTitle.trim()) return;
-    if (composeMode === "function" && (!functionTitle.trim() || !functionAmount.trim())) return;
+    if ((composeMode === "function" || composeMode === "sell") && (!functionTitle.trim() || !functionAmount.trim())) return;
     setIsPosting(true);
     setPostError(null);
     try {
@@ -262,7 +262,7 @@ export default function HomeScreen() {
           planSlots ? parseInt(planSlots) : null,
           imageUrl
         );
-      } else {
+      } else if (composeMode === "function") {
         let imageUrl: string | null = null;
         if (functionImageFile) {
           try {
@@ -279,6 +279,28 @@ export default function HomeScreen() {
           functionDescription.trim() || null,
           functionDate ? new Date(functionDate).toISOString() : null,
           functionLocation.trim() || null,
+          parseInt(functionAmount),
+          functionCapacity ? parseInt(functionCapacity) : null,
+          imageUrl,
+        );
+      } else {
+        // Sell: stored in the existing functions table, but marked via a sentinel location value.
+        let imageUrl: string | null = null;
+        if (functionImageFile) {
+          try {
+            imageUrl = await uploadPlanImage(user.id, functionImageFile);
+          } catch (uploadErr) {
+            console.error("Sell image upload failed:", uploadErr);
+            setPostError("Couldn't upload photo — posting without it.");
+            imageUrl = null;
+          }
+        }
+        await createFunction(
+          user.id,
+          functionTitle.trim(),
+          functionDescription.trim() || null,
+          null,
+          "__SELL__",
           parseInt(functionAmount),
           functionCapacity ? parseInt(functionCapacity) : null,
           imageUrl,
@@ -553,7 +575,7 @@ export default function HomeScreen() {
         onClick={() => setShowCompose(true)}
         className="fixed bottom-24 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
       >
-        <Send size={16} /> Post a Plan
+        <Send size={16} /> Post
       </button>
     </div>
   );
