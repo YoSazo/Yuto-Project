@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getFriends, getMyGroups, getPendingRequests, getSavedPhoneNumber, saveProfilePhoneNumber, uploadAvatar, supabase } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
-import { Sparkles, Copy, Check } from "lucide-react"; // Make sure these are available
+import { Wallet, History, Plus, Copy, Check } from "lucide-react";
 
 
 function ChevronRight() {
@@ -22,7 +22,7 @@ function MenuItem({
   danger = false,
   badge,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   sublabel?: string;
   onClick?: () => void;
@@ -79,13 +79,14 @@ export default function ProfileScreen() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [points, setPoints] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     setPhoneNumber(profile?.phone_number || getSavedPhoneNumber(user.id) || "");
   }, [profile?.phone_number, user]);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     setUploading(true);
@@ -122,27 +123,60 @@ export default function ProfileScreen() {
   };
 
   useEffect(() => {
-    if (!user) return;
-    Promise.all([
-      getMyGroups(),
-      getFriends(user.id),
-      getPendingRequests(user.id),
-      supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", user.id),
-      supabase.from("yuto_points").select("balance").eq("user_id", user.id).maybeSingle(), // <-- Added this line
-    ]).then(([groups, friends, pending, plansRes, pointsRes]) => {
-      const paidGroups = (groups as any[]).filter((g: any) =>
-        g.group_members.some((m: any) => m.user_id === user.id && m.has_paid)
-      );
-      const totalSpent = paidGroups.reduce((sum: number, g: any) => sum + g.per_person, 0);
-      setStats({
-        totalYutos: groups.length,
-        totalSpent,
-        friendsCount: friends.length,
-        plansCount: (plansRes as { count?: number })?.count ?? 0,
-      });
-      setPendingCount(pending.length);
-      setPoints(pointsRes.data?.balance || 0); // <-- Set the points state
-    });
+    const fetchData = async () => {
+      try {
+        if (!user) return;
+
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        if (profileData?.avatar_url) {
+          setAvatarUrl(profileData.avatar_url);
+        }
+
+        const { data: walletData, error: walletError } = await supabase
+          .from("wallets")
+          .select("balance")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!walletError && walletData) {
+          setPoints(Number(walletData.balance));
+        } else {
+          setPoints(0);
+        }
+
+        const [groups, friends, pending, plansRes] = await Promise.all([
+          getMyGroups(),
+          getFriends(user.id),
+          getPendingRequests(user.id),
+          supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", user.id),
+        ]);
+
+        const paidGroups = (groups as any[]).filter((g: any) =>
+          g.group_members.some((m: any) => m.user_id === user.id && m.has_paid)
+        );
+        const totalSpent = paidGroups.reduce((sum: number, g: any) => sum + g.per_person, 0);
+        setStats({
+          totalYutos: groups.length,
+          totalSpent,
+          friendsCount: friends.length,
+          plansCount: (plansRes as { count?: number })?.count ?? 0,
+        });
+        setPendingCount(pending.length);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [user]);
 
   const handleLogout = async () => {
@@ -294,37 +328,37 @@ export default function ProfileScreen() {
         <p className="text-sm text-gray-400">{userHandle}</p>
       </div>
 
-      {/* YUTO POINTS REWARDS CARD */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <span className="bg-yellow-50 text-yellow-600 p-1.5 rounded-full">
-              <Sparkles size={16} fill="currentColor" />
-            </span>
-            <p className="font-bold text-black text-lg">Yuto Points</p>
-          </div>
-          <p className="font-extrabold text-2xl text-black">{points}</p>
-        </div>
-        <p className="text-xs text-gray-500 mb-4 ml-1">
-          Earn 10 points (KSH 10) for every friend who signs up using your link and pays for their first split.
-        </p>
-        <div className="flex gap-2">
+      {/* NEW: Yuto Wallet Card */}
+      <div className="bg-black rounded-3xl p-6 text-white mb-6 relative overflow-hidden shadow-lg">
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex items-center justify-between mb-4 relative z-10">
+          <h2 className="text-gray-400 font-medium text-sm flex items-center gap-2">
+            <Wallet size={16} />
+            Yuto Balance
+          </h2>
           <button
-            onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/invite/${profile?.username}`);
-              setCopiedLink(true);
-              setTimeout(() => setCopiedLink(false), 2000);
-            }}
-            className="flex-1 flex justify-center items-center gap-1.5 bg-black text-white py-3 rounded-xl text-sm font-bold transition-colors active:bg-gray-800"
+            type="button"
+            className="text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1"
           >
-            {copiedLink ? <Check size={16} /> : <Copy size={16} />}
-            {copiedLink ? "Copied!" : "Copy Link"}
+            <History size={12} />
+            History
           </button>
+        </div>
+
+        <div className="flex items-end justify-between relative z-10">
+          <div>
+            <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
+            <span className="text-4xl font-bold tracking-tight">
+              {points.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+
           <button
-            disabled
-            className="flex-1 bg-gray-100 text-gray-400 py-3 rounded-xl text-sm font-bold cursor-not-allowed"
+            type="button"
+            className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-md"
           >
-            Redeem (Soon)
+            <Plus size={20} strokeWidth={3} />
           </button>
         </div>
       </div>
