@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -37,11 +37,13 @@ import { Users, Globe, MessageCircle, Send } from "lucide-react";
 export default function HomeScreen() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<"public" | "friends">("public");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [functionsFeed, setFunctionsFeed] = useState<FunctionListing[]>([]);
   const [functionUnreadCounts, setFunctionUnreadCounts] = useState<Record<string, number>>({});
   const [dmUnreadTotal, setDmUnreadTotal] = useState(0);
+  const focusAttemptRef = useRef<"none" | "public" | "friends">("none");
   const [loading, setLoading] = useState(true);
   const [joiningPlanId, setJoiningPlanId] = useState<string | null>(null);
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
@@ -111,6 +113,38 @@ export default function HomeScreen() {
     if (!user) return;
     void getMyDmUnreadCounts(user.id).then((u) => setDmUnreadTotal(u.total)).catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    const focus = (location.state as any)?.focus as { kind?: string; id?: string } | undefined;
+    if (!focus?.kind || !focus?.id) return;
+    if (focusAttemptRef.current === "none") {
+      // Start by ensuring public tab is active (functions are public; plans might be public too).
+      setActiveTab("public");
+      focusAttemptRef.current = "public";
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    const focus = (location.state as any)?.focus as { kind?: string; id?: string } | undefined;
+    if (!focus?.kind || !focus?.id) return;
+    if (loading) return;
+
+    const elId = focus.kind === "plan" ? `plan-${focus.id}` : `function-${focus.id}`;
+    const el = document.getElementById(elId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Clear state so it doesn't keep jumping on re-renders.
+      navigate(location.pathname, { replace: true, state: {} });
+      focusAttemptRef.current = "none";
+      return;
+    }
+
+    // If it was a plan and not found on public, try friends once.
+    if (focus.kind === "plan" && focusAttemptRef.current === "public") {
+      setActiveTab("friends");
+      focusAttemptRef.current = "friends";
+    }
+  }, [loading, plans.length, functionsFeed.length, activeTab, location.state, navigate, location.pathname]);
 
   useEffect(() => {
     if (!user || !functionPayTarget) return;

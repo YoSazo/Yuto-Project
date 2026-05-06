@@ -72,7 +72,7 @@ export function PlansFeedSection({
         const canYutoIt = isMine && plan.amount && pm.length > 0;
 
         return (
-          <div key={plan.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+          <div id={`plan-${plan.id}`} key={plan.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
             <div
               className="flex items-center gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => onNavigateToCreator(plan.creator.id)}

@@ -101,6 +101,7 @@ export function FunctionFeedSection({
 
           return (
             <div
+              id={`function-${eventFunction.id}`}
               key={eventFunction.id}
               className={[
                 "rounded-3xl p-4 relative overflow-hidden",

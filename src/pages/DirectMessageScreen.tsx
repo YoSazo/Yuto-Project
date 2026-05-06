@@ -3,7 +3,18 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Send } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
-import { getDmMessages, markDmRead, sendDmMessage, sendDmShareMessage, supabase, type DmMessage, type DmSharePayload } from "../lib/supabase";
+import {
+  getDmMessages,
+  joinFunction,
+  joinPlan,
+  leavePlan,
+  markDmRead,
+  sendDmMessage,
+  sendDmShareMessage,
+  supabase,
+  type DmMessage,
+  type DmSharePayload,
+} from "../lib/supabase";
 import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
 import type { Plan, FunctionListing } from "./home/types";
 
@@ -23,6 +34,8 @@ export default function DirectMessageScreen() {
   const [showSharePicker, setShowSharePicker] = useState(false);
   const [previewShare, setPreviewShare] = useState<{ title: string; subtitle: string; kindLabel: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
+  const [shareBusyId, setShareBusyId] = useState<string | null>(null);
 
   const parseShare = (m: DmMessage): DmSharePayload | null => {
     if (m.message_type !== "share") return null;
@@ -92,7 +105,7 @@ export default function DirectMessageScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId]);
+  }, [conversationId, user]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -126,6 +139,58 @@ export default function DirectMessageScreen() {
     }
   };
 
+  useEffect(() => {
+    if (!conversationId) return;
+    const shares = messages
+      .map((m) => ({ id: m.id, payload: parseShare(m) }))
+      .filter((x): x is { id: string; payload: DmSharePayload } => !!x.payload);
+
+    const missing = shares.filter((s) => {
+      const key = s.payload.kind === "plan" ? `plan:${s.payload.plan_id}` : `fn:${s.payload.function_id}`;
+      return !shareCache[key];
+    });
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: planRows, error: planErr } = await supabase
+          .from("plans")
+          .select("*, creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url), plan_members(id, user_id, profiles(id, username, display_name, avatar_url))")
+          .in(
+            "id",
+            missing.filter((m) => m.payload.kind === "plan").map((m) => (m.payload as any).plan_id),
+          );
+        if (planErr) throw planErr;
+
+        const { data: fnRows, error: fnErr } = await supabase
+          .from("functions")
+          .select("*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))")
+          .in(
+            "id",
+            missing
+              .filter((m) => m.payload.kind !== "plan")
+              .map((m) => (m.payload as any).function_id),
+          );
+        if (fnErr) throw fnErr;
+
+        if (cancelled) return;
+        setShareCache((prev) => {
+          const next = { ...prev };
+          (planRows || []).forEach((p) => (next[`plan:${(p as any).id}`] = p as any));
+          (fnRows || []).forEach((f) => (next[`fn:${(f as any).id}`] = f as any));
+          return next;
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, shareCache, conversationId]);
+
   return (
     <div className="h-[100dvh] flex flex-col bg-white">
       <div className="px-5 pt-6 pb-4 border-b border-gray-100 flex items-center gap-3">
@@ -151,19 +216,18 @@ export default function DirectMessageScreen() {
             {messages.map((m) => {
               const mine = m.sender_id === user?.id;
               const share = parseShare(m);
+              const shareKey =
+                share?.kind === "plan"
+                  ? `plan:${share.plan_id}`
+                  : share
+                    ? `fn:${share.function_id}`
+                    : null;
+              const sharedItem = shareKey ? shareCache[shareKey] : null;
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   {share ? (
-                    <button
+                    <div
                       type="button"
-                      onClick={() => {
-                        const kindLabel = share.kind === "plan" ? "Plan" : share.kind === "function" ? "Function" : share.listing_kind === "sell" ? "Sell" : "Service";
-                        setPreviewShare({
-                          title: "Shared item",
-                          subtitle: `Tap to view on Home (${kindLabel})`,
-                          kindLabel,
-                        });
-                      }}
                       className={[
                         "max-w-[82%] w-[82%] md:w-[360px] px-4 py-4 rounded-2xl border text-left",
                         mine ? "bg-black text-white border-white/10" : "bg-white text-black border-gray-200",
@@ -173,17 +237,82 @@ export default function DirectMessageScreen() {
                         {share.kind === "plan" ? "Plan" : share.kind === "function" ? "Function" : share.listing_kind === "sell" ? "Sell" : "Service"} shared
                       </p>
                       <p className={["mt-1 font-extrabold text-base", mine ? "text-white" : "text-black"].join(" ")}>
-                        {share.kind === "plan" ? `Plan #${share.plan_id.slice(0, 6)}` : `Item #${share.function_id.slice(0, 6)}`}
+                        {sharedItem
+                          ? (sharedItem as any).title
+                          : share.kind === "plan"
+                            ? `Plan #${share.plan_id.slice(0, 6)}`
+                            : `Item #${share.function_id.slice(0, 6)}`}
                       </p>
                       <p className={["mt-1 text-sm font-semibold", mine ? "text-white/75" : "text-gray-500"].join(" ")}>
-                        Tap to view on Home
+                        {sharedItem
+                          ? share.kind === "plan"
+                            ? (sharedItem as Plan).creator.display_name
+                            : (sharedItem as FunctionListing).host.display_name
+                          : "Loading…"}
                       </p>
-                      <div className="mt-3">
-                        <span className={["inline-flex items-center justify-center px-3 py-2 rounded-xl font-bold text-sm", mine ? "bg-white text-black" : "bg-black text-white"].join(" ")}>
+                      <div className="mt-3 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const kindLabel =
+                              share.kind === "plan"
+                                ? "Plan"
+                                : share.kind === "function"
+                                  ? "Function"
+                                  : share.listing_kind === "sell"
+                                    ? "Sell"
+                                    : "Service";
+                            navigate("/home", { state: { focus: { kind: share.kind === "plan" ? "plan" : "function", id: share.kind === "plan" ? share.plan_id : share.function_id } } });
+                            setPreviewShare({
+                              title: "Opening…",
+                              subtitle: `Scrolling to shared ${kindLabel}`,
+                              kindLabel,
+                            });
+                            setTimeout(() => setPreviewShare(null), 1000);
+                          }}
+                          className={["inline-flex items-center justify-center px-3 py-2 rounded-xl font-bold text-sm", mine ? "bg-white text-black" : "bg-black text-white"].join(" ")}
+                        >
                           View
-                        </span>
+                        </button>
+
+                        {sharedItem && user && (
+                          <button
+                            type="button"
+                            disabled={shareBusyId === shareKey}
+                            onClick={async () => {
+                              if (!shareKey) return;
+                              setShareBusyId(shareKey);
+                              try {
+                                if (share.kind === "plan") {
+                                  const p = sharedItem as Plan;
+                                  const pm = p.plan_members ?? [];
+                                  const isMember = pm.some((mm) => mm.user_id === user.id);
+                                  if (isMember) {
+                                    await leavePlan(p.id, user.id);
+                                  } else {
+                                    await joinPlan(p.id, user.id, (profile?.display_name || profile?.username || "Someone") as string, p.creator_id);
+                                  }
+                                } else {
+                                  const f = sharedItem as FunctionListing;
+                                  await joinFunction(f.id, user.id);
+                                }
+                              } catch (e) {
+                                console.error(e);
+                                alert("Couldn't complete that action. Try again.");
+                              } finally {
+                                setShareBusyId(null);
+                              }
+                            }}
+                            className={[
+                              "inline-flex items-center justify-center px-3 py-2 rounded-xl font-bold text-sm border",
+                              mine ? "border-white/15 bg-white/12 text-white" : "border-gray-200 bg-gray-100 text-black",
+                            ].join(" ")}
+                          >
+                            {share.kind === "plan" ? "Join/Leave" : "Join"}
+                          </button>
+                        )}
                       </div>
-                    </button>
+                    </div>
                   ) : (
                     <div
                       className={[
@@ -217,7 +346,7 @@ export default function DirectMessageScreen() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Message…"
-            className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 outline-none font-semibold"
+            className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 outline-none font-semibold min-w-0"
             onKeyDown={(e) => {
               if (e.key === "Enter") void onSend();
             }}
