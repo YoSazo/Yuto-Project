@@ -43,7 +43,7 @@ export function FunctionFeedSection({
           return (
             <div
               key={eventFunction.id}
-              className="bg-white border border-gray-200/80 rounded-3xl p-5 relative overflow-hidden premium-function-card function-card-highlight"
+              className="bg-white border border-gray-200/80 rounded-3xl p-4 relative overflow-hidden premium-function-card function-card-highlight"
             >
               <div
                 className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
@@ -98,46 +98,37 @@ export function FunctionFeedSection({
                 )}
               </div>
 
-              <div className="flex flex-col gap-4 pt-1 border-t border-gray-100">
-                <p className="text-xs text-gray-400 flex items-center gap-1.5">
-                  <CalendarDays size={14} className="shrink-0" />
-                  <span>{formatEventDate(eventFunction.date)}</span>
-                </p>
-                <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-                  <button
-                    type="button"
-                    onClick={() => onOpenFunctionThread(eventFunction)}
-                    className="relative w-12 h-12 shrink-0 rounded-2xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
-                    aria-label={`Ask questions about ${eventFunction.title}`}
-                    title="Ask questions"
-                  >
-                    <MessageCircle size={18} />
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
-                        {unreadCount}
-                      </span>
-                    )}
-                  </button>
-                  <div className="flex flex-1 flex-wrap items-center justify-end gap-3 min-w-0">
+              <div className="pt-1 border-t border-gray-100">
+                <div className="flex items-center justify-between gap-2 mt-3">
+                  <div className="text-xs text-gray-400 flex items-center gap-1.5">
+                    <CalendarDays size={13} /> {formatEventDate(eventFunction.date)}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenFunctionThread(eventFunction)}
+                      className="relative w-11 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                      aria-label={`Ask questions about ${eventFunction.title}`}
+                      title="Ask questions"
+                    >
+                      <MessageCircle size={16} />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+
                     {isHost ? (
-                      <span className="text-sm font-semibold text-gray-500 py-2">Hosting</span>
+                      <span className="text-sm font-semibold text-gray-500">Hosting</span>
                     ) : isMember && me?.has_paid ? (
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-right sm:text-right w-full sm:w-auto">
-                        <span className="text-sm font-semibold text-green-600 sm:mr-1">You&apos;re in</span>
-                        <button
-                          type="button"
-                          onClick={() => onOpenTicket(eventFunction)}
-                          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl border border-green-200 bg-green-50 text-green-800 font-bold text-sm hover:bg-green-100 transition-colors tap-scale w-full sm:w-auto"
-                        >
-                          <Ticket size={16} aria-hidden />
-                          Show ticket
-                        </button>
-                      </div>
+                      <span className="text-sm font-semibold text-green-600">You&apos;re in</span>
                     ) : canPay ? (
                       <button
                         type="button"
                         onClick={() => onJoinFunction(eventFunction)}
-                        className="px-6 py-2.5 bg-black text-white rounded-2xl font-bold text-sm hover:bg-gray-800 transition-colors w-full sm:w-auto"
+                        className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
                       >
                         Pay &amp; join
                       </button>
@@ -145,15 +136,26 @@ export function FunctionFeedSection({
                       <button
                         type="button"
                         onClick={() => onJoinFunction(eventFunction)}
-                        className="px-6 py-2.5 bg-black text-white rounded-2xl font-bold text-sm hover:bg-gray-800 transition-colors w-full sm:w-auto"
+                        className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
                       >
                         Join Function
                       </button>
                     ) : (
-                      <span className="text-sm font-semibold text-gray-500 py-2">{isFull ? "Full" : "Joined"}</span>
+                      <span className="text-sm font-semibold text-gray-500">{isFull ? "Full" : "Joined"}</span>
                     )}
                   </div>
                 </div>
+
+                {isMember && me?.has_paid && !isHost && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenTicket(eventFunction)}
+                    className="mt-3 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border border-green-200 bg-green-50 text-green-800 font-bold text-sm hover:bg-green-100 transition-colors tap-scale"
+                  >
+                    <Ticket size={16} aria-hidden />
+                    Show ticket
+                  </button>
+                )}
               </div>
             </div>
           );
