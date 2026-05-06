@@ -26,6 +26,10 @@ export default function UserProfileScreen() {
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
   const highlightGestureRef = useRef<{ startY: number; moved: boolean } | null>(null);
+  const isVideoUrl = (url?: string | null) => {
+    if (!url) return false;
+    return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
+  };
 
   useEffect(() => {
     // If they click their own profile, redirect to their main profile tab
@@ -254,12 +258,23 @@ export default function UserProfileScreen() {
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center">
-            <img
-              src={activeHighlight.photos[activeHighlightIdx]?.url}
-              alt="Highlight"
-              className="max-w-full max-h-full w-full h-full object-contain"
-              draggable={false}
-            />
+            {isVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
+              <video
+                src={activeHighlight.photos[activeHighlightIdx]?.url}
+                className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                playsInline
+                autoPlay
+                muted
+                loop
+              />
+            ) : (
+              <img
+                src={activeHighlight.photos[activeHighlightIdx]?.url}
+                alt="Highlight"
+                className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                draggable={false}
+              />
+            )}
           </div>
 
           <button

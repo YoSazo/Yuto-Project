@@ -304,19 +304,55 @@ export default function ProfileScreen() {
       .catch(() => setHighlights([]));
   }, [user]);
 
-  const handlePickHighlight = (idx: 0 | 1, e: ChangeEvent<HTMLInputElement>) => {
+  const isVideoUrl = (url?: string | null) => {
+    if (!url) return false;
+    return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
+  };
+
+  const handlePickHighlight = async (idx: 0 | 1, e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
+    e.target.value = "";
+    if (!file) return;
+
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+    if (!isImage && !isVideo) return;
+
+    let urlForPreview: string | null = null;
+    try {
+      urlForPreview = URL.createObjectURL(file);
+      if (isVideo) {
+        const durationSeconds = await new Promise<number>((resolve, reject) => {
+          const v = document.createElement("video");
+          v.preload = "metadata";
+          v.muted = true;
+          v.playsInline = true;
+          v.src = urlForPreview as string;
+          v.onloadedmetadata = () => resolve(Number(v.duration) || 0);
+          v.onerror = () => reject(new Error("Couldn't read video metadata"));
+        });
+        if (durationSeconds > 30) {
+          alert("Please pick a video that is 30 seconds or less.");
+          URL.revokeObjectURL(urlForPreview);
+          return;
+        }
+      }
+    } catch (err) {
+      if (urlForPreview) URL.revokeObjectURL(urlForPreview);
+      console.error(err);
+      alert("Couldn't use that media file. Try again.");
+      return;
+    }
+
     setHighlightFiles((prev) => {
       const next: [File | null, File | null] = [prev[0], prev[1]];
       next[idx] = file;
       return next;
     });
-    const url = URL.createObjectURL(file);
     setHighlightPreviews((prev) => {
       const next: [string | null, string | null] = [prev[0], prev[1]];
       if (next[idx]) URL.revokeObjectURL(next[idx] as string);
-      next[idx] = url;
+      next[idx] = urlForPreview;
       return next;
     });
   };
@@ -529,7 +565,7 @@ export default function ProfileScreen() {
       </div>
 
       {/* Highlights */}
-      <div className="w-full max-w-md mx-auto flex items-center justify-between mb-6">
+      <div className="flex items-center justify-center gap-4 mb-6">
         <button
           type="button"
           onClick={() => setShowHighlightCreate(true)}
@@ -543,7 +579,7 @@ export default function ProfileScreen() {
           <Plus size={22} />
         </button>
 
-        <div className="flex items-center justify-end gap-4 flex-1">
+        <div className="flex items-center justify-center gap-4">
           {highlights.slice(0, 2).map((h) => (
             <button
               key={h.id}
@@ -753,7 +789,7 @@ export default function ProfileScreen() {
               <h2 className="font-bold text-xl text-black">New highlight</h2>
               <button onClick={closeHighlightCreate} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
             </div>
-            <p className="text-sm text-gray-500 mb-4">Add exactly 2 photos. You can only have 2 highlights.</p>
+            <p className="text-sm text-gray-500 mb-4">Add exactly 2 photos or videos (max 30s). You can only have 2 highlights.</p>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               {[0, 1].map((i) => (
@@ -762,11 +798,26 @@ export default function ProfileScreen() {
                   className="rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden aspect-square flex items-center justify-center cursor-pointer"
                 >
                   {highlightPreviews[i as 0 | 1] ? (
-                    <img src={highlightPreviews[i as 0 | 1] as string} alt="Preview" className="w-full h-full object-cover" />
+                    isVideoUrl(highlightPreviews[i as 0 | 1] as string) ? (
+                      <video
+                        src={highlightPreviews[i as 0 | 1] as string}
+                        className="w-full h-full object-cover"
+                        playsInline
+                        muted
+                        loop
+                      />
+                    ) : (
+                      <img src={highlightPreviews[i as 0 | 1] as string} alt="Preview" className="w-full h-full object-cover" />
+                    )
                   ) : (
-                    <span className="text-sm text-gray-400 font-semibold">Pick photo</span>
+                    <span className="text-sm text-gray-400 font-semibold">Pick photo or video</span>
                   )}
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePickHighlight(i as 0 | 1, e)} />
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={(e) => void handlePickHighlight(i as 0 | 1, e)}
+                  />
                 </label>
               ))}
             </div>
@@ -825,12 +876,23 @@ export default function ProfileScreen() {
 
           {/* Photo */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <img
-              src={activeHighlight.photos[activeHighlightIdx]?.url}
-              alt="Highlight"
-              className="max-w-full max-h-full w-full h-full object-contain"
-              draggable={false}
-            />
+            {isVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
+              <video
+                src={activeHighlight.photos[activeHighlightIdx]?.url}
+                className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                playsInline
+                autoPlay
+                muted
+                loop
+              />
+            ) : (
+              <img
+                src={activeHighlight.photos[activeHighlightIdx]?.url}
+                alt="Highlight"
+                className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                draggable={false}
+              />
+            )}
           </div>
 
           {/* Tap zones */}
