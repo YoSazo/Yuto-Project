@@ -43,23 +43,34 @@ export function PeopleListModal({
           <div className="py-10 text-center text-gray-400 font-semibold">No one yet</div>
         ) : (
           <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1">
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-1">
               {people.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onNavigateToUser(p.id);
-                  }}
-                  className="flex items-center gap-3 py-3 px-2 rounded-2xl hover:bg-gray-50 transition-colors text-left bg-transparent border-none"
-                >
-                  <UserAvatar name={p.display_name} avatarUrl={p.avatar_url} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-black truncate">{p.display_name}</p>
-                    <p className="text-sm text-gray-400 truncate">@{p.username}</p>
-                  </div>
-                </button>
+                <div key={p.id} className="flex items-center gap-2 py-2.5 px-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onNavigateToUser(p.id);
+                    }}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl py-1 pr-2 text-left transition-colors hover:bg-gray-50 bg-transparent border-none"
+                  >
+                    <UserAvatar name={p.display_name} avatarUrl={p.avatar_url} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-black truncate">{p.display_name}</p>
+                      <p className="text-sm text-gray-400 truncate">@{p.username}</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onNavigateToUser(p.id);
+                    }}
+                    className="shrink-0 rounded-xl bg-gray-100 px-3 py-2.5 text-sm font-bold text-black transition-colors hover:bg-gray-200"
+                  >
+                    View profile
+                  </button>
+                </div>
               ))}
             </div>
           </div>

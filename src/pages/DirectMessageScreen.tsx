@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Send } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
@@ -40,6 +40,7 @@ export default function DirectMessageScreen() {
   const [showSharePicker, setShowSharePicker] = useState(false);
   const [previewShare, setPreviewShare] = useState<{ title: string; subtitle: string; kindLabel: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
@@ -117,9 +118,12 @@ export default function DirectMessageScreen() {
     };
   }, [conversationId, user]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  useLayoutEffect(() => {
+    if (loading || !conversationId) return;
+    const el = scrollViewportRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [loading, conversationId, messages]);
 
   const title = useMemo(() => other?.display_name || "Message", [other]);
 
@@ -265,7 +269,7 @@ export default function DirectMessageScreen() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div ref={scrollViewportRef} className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
@@ -288,7 +292,7 @@ export default function DirectMessageScreen() {
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   {profileShare ? (
-                    <div className="max-w-[95%] w-[95%] md:w-[340px]">
+                    <div className="max-w-[95%] w-[95%] md:w-[268px]">
                       {user?.id ? (
                         <DmSharedProfileCard viewerUserId={user.id} sharedUserId={profileShare.user_id} />
                       ) : null}

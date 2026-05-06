@@ -13,6 +13,7 @@ import {
   type DmConversation,
   type GroupChatRow,
 } from "../lib/supabase";
+import { buildGroupChatPickerLabels } from "../lib/groupChatDisplay";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -181,6 +182,8 @@ export default function MessagesScreen() {
     });
   }, [convos, profilesById, user]);
 
+  const groupRowLabels = useMemo(() => buildGroupChatPickerLabels(groups), [groups]);
+
   return (
     <div className="flex flex-col overflow-y-auto pb-28 px-5 pt-6">
       <div className="flex items-center justify-between gap-3 mb-6">
@@ -235,7 +238,7 @@ export default function MessagesScreen() {
                     excludeUserId={user?.id ?? null}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-black truncate">{g.title || "Group chat"}</p>
+                    <p className="font-bold text-black truncate">{groupRowLabels[g.id] ?? "Group chat"}</p>
                     <p className="text-sm text-gray-400 truncate">Tap to open</p>
                   </div>
                   {(unreadByGroup[g.id] || 0) > 0 && (

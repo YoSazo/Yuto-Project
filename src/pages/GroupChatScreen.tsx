@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Send } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, Send } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -12,6 +12,7 @@ import {
   markGroupChatRead,
   sendGroupChatMessage,
   sendGroupChatShareMessage,
+  setGroupChatTitle,
   supabase,
   type DmSharePayload,
   type GroupChatMessage,
@@ -52,6 +53,7 @@ export default function GroupChatScreen() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const [showSharePicker, setShowSharePicker] = useState(false);
   const [previewShare, setPreviewShare] = useState<{ title: string; subtitle: string; kindLabel: string } | null>(
     null,
@@ -61,6 +63,9 @@ export default function GroupChatScreen() {
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renameSaving, setRenameSaving] = useState(false);
 
   useEffect(() => {
     if (!groupId || !user) return;
@@ -116,6 +121,16 @@ export default function GroupChatScreen() {
           });
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "group_chats", filter: `id=eq.${groupId}` },
+        (payload) => {
+          const row = payload.new as { title?: string | null };
+          setMeta((prev) =>
+            prev && prev.id === groupId ? { ...prev, title: row.title != null ? String(row.title) : prev.title } : prev,
+          );
+        },
+      )
       .subscribe();
 
     return () => {
@@ -123,9 +138,12 @@ export default function GroupChatScreen() {
     };
   }, [groupId, user]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  useLayoutEffect(() => {
+    if (loading || !groupId) return;
+    const el = scrollViewportRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [loading, groupId, messages]);
 
   useEffect(() => {
     if (!groupId) return;
@@ -340,17 +358,33 @@ export default function GroupChatScreen() {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-white">
-      <div className="px-5 pt-6 pb-4 border-b border-gray-100 flex items-center gap-3 shrink-0">
-        <button type="button" onClick={() => navigate(-1)} className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+      <div className="px-5 pt-6 pb-4 border-b border-gray-100 flex items-start gap-3 shrink-0">
+        <button type="button" onClick={() => navigate(-1)} className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
           <ArrowLeft size={18} />
         </button>
-        <div className="min-w-0">
-          <p className="font-extrabold text-black truncate">{title}</p>
-          <p className="text-xs text-gray-400">Group</p>
+        <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-extrabold text-black truncate">{title}</p>
+            <p className="text-xs text-gray-400">Group</p>
+          </div>
+          {meta && (
+            <button
+              type="button"
+              onClick={() => {
+                setRenameDraft((meta.title || "").trim() || "Group chat");
+                setRenameOpen(true);
+              }}
+              className="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
+              aria-label="Rename group"
+              title="Rename group"
+            >
+              <Pencil size={18} />
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div ref={scrollViewportRef} className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
@@ -466,6 +500,62 @@ export default function GroupChatScreen() {
             <button type="button" className="mt-2 w-full py-2 rounded-xl bg-white text-black font-bold" onClick={() => navigate("/home")}>
               View on Home
             </button>
+          </div>
+        </div>
+      )}
+
+      {renameOpen && groupId && (
+        <div
+          className="fixed inset-0 bg-black/60 z-[55] flex items-end md:items-center justify-center"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !renameSaving) setRenameOpen(false);
+          }}
+          role="presentation"
+        >
+          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+            <h3 className="font-bold text-lg text-black mb-2">Rename group</h3>
+            <p className="text-sm text-gray-500 mb-4">Shown in your messages list. Clear name to reset to “Group chat”.</p>
+            <input
+              className="w-full bg-gray-100 rounded-2xl px-4 py-3 font-semibold outline-none mb-4 min-w-0"
+              value={renameDraft}
+              maxLength={80}
+              placeholder="Group chat"
+              autoFocus
+              onChange={(e) => setRenameDraft(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="flex-1 py-3 rounded-2xl font-bold bg-gray-100 text-black"
+                disabled={renameSaving}
+                onClick={() => setRenameOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="flex-1 py-3 rounded-2xl font-bold bg-black text-white disabled:opacity-50"
+                disabled={renameSaving}
+                onClick={() => {
+                  void (async () => {
+                    setRenameSaving(true);
+                    try {
+                      await setGroupChatTitle(groupId, renameDraft);
+                      const t = renameDraft.trim();
+                      const nextTitle = !t || t.toLowerCase() === "group chat" ? "Group chat" : t.slice(0, 80);
+                      setMeta((prev) => (prev && prev.id === groupId ? { ...prev, title: nextTitle } : prev));
+                      setRenameOpen(false);
+                    } catch (e) {
+                      console.error(e);
+                      alert("Couldn't rename the group yet. Run the latest migrations or try again.");
+                    }
+                    setRenameSaving(false);
+                  })();
+                }}
+              >
+                {renameSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
           </div>
         </div>
       )}

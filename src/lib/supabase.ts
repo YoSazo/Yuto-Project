@@ -891,6 +891,11 @@ export async function listMyGroupChats(userId: string) {
   return (chats || []) as GroupChatRow[];
 }
 
+export async function setGroupChatTitle(groupId: string, title: string) {
+  const { error } = await supabase.rpc("set_group_chat_title", { p_group_id: groupId, p_title: title });
+  if (error) throw error;
+}
+
 export async function getGroupChatMessages(groupId: string) {
   const { data, error } = await supabase
     .from("group_chat_messages")
