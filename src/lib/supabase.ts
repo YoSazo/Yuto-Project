@@ -708,6 +708,8 @@ export type DmMessage = {
   sender_id: string;
   content: string;
   created_at: string;
+  message_type?: "text" | "share";
+  payload?: unknown;
   sender?: { id: string; username: string; display_name: string; avatar_url: string | null };
 };
 
@@ -751,7 +753,7 @@ export async function getDmMessages(conversationId: string) {
   const { data, error } = await supabase
     .from("dm_messages")
     .select(
-      `id, conversation_id, sender_id, content, created_at,
+      `id, conversation_id, sender_id, content, created_at, message_type, payload,
        sender:profiles!dm_messages_sender_id_fkey(id, username, display_name, avatar_url)`
     )
     .eq("conversation_id", conversationId)
@@ -763,7 +765,23 @@ export async function getDmMessages(conversationId: string) {
 export async function sendDmMessage(conversationId: string, senderId: string, content: string) {
   const trimmed = content.trim();
   if (!trimmed) return;
-  const { error } = await supabase.from("dm_messages").insert({ conversation_id: conversationId, sender_id: senderId, content: trimmed });
+  const { error } = await supabase.from("dm_messages").insert({ conversation_id: conversationId, sender_id: senderId, content: trimmed, message_type: "text" });
+  if (error) throw error;
+}
+
+export type DmSharePayload =
+  | { kind: "plan"; plan_id: string }
+  | { kind: "function"; function_id: string }
+  | { kind: "listing"; function_id: string; listing_kind: "sell" | "service" };
+
+export async function sendDmShareMessage(conversationId: string, senderId: string, payload: DmSharePayload) {
+  const { error } = await supabase.from("dm_messages").insert({
+    conversation_id: conversationId,
+    sender_id: senderId,
+    content: "",
+    message_type: "share",
+    payload,
+  });
   if (error) throw error;
 }
 
