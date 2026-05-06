@@ -1,7 +1,16 @@
 import { useState, useEffect, useRef, type ReactNode, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { getFriends, getMyGroups, getPendingRequests, getSavedPhoneNumber, saveProfilePhoneNumber, uploadAvatar, supabase } from "../lib/supabase";
+import {
+  fetchYutoBalance,
+  getFriends,
+  getMyGroups,
+  getPendingRequests,
+  getSavedPhoneNumber,
+  saveProfilePhoneNumber,
+  uploadAvatar,
+  supabase,
+} from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { Wallet, History, Plus, Copy, Check } from "lucide-react";
 
@@ -260,13 +269,7 @@ export default function ProfileScreen() {
         if (profileError) throw profileError;
         if (profileData?.avatar_url) setAvatarUrl(profileData.avatar_url);
   
-        // ✅ Balance — no separate try/catch needed
-        const { data: balData } = await supabase
-          .from("profiles")
-          .select("balance")
-          .eq("id", user.id)
-          .single();
-        setPoints(balData?.balance ?? 0);
+        setPoints(await fetchYutoBalance(user.id));
   
         const [groups, friends, pending, plansRes] = await Promise.all([
           getMyGroups(),

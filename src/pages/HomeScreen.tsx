@@ -24,6 +24,7 @@ import {
   saveProfilePhoneNumber,
   getPlanMessages,
   sendPlanMessage,
+  fetchYutoBalance,
 } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe, ImagePlus, X, CalendarDays, MapPin, BadgeDollarSign, Sparkles, PartyPopper, MessageCircle } from "lucide-react";
@@ -146,7 +147,7 @@ function formatEventDate(dateValue: string | null) {
 const FUNCTION_THREAD_SEEN_PREFIX = "yuto_function_thread_seen:";
 const MIN_MPESA_TOPUP_KES = 10;
 
-/** Gap to cover via M-PESA when join fails — uses RPC `(have …, need …)` if present, else profile balance vs share */
+/** Gap to cover via M-PESA when join fails — uses RPC `(have …, need …)` if present, else wallet balance vs share */
 async function computeFunctionTopUpGapKes(opts: {
   shareKes: number;
   rpcErrorMessage?: string | null;
@@ -160,8 +161,7 @@ async function computeFunctionTopUpGapKes(opts: {
     const need = parseFloat(m[2]) || share;
     return Math.max(MIN_MPESA_TOPUP_KES, Math.ceil(need - have));
   }
-  const { data } = await supabase.from("profiles").select("balance").eq("id", opts.userId).maybeSingle();
-  const bal = Number(data?.balance) ?? 0;
+  const bal = await fetchYutoBalance(opts.userId);
   const gap = Math.ceil(share - bal);
   if (gap > 0) return Math.max(MIN_MPESA_TOPUP_KES, gap);
   return Math.max(MIN_MPESA_TOPUP_KES, share);
