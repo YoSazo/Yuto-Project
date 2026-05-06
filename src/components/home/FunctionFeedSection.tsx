@@ -78,6 +78,7 @@ export function FunctionFeedSection({
           const isSell = eventFunction.location === "__SELL__";
           const isService = eventFunction.location === "__SERVICE__";
           const isListing = isSell || isService;
+          const isFunction = !isListing;
           const remainingStock =
             isListing && eventFunction.max_capacity != null ? Math.max(0, eventFunction.max_capacity - paidCount) : null;
           const fulfillment = isListing ? extractFulfillmentLine(eventFunction.description) : null;
@@ -88,7 +89,12 @@ export function FunctionFeedSection({
           return (
             <div
               key={eventFunction.id}
-              className="bg-white border border-gray-200/80 rounded-3xl p-4 relative overflow-hidden premium-function-card function-card-highlight"
+              className={[
+                "rounded-3xl p-4 relative overflow-hidden",
+                isFunction
+                  ? "bg-black border border-black text-white"
+                  : "bg-white border border-gray-200/80 text-black premium-function-card function-card-highlight",
+              ].join(" ")}
             >
               <div
                 className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
@@ -104,14 +110,18 @@ export function FunctionFeedSection({
               >
                 <UserAvatar name={eventFunction.host.display_name} avatarUrl={eventFunction.host.avatar_url} size="sm" />
                 <div className="flex-1">
-                  <p className="font-semibold text-sm text-black">
+                  <p className={["font-semibold text-sm", isFunction ? "text-white" : "text-black"].join(" ")}>
                     {isSell
                       ? `${eventFunction.host.display_name} has something for you`
                       : isService
                         ? `${eventFunction.host.display_name} is offering a service`
                         : `${eventFunction.host.display_name} is hosting a function`}
                   </p>
-                  {!isListing && <p className="text-xs text-gray-400">{formatEventDate(eventFunction.date)}</p>}
+                  {!isListing && (
+                    <p className={["text-xs", isFunction ? "text-white/70" : "text-gray-400"].join(" ")}>
+                      {formatEventDate(eventFunction.date)}
+                    </p>
+                  )}
                 </div>
                 <span
                   className={[
@@ -120,7 +130,9 @@ export function FunctionFeedSection({
                       ? "bg-emerald-50 text-emerald-700"
                       : isService
                         ? "bg-blue-50 text-blue-700"
-                        : "bg-black text-white",
+                        : isFunction
+                          ? "bg-white/12 text-white"
+                          : "bg-black text-white",
                   ].join(" ")}
                 >
                   {isSell ? <Store size={12} aria-hidden /> : isService ? <Briefcase size={12} aria-hidden /> : null}
@@ -128,13 +140,19 @@ export function FunctionFeedSection({
                 </span>
               </div>
 
-              <p className="font-bold text-black text-lg mb-1">{eventFunction.title}</p>
+              <p className={["font-bold text-lg mb-1", isFunction ? "text-white" : "text-black"].join(" ")}>
+                {eventFunction.title}
+              </p>
               {eventFunction.image_url && (
                 <div className="mb-3 rounded-xl overflow-hidden bg-gray-100">
                   <img src={eventFunction.image_url} alt="Function cover" className="block w-full h-auto" />
                 </div>
               )}
-              {cleanedDescription && <p className="text-sm text-gray-600 mb-3">{cleanedDescription}</p>}
+              {cleanedDescription && (
+                <p className={["text-sm mb-3", isFunction ? "text-white/80" : "text-gray-600"].join(" ")}>
+                  {cleanedDescription}
+                </p>
+              )}
 
               {isListing && fulfillment && (
                 <div className="mb-3">
@@ -145,7 +163,14 @@ export function FunctionFeedSection({
               )}
 
               <div className="flex flex-wrap gap-2 mb-4">
-                <span className="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                <span
+                  className={[
+                    "font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 border",
+                    isFunction
+                      ? "bg-white text-black border-white/20"
+                      : "bg-orange-50 text-orange-700 border-transparent",
+                  ].join(" ")}
+                >
                   <BadgeDollarSign size={14} /> KSH {eventFunction.amount_per_person.toLocaleString()}
                 </span>
                 {isListing ? (
@@ -162,31 +187,46 @@ export function FunctionFeedSection({
                     )}
                   </>
                 ) : (
-                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                  <span
+                    className={[
+                      "font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border",
+                      isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 text-gray-600 border-transparent",
+                    ].join(" ")}
+                  >
                     <span className="inline-flex items-center gap-1.5">
                       <Users size={14} /> {joinedCount} joining
                     </span>
-                    <span className="text-gray-400 font-semibold px-0.5" aria-hidden>
+                    <span className={["font-semibold px-0.5", isFunction ? "text-white/40" : "text-gray-400"].join(" ")} aria-hidden>
                       ·
                     </span>
                     <span>{paidCount} paid</span>
                   </span>
                 )}
                 {eventFunction.location && !isSell && !isService && (
-                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                  <span
+                    className={[
+                      "font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 border",
+                      isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 text-gray-600 border-transparent",
+                    ].join(" ")}
+                  >
                     <MapPin size={14} /> {eventFunction.location}
                   </span>
                 )}
                 {eventFunction.max_capacity && !isSell && (
-                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                  <span
+                    className={[
+                      "font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 border",
+                      isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 text-gray-600 border-transparent",
+                    ].join(" ")}
+                  >
                     <Sparkles size={14} /> {eventFunction.max_capacity} max
                   </span>
                 )}
               </div>
 
-              <div className="pt-1 border-t border-gray-100">
+              <div className={["pt-1 border-t", isFunction ? "border-white/10" : "border-gray-100"].join(" ")}>
                 <div className="flex items-center justify-between gap-2 mt-3">
-                  <div className="text-xs text-gray-400 flex items-center gap-1.5">
+                  <div className={["text-xs flex items-center gap-1.5", isFunction ? "text-white/65" : "text-gray-400"].join(" ")}>
                     <CalendarDays size={13} /> {isListing ? "Available now" : formatEventDate(eventFunction.date)}
                   </div>
 
@@ -196,7 +236,9 @@ export function FunctionFeedSection({
                     onClick={() => void shareFunction(eventFunction)}
                     className={[
                       "w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
-                      "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                      isFunction
+                        ? "border-white/15 bg-white/12 text-white hover:bg-white/18"
+                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
                     ].join(" ")}
                     aria-label={`Share ${eventFunction.title}`}
                     title="Share"
@@ -208,7 +250,9 @@ export function FunctionFeedSection({
                       onClick={() => onOpenFunctionThread(eventFunction)}
                       className={[
                         "relative w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
-                        "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                        isFunction
+                          ? "border-white/15 bg-white/12 text-white hover:bg-white/18"
+                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
                       ].join(" ")}
                       aria-label={`Ask questions about ${eventFunction.title}`}
                       title="Ask questions"
@@ -222,16 +266,20 @@ export function FunctionFeedSection({
                     </button>
 
                     {isHost ? (
-                      <span className="text-sm font-semibold text-gray-500">Hosting</span>
+                      <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>
+                        Hosting
+                      </span>
                     ) : isMember && me?.has_paid ? (
-                      <span className="text-sm font-semibold text-green-600">You&apos;re in</span>
+                      <span className={["text-sm font-semibold", isFunction ? "text-emerald-300" : "text-green-600"].join(" ")}>
+                        You&apos;re in
+                      </span>
                     ) : canPay ? (
                       <button
                         type="button"
                         onClick={() => onJoinFunction(eventFunction)}
                         className={[
                           "px-4 py-2 rounded-xl font-bold text-sm transition-colors",
-                          "bg-black text-white hover:bg-gray-800",
+                          isFunction ? "bg-white text-black hover:bg-white/90" : "bg-black text-white hover:bg-gray-800",
                         ].join(" ")}
                       >
                         {isSell ? "Pay & buy" : isService ? "Pay & book" : "Pay & join"}
@@ -242,13 +290,15 @@ export function FunctionFeedSection({
                         onClick={() => onJoinFunction(eventFunction)}
                         className={[
                           "px-4 py-2 rounded-xl font-bold text-sm transition-colors",
-                          "bg-black text-white hover:bg-gray-800",
+                          isFunction ? "bg-white text-black hover:bg-white/90" : "bg-black text-white hover:bg-gray-800",
                         ].join(" ")}
                       >
                         {isSell ? "Purchase" : isService ? "Book" : "Join Function"}
                       </button>
                     ) : (
-                      <span className="text-sm font-semibold text-gray-500">{isFull ? "Full" : "Joined"}</span>
+                      <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>
+                        {isFull ? "Full" : "Joined"}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -259,7 +309,9 @@ export function FunctionFeedSection({
                     onClick={() => onOpenTicket(eventFunction)}
                     className={[
                       "mt-3 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition-colors tap-scale border",
-                      "border-green-200 bg-green-50 text-green-800 hover:bg-green-100",
+                      isFunction
+                        ? "border-white/15 bg-white/12 text-white hover:bg-white/18"
+                        : "border-green-200 bg-green-50 text-green-800 hover:bg-green-100",
                     ].join(" ")}
                   >
                     <Ticket size={16} aria-hidden />
