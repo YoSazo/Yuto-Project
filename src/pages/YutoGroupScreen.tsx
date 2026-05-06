@@ -499,22 +499,21 @@ export default function YutoGroupScreen() {
     if (!groupId || !user) return;
     setIsPayingShare(true);
     try {
-      const { error, data } = await supabase.rpc("pay_for_plan", { 
-        p_group_id: groupId, 
-        p_amount: perPersonAmount 
-      });
+      const { error } = await supabase.rpc("pay_for_plan", { p_group_id: groupId, p_amount: perPersonAmount });
       
       if (error) {
-        console.error("Database Error:", error);
-        // This will now show the ACTUAL error from Postgres, rather than a hardcoded string
-        alert(error.message || "An unexpected payment error occurred.");
-        return;
+        alert(error.message || "Insufficient Yuto Balance! Please go to your Profile tab to top up.");
+        return; // Stop here if there's an error
       }
 
-      // The real-time subscription will catch thee success and turn the avatar green!
+      // ✨ INSTANT UI UPDATE: Immediately make your avatar glow green!
+      setMembers((prev) =>
+        prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: true } : m))
+      );
+
     } catch (err) {
-      console.error("Payment exception:", err);
-      alert("A network error occurred.");
+      console.error("Payment error:", err);
+      alert("An unexpected error occurred.");
     } finally {
       setIsPayingShare(false);
     }
