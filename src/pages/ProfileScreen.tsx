@@ -433,7 +433,7 @@ export default function ProfileScreen() {
         {phoneMessage && <p className="text-xs text-gray-500 mt-2 ml-1">{phoneMessage}</p>}
       </div>
 
-      {/* Menu */}
+{/* Menu */}
       <div className="bg-white border border-gray-200 rounded-2xl px-5 divide-y divide-gray-100">
         <MenuItem
           icon={
@@ -473,6 +473,7 @@ export default function ProfileScreen() {
           onClick={handleLogout}
         />
       </div>
+
       {/* Top-Up Modal */}
       {showTopUpModal && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
@@ -493,7 +494,7 @@ export default function ProfileScreen() {
                 className="text-[48px] font-bold text-center text-black bg-transparent border-none outline-none w-full mb-4"
               />
               
-              {/* NEW: Frictionless Quick Buttons */}
+              {/* Frictionless Quick Buttons */}
               <div className="flex gap-2 w-full mb-2">
                 {[100, 250, 500, 1000].map((preset) => (
                   <button
@@ -505,8 +506,6 @@ export default function ProfileScreen() {
                   </button>
                 ))}
               </div>
-            </div>
-              <div className="w-16 h-1 bg-gray-200 rounded-full mt-2" />
             </div>
 
             {topUpError && (
