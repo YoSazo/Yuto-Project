@@ -878,10 +878,10 @@ export default function HomeScreen() {
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
     if (!user) return;
-    const isMember = eventFunction.functionmembers.some(m => m.userid === user.id);
-    const isFull = eventFunction.maxcapacity
-      ? eventFunction.functionmembers.length >= eventFunction.maxcapacity && !isMember
-      : false;
+    const members = eventFunction.function_members ?? [];
+    const isMember = members.some((m) => m.user_id === user.id);
+    const cap = eventFunction.max_capacity;
+    const isFull = cap != null ? members.length >= cap && !isMember : false;
     if (isFull) { alert("This function is currently full!"); return; }
   
     try {
