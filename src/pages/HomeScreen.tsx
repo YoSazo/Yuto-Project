@@ -20,7 +20,9 @@ import {
   leaveFunction,
   getSavedPhoneNumber,
   getMyDmAndGroupUnreadTotal,
+  type DmSharePayload,
 } from "../lib/supabase";
+import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 import { FunctionPayModal } from "../components/home/FunctionPayModal";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
@@ -72,6 +74,7 @@ export default function HomeScreen() {
   const activeTabRef = useRef(activeTab);
   /** Auto-show entry ticket once per function per mount (manual “Ticket” still works). */
   const autoShownTicketFnIdRef = useRef<string | null>(null);
+  const [shareFeedPayload, setShareFeedPayload] = useState<DmSharePayload | null>(null);
 
   // Function payment state
   const [functionPayTarget, setFunctionPayTarget] = useState<FunctionListing | null>(null);
@@ -543,6 +546,9 @@ export default function HomeScreen() {
           onOpenFunctionThread={setActiveFunctionThread}
           onJoinFunction={handleJoinFunction}
           onOpenTicket={(f) => setFunctionTicket(f)}
+          onShareInMessages={
+            user ? (payload) => setShareFeedPayload(payload) : undefined
+          }
         />
       )}
 
@@ -558,6 +564,9 @@ export default function HomeScreen() {
         onOpenPlanChat={setActivePlanChat}
         onNavigateToYutoGroup={(groupId) => navigate(`/yuto/${groupId}`)}
         onNavigateToCreator={(creatorId) => navigate(`/user/${creatorId}`)}
+        onSharePlan={
+          user ? (plan) => setShareFeedPayload({ kind: "plan", plan_id: plan.id }) : undefined
+        }
       />
 
       <HomeComposeSheet
@@ -664,6 +673,15 @@ export default function HomeScreen() {
           plan={activePlanChat}
           currentUserId={user.id}
           onClose={() => setActivePlanChat(null)}
+        />
+      )}
+
+      {user && shareFeedPayload && (
+        <ShareRecipientsSheet
+          open
+          onClose={() => setShareFeedPayload(null)}
+          currentUserId={user.id}
+          sharePayload={shareFeedPayload}
         />
       )}
 

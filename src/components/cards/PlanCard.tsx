@@ -1,5 +1,5 @@
 import UserAvatar from "../UserAvatar";
-import { MessageCircle, Rocket, Trash2, UserCheck } from "lucide-react";
+import { MessageCircle, Plane, Rocket, Trash2, UserCheck } from "lucide-react";
 import type { Plan } from "../../pages/home/types";
 
 export function PlanCard({
@@ -13,6 +13,7 @@ export function PlanCard({
   onNavigateToYutoGroup,
   onNavigateToCreator,
   onOpenPeople,
+  onSharePlan,
 }: {
   plan: Plan;
   currentUserId?: string;
@@ -24,6 +25,7 @@ export function PlanCard({
   onNavigateToYutoGroup?: (groupId: string) => void;
   onNavigateToCreator?: (creatorId: string) => void;
   onOpenPeople?: (planId: string) => void;
+  onSharePlan?: (plan: Plan) => void;
 }) {
   const isMine = plan.creator_id === currentUserId;
   const pm = plan.plan_members ?? [];
@@ -112,16 +114,34 @@ export function PlanCard({
               {joinedCount} {joinedCount === 1 ? "person" : "people"} in
             </span>
           </button>
-          {onOpenPlanChat && (
-            <button
-              type="button"
-              onClick={() => onOpenPlanChat(plan)}
-              className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
-              aria-label={`Chat about ${plan.title}`}
-              title="Open chat"
-            >
-              <MessageCircle size={16} />
-            </button>
+          {(onSharePlan || onOpenPlanChat) && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              {onSharePlan && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSharePlan(plan);
+                  }}
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                  aria-label={`Share ${plan.title}`}
+                  title="Share in messages"
+                >
+                  <Plane size={16} />
+                </button>
+              )}
+              {onOpenPlanChat && (
+                <button
+                  type="button"
+                  onClick={() => onOpenPlanChat(plan)}
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                  aria-label={`Chat about ${plan.title}`}
+                  title="Open chat"
+                >
+                  <MessageCircle size={16} />
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -170,16 +190,31 @@ export function PlanCard({
           )}
         </div>
 
-        {pm.length === 0 && onOpenPlanChat && (
-          <button
-            type="button"
-            onClick={() => onOpenPlanChat(plan)}
-            className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
-            aria-label={`Chat about ${plan.title}`}
-            title="Open chat"
-          >
-            <MessageCircle size={16} />
-          </button>
+        {pm.length === 0 && (onSharePlan || onOpenPlanChat) && (
+          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+            {onSharePlan && (
+              <button
+                type="button"
+                onClick={() => onSharePlan(plan)}
+                className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                aria-label={`Share ${plan.title}`}
+                title="Share in messages"
+              >
+                <Plane size={16} />
+              </button>
+            )}
+            {onOpenPlanChat && (
+              <button
+                type="button"
+                onClick={() => onOpenPlanChat(plan)}
+                className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                aria-label={`Chat about ${plan.title}`}
+                title="Open chat"
+              >
+                <MessageCircle size={16} />
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

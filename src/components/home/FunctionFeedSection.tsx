@@ -1,4 +1,5 @@
 import type { FunctionListing } from "../../pages/home/types";
+import type { DmSharePayload } from "../../lib/supabase";
 import { PeopleListModal } from "../PeopleListModal";
 import { useMemo, useState } from "react";
 import { FunctionCard } from "../cards/FunctionCard";
@@ -11,6 +12,7 @@ export function FunctionFeedSection({
   onOpenFunctionThread,
   onJoinFunction,
   onOpenTicket,
+  onShareInMessages,
 }: {
   functionsFeed: FunctionListing[];
   currentUserId?: string;
@@ -19,6 +21,7 @@ export function FunctionFeedSection({
   onOpenFunctionThread: (f: FunctionListing) => void;
   onJoinFunction: (f: FunctionListing) => void;
   onOpenTicket: (f: FunctionListing) => void;
+  onShareInMessages?: (payload: DmSharePayload) => void;
 }) {
   if (functionsFeed.length === 0) return null;
 
@@ -51,6 +54,7 @@ export function FunctionFeedSection({
             onJoinFunction={onJoinFunction}
             onOpenTicket={onOpenTicket}
             onOpenPeople={(functionId, title) => setPeopleModal({ functionId, title })}
+            onShareInMessages={onShareInMessages}
           />
         ))}
       </div>

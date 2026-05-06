@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { supabase, getProfile, getFriends, sendFriendRequest, getHighlightsByUser, getOrCreateDmConversation, type Highlight } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Plane } from "lucide-react";
-import { SendProfileSheet } from "../components/profile/SendProfileSheet";
+import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 
 const STAT_POSITIONS = [
   { id: "splits", angle: -2.4, label: "Splits" },
@@ -149,11 +149,12 @@ export default function UserProfileScreen() {
       </div>
 
       {user && targetUserId && (
-        <SendProfileSheet
+        <ShareRecipientsSheet
           open={sendProfileOpen}
           onClose={() => setSendProfileOpen(false)}
           currentUserId={user.id}
-          sharedProfileUserId={targetUserId}
+          sharePayload={{ kind: "profile", user_id: targetUserId }}
+          excludeUserIds={[targetUserId]}
         />
       )}
 

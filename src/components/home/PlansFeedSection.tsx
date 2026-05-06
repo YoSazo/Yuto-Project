@@ -16,6 +16,7 @@ export function PlansFeedSection({
   onOpenPlanChat,
   onNavigateToYutoGroup,
   onNavigateToCreator,
+  onSharePlan,
 }: {
   loading: boolean;
   plans: Plan[];
@@ -28,6 +29,7 @@ export function PlansFeedSection({
   onOpenPlanChat: (plan: Plan) => void;
   onNavigateToYutoGroup: (groupId: string) => void;
   onNavigateToCreator: (creatorId: string) => void;
+  onSharePlan?: (plan: Plan) => void;
 }) {
   const [peopleModalPlanId, setPeopleModalPlanId] = useState<string | null>(null);
 
@@ -76,6 +78,7 @@ export function PlansFeedSection({
             onNavigateToYutoGroup={onNavigateToYutoGroup}
             onNavigateToCreator={onNavigateToCreator}
             onOpenPeople={(planId) => setPeopleModalPlanId(planId)}
+            onSharePlan={onSharePlan}
           />
         );
       })}

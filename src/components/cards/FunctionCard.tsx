@@ -5,6 +5,7 @@ import {
   CalendarDays,
   MapPin,
   MessageCircle,
+  Plane,
   Share2,
   Sparkles,
   Store,
@@ -12,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
+import type { DmSharePayload } from "../../lib/supabase";
 
 function extractFulfillmentLine(description: string | null): string | null {
   if (!description) return null;
@@ -34,6 +36,7 @@ export function FunctionCard({
   onJoinFunction,
   onOpenTicket,
   onOpenPeople,
+  onShareInMessages,
 }: {
   eventFunction: FunctionListing;
   currentUserId?: string;
@@ -43,6 +46,7 @@ export function FunctionCard({
   onJoinFunction?: (f: FunctionListing) => void;
   onOpenTicket?: (f: FunctionListing) => void;
   onOpenPeople?: (functionId: string, title: string) => void;
+  onShareInMessages?: (payload: DmSharePayload) => void;
 }) {
   const fm = eventFunction.function_members ?? [];
   const isHost = eventFunction.host_id === currentUserId;
@@ -228,6 +232,28 @@ export function FunctionCard({
           </div>
 
           <div className="flex items-center gap-2">
+            {onShareInMessages && (
+              <button
+                type="button"
+                onClick={() =>
+                  onShareInMessages(
+                    isSell
+                      ? { kind: "listing", function_id: eventFunction.id, listing_kind: "sell" }
+                      : isService
+                        ? { kind: "listing", function_id: eventFunction.id, listing_kind: "service" }
+                        : { kind: "function", function_id: eventFunction.id },
+                  )
+                }
+                className={[
+                  "w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
+                  isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                ].join(" ")}
+                aria-label={`Send ${eventFunction.title} in messages`}
+                title="Share in messages"
+              >
+                <Plane size={16} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void shareFunction(eventFunction)}
@@ -235,8 +261,8 @@ export function FunctionCard({
                 "w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
                 isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
               ].join(" ")}
-              aria-label={`Share ${eventFunction.title}`}
-              title="Share"
+              aria-label={`Copy or share ${eventFunction.title} link`}
+              title="Share link"
             >
               <Share2 size={16} />
             </button>
