@@ -175,7 +175,9 @@ export function HomeComposeSheet({
     const tW = shellRect?.width ?? fallbackW;
     const tL = shellRect?.left ?? (window.innerWidth - tW) / 2;
     const tB = shellRect ? window.innerHeight - shellRect.bottom : 0;
-    const tH = Math.min(560, Math.floor((shellRect?.height ?? window.innerHeight) * 0.9));
+    // Make the sheet tall enough that it doesn't need to scroll in normal cases.
+    const shellH = shellRect?.height ?? window.innerHeight;
+    const tH = Math.min(Math.floor(shellH - 88), 720);
 
     startGeoRef.current = { sL, sB, sW, sH, tL, tB, tW, tH };
 
@@ -256,6 +258,7 @@ export function HomeComposeSheet({
         el.style.transform = "translateY(0)";
       }, i * 44 + 20);
     });
+    setIsMorphing(false);
   };
 
   const closeMorph = async () => {
@@ -329,7 +332,7 @@ export function HomeComposeSheet({
         onClick={() => void openMorph()}
         className={[
           "pointer-events-auto fixed",
-          "bottom-24 w-[120px] h-[50px] rounded-full",
+          "bottom-[calc(80px+env(safe-area-inset-bottom))] w-[120px] h-[50px] rounded-full",
           "bg-black border border-white/15 shadow-lg overflow-hidden",
           "select-none",
           // Idle: center via CSS. Morph/open: JS controls left/bottom/width/height.
@@ -366,7 +369,7 @@ export function HomeComposeSheet({
         {/* Sheet content */}
         <div
           ref={(el) => { sheetRef.current = el; }}
-          className="absolute inset-0 opacity-0 pointer-events-none overflow-y-auto"
+          className="absolute inset-0 opacity-0 pointer-events-none overflow-hidden"
           style={{ padding: "0 18px 24px" }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -626,37 +629,29 @@ export function HomeComposeSheet({
           </div>
         )}
 
-        <div
+        {postError && <p className="mb-3 text-sm text-red-600" data-si>{postError}</p>}
+        <button
+          type="button"
+          onClick={onPost}
+          disabled={isPosting || !canSubmit}
+          className="w-full py-4 bg-black text-white rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
           data-si
-          className="sticky bottom-0 -mx-[18px] px-[18px] pt-3 pb-[max(20px,env(safe-area-inset-bottom))]"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(245,245,245,1) 70%, rgba(245,245,245,0.65) 85%, rgba(245,245,245,0) 100%)",
-          }}
         >
-          {postError && <p className="mb-3 text-sm text-red-600">{postError}</p>}
-          <button
-            type="button"
-            onClick={onPost}
-            disabled={isPosting || !canSubmit}
-            className="w-full py-4 bg-black text-white rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
-          >
-            {isPosting ? (
-              "Posting..."
-            ) : (
-              <span className="flex items-center justify-center gap-2">
-                <Send size={16} />{" "}
-                {composeMode === "plan"
-                  ? "Post Plan"
-                  : composeMode === "sell"
-                    ? "Post Listing"
-                    : composeMode === "service"
-                      ? "Post Service"
-                      : "Post Function"}
-              </span>
-            )}
-          </button>
-        </div>
+          {isPosting ? (
+            "Posting..."
+          ) : (
+            <span className="flex items-center justify-center gap-2">
+              <Send size={16} />{" "}
+              {composeMode === "plan"
+                ? "Post Plan"
+                : composeMode === "sell"
+                  ? "Post Listing"
+                  : composeMode === "service"
+                    ? "Post Service"
+                    : "Post Function"}
+            </span>
+          )}
+        </button>
         </div>
       </div>
     </div>
