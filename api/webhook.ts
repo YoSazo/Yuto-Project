@@ -31,6 +31,18 @@ async function processIntaSendWebhook(payload: {
 
   const supabase = getSupabaseClient();
 
+  const apiref = (payload.apiref as string) ?? "";
+  if (apiref.startsWith("TOPUP")) {
+    // apiref format: "TOPUP{userid_no_dashes}{timestamp}"
+    // userid without dashes is 32 chars, so slice 6 to 38
+    const raw = apiref.slice(6, 38);
+    const uid = `${raw.slice(0,8)}-${raw.slice(8,12)}-${raw.slice(12,16)}-${raw.slice(16,20)}-${raw.slice(20)}`;
+    const amount = Number((payload as any).value ?? (payload as any).amount ?? 0);
+    if (amount > 0) {
+      await supabase.rpc("topup_balance", { p_user_id: uid, p_amount: amount });
+    }
+    return;
+
   let membershipTable: "group_members" | "function_members" | null = null;
   let parentTable: "groups" | "functions" | null = null;
   let parentIdColumn: "group_id" | "function_id" | null = null;

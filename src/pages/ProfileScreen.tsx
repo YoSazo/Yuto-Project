@@ -262,16 +262,9 @@ export default function ProfileScreen() {
           setAvatarUrl(profileData.avatar_url);
         }
 
-        const { data: walletData, error: walletError } = await supabase
-          .from("wallets")
-          .select("balance")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const { data: balData } = await supabase.from("profiles").select("balance").eq("id", user.id).single();
+setPoints(balData?.balance ?? 0);
 
-        if (!walletError && walletData) {
-          setPoints(Number(walletData.balance));
-        } else {
-          setPoints(0);
         }
 
         const [groups, friends, pending, plansRes] = await Promise.all([
