@@ -215,8 +215,8 @@ export default function UserProfileScreen() {
       {/* Highlight Viewer */}
       {activeHighlight && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
-          <button type="button" className="absolute inset-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={() => setActiveHighlight(null)} />
-          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-4 modal-slide-up">
+          <button type="button" className="absolute inset-0 z-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={() => setActiveHighlight(null)} />
+          <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-4 modal-slide-up">
             <div className="flex items-center justify-between mb-3">
               <p className="font-bold text-black">Highlight</p>
               <button onClick={() => setActiveHighlight(null)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
