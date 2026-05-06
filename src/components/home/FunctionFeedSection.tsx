@@ -1,0 +1,145 @@
+import UserAvatar from "../UserAvatar";
+import { MessageCircle, Users, MapPin, BadgeDollarSign, Sparkles, CalendarDays } from "lucide-react";
+import { formatEventDate, type FunctionListing } from "../../pages/home/types";
+
+export function FunctionFeedSection({
+  functionsFeed,
+  currentUserId,
+  functionUnreadCounts,
+  onNavigateToHost,
+  onOpenFunctionThread,
+  onJoinFunction,
+}: {
+  functionsFeed: FunctionListing[];
+  currentUserId?: string;
+  functionUnreadCounts: Record<string, number>;
+  onNavigateToHost: (hostUserId: string) => void;
+  onOpenFunctionThread: (f: FunctionListing) => void;
+  onJoinFunction: (f: FunctionListing) => void;
+}) {
+  if (functionsFeed.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Functions</p>
+        <span className="text-xs text-gray-400">Hosted now</span>
+      </div>
+      <div className="flex flex-col gap-4 mb-6">
+        {functionsFeed.map((eventFunction) => {
+          const fm = eventFunction.function_members ?? [];
+          const isHost = eventFunction.host_id === currentUserId;
+          const isMember = fm.some((m) => m.user_id === currentUserId);
+          const me = fm.find((m) => m.user_id === currentUserId);
+          const paidCount = fm.filter((m) => m.has_paid).length;
+          const joinedCount = fm.length;
+          const isFull = eventFunction.max_capacity ? joinedCount >= eventFunction.max_capacity && !isMember : false;
+          const canJoin = !isHost && !isMember && !isFull;
+          const canPay = isMember && !me?.has_paid;
+          const unreadCount = functionUnreadCounts[eventFunction.id] || 0;
+
+          return (
+            <div
+              key={eventFunction.id}
+              className="bg-white border border-gray-200/80 rounded-3xl p-4 relative overflow-hidden premium-function-card function-card-highlight"
+            >
+              <div
+                className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => onNavigateToHost(eventFunction.host.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onNavigateToHost(eventFunction.host.id);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+              >
+                <UserAvatar name={eventFunction.host.display_name} avatarUrl={eventFunction.host.avatar_url} size="sm" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm text-black">{eventFunction.host.display_name} is hosting a function</p>
+                  <p className="text-xs text-gray-400">{formatEventDate(eventFunction.date)}</p>
+                </div>
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-black text-white uppercase tracking-wide">Function</span>
+              </div>
+
+              <p className="font-bold text-black text-lg mb-1">{eventFunction.title}</p>
+              {eventFunction.image_url && (
+                <div className="mb-3 rounded-xl overflow-hidden bg-gray-100">
+                  <img src={eventFunction.image_url} alt="Function cover" className="block w-full h-auto" />
+                </div>
+              )}
+              {eventFunction.description && <p className="text-sm text-gray-600 mb-3">{eventFunction.description}</p>}
+
+              <div className="flex flex-wrap gap-2 mb-3">
+                <span className="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <BadgeDollarSign size={14} /> KSH {eventFunction.amount_per_person.toLocaleString()}
+                </span>
+                <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <Users size={14} /> {joinedCount} joining
+                </span>
+                {eventFunction.location && (
+                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                    <MapPin size={14} /> {eventFunction.location}
+                  </span>
+                )}
+                {eventFunction.max_capacity && (
+                  <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                    <Sparkles size={14} /> {eventFunction.max_capacity} max
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-gray-400 flex items-center gap-1.5">
+                  <CalendarDays size={13} /> {formatEventDate(eventFunction.date)}
+                  <span>•</span>
+                  <span>{paidCount} paid</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenFunctionThread(eventFunction)}
+                    className="relative w-11 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                    aria-label={`Ask questions about ${eventFunction.title}`}
+                    title="Ask questions"
+                  >
+                    <MessageCircle size={16} />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+                  {isHost ? (
+                    <span className="text-sm font-semibold text-gray-500">Hosting</span>
+                  ) : isMember && me?.has_paid ? (
+                    <span className="text-sm font-semibold text-green-600">You&apos;re in</span>
+                  ) : canPay ? (
+                    <button
+                      type="button"
+                      onClick={() => onJoinFunction(eventFunction)}
+                      className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
+                    >
+                      Pay &amp; join
+                    </button>
+                  ) : canJoin ? (
+                    <button
+                      type="button"
+                      onClick={() => onJoinFunction(eventFunction)}
+                      className="px-4 py-2 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
+                    >
+                      Join Function
+                    </button>
+                  ) : (
+                    <span className="text-sm font-semibold text-gray-500">{isFull ? "Full" : "Joined"}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
