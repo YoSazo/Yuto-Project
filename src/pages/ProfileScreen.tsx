@@ -553,16 +553,16 @@ export default function ProfileScreen() {
           </div>
         )}
 
-        <div className="relative z-10 mt-5 flex justify-end gap-2">
+        <div className="relative z-10 mt-5 flex justify-center gap-3">
           <button
             onClick={() => setShowWithdrawModal(true)}
-            className="text-xs font-bold bg-white text-black hover:bg-gray-200 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm"
+            className="text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm"
           >
             Cash Out
           </button>
           <button
             onClick={handleOpenHistory}
-            className="text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1"
+            className="text-sm font-bold bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5"
           >
             <History size={12} />
             History
