@@ -13,6 +13,7 @@ export function PlansFeedSection({
   onYutoIt,
   onOpenPlanChat,
   onNavigateToYutoGroup,
+  onNavigateToCreator,
 }: {
   loading: boolean;
   plans: Plan[];
@@ -24,6 +25,7 @@ export function PlansFeedSection({
   onYutoIt: (plan: Plan) => void;
   onOpenPlanChat: (plan: Plan) => void;
   onNavigateToYutoGroup: (groupId: string) => void;
+  onNavigateToCreator: (creatorId: string) => void;
 }) {
   if (loading) {
     return (
@@ -58,14 +60,32 @@ export function PlansFeedSection({
 
         return (
           <div key={plan.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
+            <div
+              className="flex items-center gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => onNavigateToCreator(plan.creator.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onNavigateToCreator(plan.creator.id);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+            >
               <UserAvatar name={plan.creator.display_name} avatarUrl={plan.creator.avatar_url} size="sm" />
               <div className="flex-1">
                 <p className="font-semibold text-sm text-black">{plan.creator.display_name}</p>
                 <p className="text-xs text-gray-400">{new Date(plan.created_at).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" })}</p>
               </div>
               {isMine && (
-                <button type="button" onClick={() => onDeletePlan(plan.id)} className="text-gray-300 hover:text-red-400 transition-colors">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeletePlan(plan.id);
+                  }}
+                  className="text-gray-300 hover:text-red-400 transition-colors"
+                >
                   <Trash2 size={16} />
                 </button>
               )}

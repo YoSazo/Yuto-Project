@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getProfile, getFriends, sendFriendRequest } from "../lib/supabase";
+import { supabase, getProfile, getFriends, sendFriendRequest, getHighlightsByUser, type Highlight } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { ArrowLeft, UserPlus, Check, Clock } from "lucide-react";
 
@@ -22,6 +22,8 @@ export default function UserProfileScreen() {
   const [friendStatus, setFriendStatus] = useState<"none" | "pending" | "friends">("none");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
 
   useEffect(() => {
     // If they click their own profile, redirect to their main profile tab
@@ -41,14 +43,15 @@ export default function UserProfileScreen() {
       setProfile(userProfile);
 
       // 2. Load Stats (Safe queries that don't violate RLS)
-      const [statsRes, plansRes, friendsRes, friendshipRes] = await Promise.all([
+      const [statsRes, plansRes, friendsRes, friendshipRes, highlightRows] = await Promise.all([
         supabase.from("group_members").select("has_paid, groups(per_person)").eq("user_id", targetUserId),
         supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", targetUserId),
         getFriends(targetUserId).catch(() => []), 
         supabase.from("friendships")
           .select("status")
           .or(`and(requester_id.eq.${user.id},addressee_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},addressee_id.eq.${user.id})`)
-          .maybeSingle()
+          .maybeSingle(),
+        getHighlightsByUser(targetUserId).catch(() => []),
       ]);
 
       const membersData = statsRes.data || [];
@@ -61,6 +64,7 @@ export default function UserProfileScreen() {
         friendsCount: friendsRes.length || 0,
         plansCount: plansRes.count || 0,
       });
+      setHighlights(highlightRows as Highlight[]);
 
       // 3. Determine Friendship Status
       if (friendshipRes.data) {
@@ -164,10 +168,30 @@ export default function UserProfileScreen() {
       </div>
 
       {/* Name + Handle */}
-      <div className="text-center -mt-2 mb-8">
+      <div className="text-center -mt-2 mb-3">
         <p className="font-bold text-xl text-black">{userName}</p>
         <p className="text-sm text-gray-400">{userHandle}</p>
       </div>
+
+      {/* Highlights (viewer) */}
+      {highlights.length > 0 && (
+        <div className="flex items-center justify-center gap-4 mb-6">
+          {highlights.slice(0, 2).map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              onClick={() => setActiveHighlight(h)}
+              className="flex flex-col items-center gap-1 bg-transparent border-none p-0"
+            >
+              <div className="w-16 h-16 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
+                {h.photos[0]?.url ? (
+                  <img src={h.photos[0].url} alt="Highlight" className="w-full h-full object-cover" />
+                ) : null}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="px-2">
@@ -187,6 +211,26 @@ export default function UserProfileScreen() {
           </button>
         )}
       </div>
+
+      {/* Highlight Viewer */}
+      {activeHighlight && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
+          <button type="button" className="absolute inset-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={() => setActiveHighlight(null)} />
+          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-4 modal-slide-up">
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-bold text-black">Highlight</p>
+              <button onClick={() => setActiveHighlight(null)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {activeHighlight.photos.slice(0, 2).map((p) => (
+                <div key={p.id} className="rounded-2xl overflow-hidden bg-gray-100 aspect-square">
+                  <img src={p.url} alt="Highlight photo" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

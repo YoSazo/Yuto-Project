@@ -352,6 +352,17 @@ export async function uploadPlanImage(creatorId: string, file: File): Promise<st
   return `${data.publicUrl}?t=${Date.now()}`;
 }
 
+export async function uploadHighlightImage(userId: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${userId}/highlights/${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from("plan-images")
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (uploadError) throw uploadError;
+  const { data } = supabase.storage.from("plan-images").getPublicUrl(path);
+  return `${data.publicUrl}?t=${Date.now()}`;
+}
+
 // ─── Functions ───────────────────────────────────────
 
 const FUNCTIONS_SELECT = `
@@ -445,6 +456,68 @@ export async function sendFunctionMessage(functionId: string, userId: string, co
   if (!response.ok || !data.success) {
     throw new Error(data.message || "Couldn't send message. Try again.");
   }
+}
+
+// ─── Highlights ──────────────────────────────────────
+
+export type Highlight = {
+  id: string;
+  user_id: string;
+  slot: 1 | 2;
+  created_at: string;
+  photos: Array<{ id: string; url: string; sort_index: 1 | 2 }>;
+};
+
+export async function getHighlightsByUser(userId: string): Promise<Highlight[]> {
+  const { data, error } = await supabase
+    .from("highlights")
+    .select("id, user_id, slot, created_at, highlight_photos(id, url, sort_index)")
+    .eq("user_id", userId)
+    .order("slot", { ascending: true });
+  if (error) throw error;
+  const rows = (data || []) as Array<{
+    id: string;
+    user_id: string;
+    slot: number;
+    created_at: string;
+    highlight_photos?: Array<{ id: string; url: string; sort_index: number }>;
+  }>;
+  return rows.map((h) => ({
+    id: h.id,
+    user_id: h.user_id,
+    slot: (h.slot === 2 ? 2 : 1) as 1 | 2,
+    created_at: h.created_at,
+    photos: (h.highlight_photos || [])
+      .slice()
+      .sort((a, b) => (a.sort_index ?? 1) - (b.sort_index ?? 1))
+      .map((p) => ({
+        id: p.id,
+        url: p.url,
+        sort_index: (p.sort_index === 2 ? 2 : 1) as 1 | 2,
+      })),
+  }));
+}
+
+export async function createHighlight(userId: string, photoUrls: [string, string]) {
+  const existing = await getHighlightsByUser(userId);
+  const used = new Set(existing.map((h) => h.slot));
+  const slot: 1 | 2 = used.has(1) ? 2 : 1;
+  if (used.has(slot)) throw new Error("You can only have 2 highlights.");
+
+  const { data: highlight, error: hErr } = await supabase
+    .from("highlights")
+    .insert({ user_id: userId, slot })
+    .select("id, user_id, slot, created_at")
+    .single();
+  if (hErr) throw hErr;
+
+  const { error: pErr } = await supabase.from("highlight_photos").insert([
+    { highlight_id: highlight.id, url: photoUrls[0], sort_index: 1 },
+    { highlight_id: highlight.id, url: photoUrls[1], sort_index: 2 },
+  ]);
+  if (pErr) throw pErr;
+
+  return highlight;
 }
 
 // ─── Plans ───────────────────────────────────────────

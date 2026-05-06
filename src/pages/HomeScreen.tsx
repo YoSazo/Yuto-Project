@@ -493,6 +493,7 @@ export default function HomeScreen() {
         onYutoIt={handleYutoIt}
         onOpenPlanChat={setActivePlanChat}
         onNavigateToYutoGroup={(groupId) => navigate(`/yuto/${groupId}`)}
+        onNavigateToCreator={(creatorId) => navigate(`/user/${creatorId}`)}
       />
 
       <HomeComposeSheet

@@ -3,13 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
   fetchYutoBalance,
+  createHighlight,
   getFriends,
+  getHighlightsByUser,
   getMyGroups,
   getPendingRequests,
   getSavedPhoneNumber,
   saveProfilePhoneNumber,
+  uploadHighlightImage,
   uploadAvatar,
   supabase,
+  type Highlight,
 } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
@@ -101,6 +105,14 @@ export default function ProfileScreen() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
+
+  // Highlights (max 2, 2 photos each)
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [showHighlightCreate, setShowHighlightCreate] = useState(false);
+  const [creatingHighlight, setCreatingHighlight] = useState(false);
+  const [highlightFiles, setHighlightFiles] = useState<[File | null, File | null]>([null, null]);
+  const [highlightPreviews, setHighlightPreviews] = useState<[string | null, string | null]>([null, null]);
+  const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
 
   const handleOpenHistory = async () => {
     setShowHistoryModal(true);
@@ -283,6 +295,59 @@ export default function ProfileScreen() {
     fetchData();
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    getHighlightsByUser(user.id)
+      .then((rows) => setHighlights(rows))
+      .catch(() => setHighlights([]));
+  }, [user]);
+
+  const handlePickHighlight = (idx: 0 | 1, e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    setHighlightFiles((prev) => {
+      const next: [File | null, File | null] = [prev[0], prev[1]];
+      next[idx] = file;
+      return next;
+    });
+    const url = URL.createObjectURL(file);
+    setHighlightPreviews((prev) => {
+      const next: [string | null, string | null] = [prev[0], prev[1]];
+      if (next[idx]) URL.revokeObjectURL(next[idx] as string);
+      next[idx] = url;
+      return next;
+    });
+  };
+
+  const closeHighlightCreate = () => {
+    setShowHighlightCreate(false);
+    setHighlightFiles([null, null]);
+    setHighlightPreviews((prev) => {
+      prev.forEach((u) => u && URL.revokeObjectURL(u));
+      return [null, null];
+    });
+  };
+
+  const handleCreateHighlight = async () => {
+    if (!user) return;
+    if (!highlightFiles[0] || !highlightFiles[1]) return;
+    setCreatingHighlight(true);
+    try {
+      const [u1, u2] = await Promise.all([
+        uploadHighlightImage(user.id, highlightFiles[0]),
+        uploadHighlightImage(user.id, highlightFiles[1]),
+      ]);
+      await createHighlight(user.id, [u1, u2]);
+      const rows = await getHighlightsByUser(user.id);
+      setHighlights(rows);
+      closeHighlightCreate();
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Couldn't create highlight.");
+    }
+    setCreatingHighlight(false);
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate("/auth");
@@ -449,9 +514,50 @@ export default function ProfileScreen() {
       </div>
 
       {/* Name + handle */}
-      <div className="text-center -mt-2 mb-6">
+      <div className="text-center -mt-2 mb-3">
         <p className="font-bold text-xl text-black">{userName}</p>
         <p className="text-sm text-gray-400">{userHandle}</p>
+      </div>
+
+      {/* Highlights */}
+      <div className="flex items-center justify-center gap-4 mb-6">
+        {highlights.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowHighlightCreate(true)}
+            className="w-16 h-16 rounded-full border-2 border-gray-200 bg-white flex items-center justify-center text-black shadow-sm"
+            aria-label="Add highlight"
+          >
+            <Plus size={22} />
+          </button>
+        ) : (
+          <>
+            {highlights.slice(0, 2).map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                onClick={() => setActiveHighlight(h)}
+                className="flex flex-col items-center gap-1 bg-transparent border-none p-0"
+              >
+                <div className="w-16 h-16 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
+                  {h.photos[0]?.url ? (
+                    <img src={h.photos[0].url} alt="Highlight" className="w-full h-full object-cover" />
+                  ) : null}
+                </div>
+              </button>
+            ))}
+            {highlights.length < 2 && (
+              <button
+                type="button"
+                onClick={() => setShowHighlightCreate(true)}
+                className="w-16 h-16 rounded-full border-2 border-dashed border-gray-200 bg-white flex items-center justify-center text-gray-500"
+                aria-label="Add highlight"
+              >
+                <Plus size={22} />
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {/* NEW: Yuto Wallet Card */}
@@ -632,6 +738,65 @@ export default function ProfileScreen() {
 
       {showTopUpModal && user && (
         <YutoBalanceTopUpModal open={showTopUpModal} onClose={() => setShowTopUpModal(false)} userId={user.id} mpesaPhoneNumber={phoneNumber} />
+      )}
+
+      {/* Highlight Create Modal */}
+      {showHighlightCreate && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/60 backdrop-blur-sm">
+          <button type="button" className="absolute inset-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={closeHighlightCreate} />
+          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-xl text-black">New highlight</h2>
+              <button onClick={closeHighlightCreate} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Add exactly 2 photos. You can only have 2 highlights.</p>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {[0, 1].map((i) => (
+                <label
+                  key={i}
+                  className="rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden aspect-square flex items-center justify-center cursor-pointer"
+                >
+                  {highlightPreviews[i as 0 | 1] ? (
+                    <img src={highlightPreviews[i as 0 | 1] as string} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm text-gray-400 font-semibold">Pick photo</span>
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePickHighlight(i as 0 | 1, e)} />
+                </label>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleCreateHighlight()}
+              disabled={creatingHighlight || !highlightFiles[0] || !highlightFiles[1] || highlights.length >= 2}
+              className="w-full py-4 bg-black text-white rounded-2xl font-bold disabled:opacity-40"
+            >
+              {creatingHighlight ? "Creating..." : "Create highlight"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Highlight Viewer */}
+      {activeHighlight && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
+          <button type="button" className="absolute inset-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={() => setActiveHighlight(null)} />
+          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-4 modal-slide-up">
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-bold text-black">Highlight</p>
+              <button onClick={() => setActiveHighlight(null)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {activeHighlight.photos.slice(0, 2).map((p) => (
+                <div key={p.id} className="rounded-2xl overflow-hidden bg-gray-100 aspect-square">
+                  <img src={p.url} alt="Highlight photo" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
 
