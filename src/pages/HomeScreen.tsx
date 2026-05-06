@@ -5,7 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates, uploadPlanImage, getFunctionsPublic, createFunction, joinFunction, leaveFunction, getFunctionMessages, sendFunctionMessage, getSavedPhoneNumber, saveProfilePhoneNumber, getPlanMessages, sendPlanMessage } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe, ImagePlus, X, CalendarDays, MapPin, BadgeDollarSign, Sparkles, PartyPopper, MessageCircle } from "lucide-react";
-
+import { supabase } from "../lib/supabase";
 interface PlanMember {
   id: string;
   user_id: string;
@@ -863,17 +863,85 @@ export default function HomeScreen() {
     await loadFeed();
   };
 
-  const handleJoin = async (plan: Plan) => {
+  const handleJoin = async (plan: YutoGroup) => {
     if (!user) return;
-    const isMember = plan.plan_members.some((m) => m.user_id === user.id);
+
+    // Check if they are already in
+    const isMember = plan.group_members?.some((m) => m.user_id === user.id);
+    if (isMember) {
+      alert("You are already in this plan!");
+      return;
+    }
+
+    // Set loading state so the button shows a spinner or disables
+    setJoiningPlanId(plan.id);
+    
     try {
-      if (isMember) {
-        await leavePlan(plan.id, user.id);
-      } else {
-        await joinPlan(plan.id, user.id, profile?.display_name || "Someone", plan.creator_id);
+      // 1. First, we need to create the group_members row with has_paid = false
+      // (This reserves their spot and prepares the row for the RPC to update)
+      const { error: insertError } = await supabase
+        .from("group_members")
+        .insert({
+          group_id: plan.id,
+          user_id: user.id,
+          has_paid: false
+        });
+
+      if (insertError) {
+        // If they already have a row (e.g. they backed out previously), that's fine, we catch the unique constraint error
+        if (insertError.code !== '23505') throw insertError; 
       }
-      await loadPlans();
-    } catch (err) { console.error(err); }
+
+      // 2. Call the secure RPC to deduct balance and mark as paid
+      const { data: payResult, error: payError } = await supabase.rpc('pay_for_plan', {
+        p_group_id: plan.id,
+        p_amount: plan.price // Assumes plan.price is a number. If it's a string, use Number(plan.price)
+      });
+
+      if (payError) {
+        // If they don't have enough balance, the RPC throws an error.
+        // We catch it and tell them to top up.
+        console.error("Payment failed:", payError.message);
+        alert(payError.message || "Payment failed. Please try again.");
+        
+        // Optional: We can delete the unpaid row we just made to keep the DB clean, 
+        // or leave it as a "pending" state. We'll delete it to be safe.
+        await supabase.from("group_members").delete().eq("group_id", plan.id).eq("user_id", user.id).eq("has_paid", false);
+        return;
+      }
+
+      if (payResult) {
+        // 3. Success! Update the local state instantly so the UI reflects they are "In"
+        setPlansFeed(prev => prev.map(p => {
+          if (p.id === plan.id) {
+            return {
+              ...p,
+              group_members: [...(p.group_members || []), { user_id: user.id, has_paid: true }]
+            };
+          }
+          return p;
+        }));
+        
+        // Also update Public feed if it exists there
+        setPlansPublic(prev => prev.map(p => {
+          if (p.id === plan.id) {
+            return {
+              ...p,
+              group_members: [...(p.group_members || []), { user_id: user.id, has_paid: true }]
+            };
+          }
+          return p;
+        }));
+
+        alert("Successfully joined the plan! 🚀");
+      }
+
+    } catch (error) {
+      console.error("Error joining plan:", error);
+      alert("An unexpected error occurred. Please try again.");
+    } finally {
+      setJoiningPlanId(null);
+    }
   };
 
   const handleYutoIt = async (plan: Plan) => {
