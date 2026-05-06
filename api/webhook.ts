@@ -166,6 +166,14 @@ async function processIntaSendWebhook(payload: {
         console.error("[webhook] wallet credit failed:", credited);
         return;
       }
+      // Ledger entry for wallet history (best-effort; enum-safe)
+      const { error: topupTxErr } = await supabase.from("transactions").insert({
+        user_id: uid,
+        amount,
+        type: "deposit",
+        description: `Top up (+KSH ${Math.round(amount)})`,
+      });
+      if (topupTxErr) console.error("[webhook] topup transaction insert error:", topupTxErr);
       // If this is their first ever top-up conversion, reward referrer.
       await maybeConvertReferralOnFirstTopUp(supabase, uid);
     } else {
