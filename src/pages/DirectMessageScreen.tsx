@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, Send } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import {
+  getSavedPhoneNumber,
   getDmMessages,
   joinFunction,
   joinPlan,
@@ -19,11 +20,13 @@ import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
 import type { Plan, FunctionListing } from "./home/types";
 import { PlanCard } from "../components/cards/PlanCard";
 import { FunctionCard } from "../components/cards/FunctionCard";
+import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
+import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
 export default function DirectMessageScreen() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { conversationId } = useParams<{ conversationId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,6 +41,9 @@ export default function DirectMessageScreen() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
+  const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
+  const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
+  const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
 
   const parseShare = (m: DmMessage): DmSharePayload | null => {
     if (m.message_type !== "share") return null;
@@ -138,6 +144,55 @@ export default function DirectMessageScreen() {
     } catch (e) {
       console.error(e);
       alert("Couldn't send. Try again.");
+    }
+  };
+
+  const handleJoinFunction = async (eventFunction: FunctionListing) => {
+    if (!user) return;
+    const members = eventFunction.function_members ?? [];
+    const isMember = members.some((m) => m.user_id === user.id);
+    const cap = eventFunction.max_capacity;
+    const isFull = cap != null ? members.length >= cap && !isMember : false;
+    if (isFull) {
+      alert("This function is currently full!");
+      return;
+    }
+
+    try {
+      if (!isMember) await joinFunction(eventFunction.id, user.id);
+
+      const { error } = await supabase.rpc("pay_for_function", { p_function_id: eventFunction.id });
+
+      if (error) {
+        await supabase
+          .from("function_members")
+          .delete()
+          .eq("function_id", eventFunction.id)
+          .eq("user_id", user.id)
+          .eq("has_paid", false);
+
+        const topUp = await computeFunctionTopUpGapKes({
+          shareKes: eventFunction.amount_per_person,
+          rpcErrorMessage: error.message,
+          userId: user.id,
+        });
+        setFunctionTopUpAmount(topUp);
+        setPendingJoinFunction(eventFunction);
+        setShowFunctionTopUp(true);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("functions")
+        .select(
+          "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))",
+        )
+        .eq("id", eventFunction.id)
+        .single();
+      setShareCache((prev) => ({ ...prev, [`fn:${eventFunction.id}`]: data as any }));
+    } catch (err) {
+      console.error("Error joining function", err);
+      alert("Couldn't complete that action. Try again.");
     }
   };
 
@@ -255,7 +310,7 @@ export default function DirectMessageScreen() {
                                 setShareBusyId(null);
                               }
                             }}
-                            onOpenPlanChat={() => navigate("/home", { state: { focus: { kind: "plan", id: (sharedItem as Plan).id } } })}
+                            // No messaging inside DM share cards; go Home if needed.
                             onNavigateToCreator={(creatorId) => navigate(`/user/${creatorId}`)}
                             onNavigateToYutoGroup={(groupId) => navigate(`/yuto/${groupId}`)}
                             onOpenPeople={() => navigate("/home", { state: { focus: { kind: "plan", id: (sharedItem as Plan).id } } })}
@@ -266,24 +321,8 @@ export default function DirectMessageScreen() {
                             currentUserId={user?.id}
                             unreadCount={0}
                             onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
-                            onOpenFunctionThread={() => navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })}
-                            onJoinFunction={async (f) => {
-                              if (!user) return;
-                              if (shareBusyId) return;
-                              setShareBusyId(shareKey);
-                              try {
-                                await joinFunction(f.id, user.id);
-                                const { data } = await supabase
-                                  .from("functions")
-                                  .select("*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))")
-                                  .eq("id", f.id)
-                                  .single();
-                                setShareCache((prev) => ({ ...prev, [`fn:${f.id}`]: data as any }));
-                              } finally {
-                                setShareBusyId(null);
-                              }
-                            }}
-                            onOpenTicket={() => navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })}
+                            onJoinFunction={(f) => void handleJoinFunction(f)}
+                            // Ticket/threads are Home-only for now.
                             onOpenPeople={() => navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })}
                           />
                         )
@@ -401,6 +440,34 @@ export default function DirectMessageScreen() {
             </button>
           </div>
         </div>
+      )}
+
+      {showFunctionTopUp && user && pendingJoinFunction && (
+        <YutoBalanceTopUpModal
+          open
+          onClose={() => {
+            setShowFunctionTopUp(false);
+            setPendingJoinFunction(null);
+            setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
+          }}
+          userId={user.id}
+          mpesaPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          initialAmount={functionTopUpAmount}
+          contextLine={
+            functionTopUpAmount < pendingJoinFunction.amount_per_person
+              ? `Joining costs KSH ${pendingJoinFunction.amount_per_person.toLocaleString()}. You're about KSH ${functionTopUpAmount.toLocaleString()} short — add at least that to continue.`
+              : `Joining costs KSH ${pendingJoinFunction.amount_per_person.toLocaleString()}. Add at least KSH ${functionTopUpAmount.toLocaleString()} to your balance to continue.`
+          }
+          retryCtaLabel="I've paid — try joining again"
+          onRetryAfterPaid={async () => {
+            const fn = pendingJoinFunction;
+            if (!fn) return;
+            setShowFunctionTopUp(false);
+            setPendingJoinFunction(null);
+            setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
+            await handleJoinFunction(fn);
+          }}
+        />
       )}
     </div>
   );
