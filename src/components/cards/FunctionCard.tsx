@@ -101,32 +101,8 @@ export function FunctionCard({
           : "bg-white border border-gray-200/80 text-black premium-function-card function-card-highlight",
       ].join(" ")}
     >
-      {onShareInMessages && (
-        <button
-          type="button"
-          onClick={() =>
-            onShareInMessages(
-              isSell
-                ? { kind: "listing", function_id: eventFunction.id, listing_kind: "sell" }
-                : isService
-                  ? { kind: "listing", function_id: eventFunction.id, listing_kind: "service" }
-                  : { kind: "function", function_id: eventFunction.id },
-            )
-          }
-          className={[
-            "absolute z-20 w-9 h-9 rounded-xl flex items-center justify-center transition-colors tap-scale shadow-md",
-            isFunction
-              ? "top-3 right-3 border border-white/25 bg-black/35 text-white backdrop-blur-[6px] hover:bg-white/15"
-              : "top-3 right-3 border border-gray-200/90 bg-white text-gray-800 hover:bg-gray-50",
-          ].join(" ")}
-          aria-label={`Send ${eventFunction.title} in messages`}
-          title="Share in messages"
-        >
-          <Plane size={15} strokeWidth={2} />
-        </button>
-      )}
       <div
-        className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
+        className={`flex items-start gap-2 cursor-pointer hover:opacity-80 transition-opacity ${onShareInMessages ? "mb-2" : "mb-3"}`}
         onClick={() => onNavigateToHost(eventFunction.host.id)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -168,6 +144,33 @@ export function FunctionCard({
           {isSell ? "Sell" : isService ? "Services" : "Function"}
         </span>
       </div>
+
+      {onShareInMessages && (
+        <div className="flex justify-end mb-3">
+          <button
+            type="button"
+            onClick={() =>
+              onShareInMessages(
+                isSell
+                  ? { kind: "listing", function_id: eventFunction.id, listing_kind: "sell" }
+                  : isService
+                    ? { kind: "listing", function_id: eventFunction.id, listing_kind: "service" }
+                    : { kind: "function", function_id: eventFunction.id },
+              )
+            }
+            className={[
+              "w-9 h-9 rounded-xl flex items-center justify-center transition-colors tap-scale border",
+              isFunction
+                ? "border-white/20 bg-white/10 text-white hover:bg-white/15"
+                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-sm",
+            ].join(" ")}
+            aria-label={`Send ${eventFunction.title} in messages`}
+            title="Share in messages"
+          >
+            <Plane size={15} strokeWidth={2} />
+          </button>
+        </div>
+      )}
 
       <p className={["font-bold text-lg mb-1", isFunction ? "text-white" : "text-black"].join(" ")}>{eventFunction.title}</p>
       {eventFunction.image_url && (
