@@ -121,14 +121,19 @@ export default function UserProfileScreen() {
           {STAT_POSITIONS.map((pos, i) => {
             const nx = cx + Math.cos(pos.angle) * nodeRadius;
             const ny = cy + Math.sin(pos.angle) * nodeRadius;
-            const pathD = `M ${cx} ${cy} Q ${cx + -Math.sin(pos.angle) * 25} ${cy + Math.cos(pos.angle) * 25} ${nx} ${ny}`;
+            const ctrlX = cx + -Math.sin(pos.angle) * 25;
+            const ctrlY = cy + Math.cos(pos.angle) * 25;
+            const pathD = `M ${cx} ${cy} Q ${ctrlX} ${ctrlY} ${nx} ${ny}`;
+            const motionD = `M 0 0 Q ${ctrlX - cx} ${ctrlY - cy} ${nx - cx} ${ny - cy}`;
             return (
               <g key={pos.id}>
                 <path d={pathD} fill="none" stroke="#d1d5db" strokeWidth="2" strokeDasharray="7 5" strokeLinecap="round" />
-                <circle r="3.5" fill="#5493b3" opacity="0.7">
-                  <animateMotion dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} path={pathD} />
-                  <animate attributeName="opacity" values="0;0.8;0.8;0" dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} />
-                </circle>
+                <g transform={`translate(${cx},${cy})`}>
+                  <circle r="3.5" fill="#5493b3">
+                    <animateMotion dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} path={motionD} rotate="0" />
+                    <animate attributeName="opacity" values="0;0.8;0.8;0" dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} />
+                  </circle>
+                </g>
               </g>
             );
           })}

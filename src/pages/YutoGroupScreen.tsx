@@ -10,6 +10,7 @@ import {
   getSavedPhoneNumber,
   saveProfilePhoneNumber,
 } from "../lib/supabase";
+import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 
 interface Member {
   user_id: string;
@@ -731,16 +732,19 @@ export default function YutoGroupScreen() {
             const cpX = (corner.x + endX) / 2 + Math.cos(angle) * 30;
             const cpY = (corner.y + endY) / 2 + (joined ? 40 : 60);
             const pathD = `M ${corner.x} ${corner.y} Q ${cpX} ${cpY} ${endX} ${endY}`;
+            const motionD = `M 0 0 Q ${cpX - corner.x} ${cpY - corner.y} ${endX - corner.x} ${endY - corner.y}`;
             return (
               <g key={`line-${i}`}>
                 <path d={pathD} fill="none" stroke={paid ? "#22c55e" : joined ? "#d1d5db" : "#e0e0e0"} strokeWidth={paid ? 3 : joined ? 2 : 1} strokeDasharray={paid ? "none" : joined ? "7 5" : "4 6"} strokeLinecap="round" className={member.justJoined ? "rope-yank" : paid ? "" : joined ? "graph-line-flowing" : ""} />
                 {paid && <path d={pathD} fill="none" stroke="#22c55e" strokeWidth={8} opacity={0.12} strokeLinecap="round" />}
                 <circle cx={endX} cy={endY} r={paid ? 5 : joined ? 4 : 2} fill={paid ? "#22c55e" : joined ? "#d1d5db" : "#e0e0e0"} />
                 {joined && !paid && (
-                  <circle r="3.5" fill="#5493b3" opacity="0.7">
-                    <animateMotion dur="1.5s" repeatCount="indefinite" begin={`${i * 0.4}s`} path={pathD} />
-                    <animate attributeName="opacity" values="0;0.8;0.8;0" dur="1.5s" repeatCount="indefinite" begin={`${i * 0.4}s`} />
-                  </circle>
+                  <g transform={`translate(${corner.x},${corner.y})`}>
+                    <circle r="3.5" fill="#5493b3">
+                      <animateMotion dur="1.5s" repeatCount="indefinite" begin={`${i * 0.4}s`} path={motionD} rotate="0" />
+                      <animate attributeName="opacity" values="0;0.8;0.8;0" dur="1.5s" repeatCount="indefinite" begin={`${i * 0.4}s`} />
+                    </circle>
+                  </g>
                 )}
               </g>
             );
@@ -881,34 +885,17 @@ export default function YutoGroupScreen() {
         )}
       </div>
 
-      {/* Insufficient balance → wallet top-up (STK hits /api/charge with is_topup), then retry pay_for_plan */}
       {showBalanceTopUpModal && user && (
-        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-[55] fade-in">
-          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
-            <p className="text-center text-sm text-gray-500 mb-1">
-              Not enough in your{" "}
-              <span className="font-bold text-black">Yuto balance</span> to pay your share right now.
-            </p>
-            <p className="text-center text-xs text-gray-400 mb-1">
-              This split asks{" "}
-              <span className="font-semibold text-black">KSH {perPersonAmount.toLocaleString()}</span> per person from
-              balance.
-            </p>
-            <p className="text-center text-xs text-gray-400 mb-4">
-              Top up <span className="font-semibold text-black">KSH {balanceTopUpAmount.toLocaleString()}</span> via
-              M-PESA, then tap refresh — we&apos;ll pay your share automatically.
-            </p>
-            <PayNowModal
-              embedded
-              isTopUp
-              amount={balanceTopUpAmount}
-              userId={user.id}
-              defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || undefined}
-              onClose={() => setShowBalanceTopUpModal(false)}
-              onRefreshStatus={handleBalanceTopUpRefresh}
-            />
-          </div>
-        </div>
+        <YutoBalanceTopUpModal
+          open
+          onClose={() => setShowBalanceTopUpModal(false)}
+          userId={user.id}
+          mpesaPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          initialAmount={balanceTopUpAmount}
+          contextLine={`Your share is KSH ${perPersonAmount.toLocaleString()}. You're about KSH ${balanceTopUpAmount.toLocaleString()} short — add at least that, then continue.`}
+          retryCtaLabel="I've paid — pay my share"
+          onRetryAfterPaid={handleBalanceTopUpRefresh}
+        />
       )}
 
       {/* Pay Your Share Modal */}

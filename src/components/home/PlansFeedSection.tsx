@@ -91,24 +91,35 @@ export function PlansFeedSection({
             </div>
 
             {pm.length > 0 && (
-              <div className="flex items-center gap-1 mb-3">
-                {pm.slice(0, 5).map((m) => (
-                  <UserAvatar
-                    key={m.id}
-                    name={m.profiles.display_name}
-                    avatarUrl={m.profiles.avatar_url}
-                    size="sm"
-                    className="-ml-1 first:ml-0 border-2 border-white"
-                  />
-                ))}
-                {pm.length > 5 && <span className="text-xs text-gray-400 ml-1">+{pm.length - 5} more</span>}
-                <span className="text-xs text-gray-400 ml-1">
-                  {joinedCount} {joinedCount === 1 ? "person" : "people"} in
-                </span>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-1 min-w-0 flex-1">
+                  {pm.slice(0, 5).map((m) => (
+                    <UserAvatar
+                      key={m.id}
+                      name={m.profiles.display_name}
+                      avatarUrl={m.profiles.avatar_url}
+                      size="sm"
+                      className="-ml-1 first:ml-0 border-2 border-white"
+                    />
+                  ))}
+                  {pm.length > 5 && <span className="text-xs text-gray-400 ml-1 shrink-0">+{pm.length - 5}</span>}
+                  <span className="text-xs text-gray-400 ml-1 truncate">
+                    {joinedCount} {joinedCount === 1 ? "person" : "people"} in
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenPlanChat(plan)}
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                  aria-label={`Chat about ${plan.title}`}
+                  title="Open chat"
+                >
+                  <MessageCircle size={16} />
+                </button>
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-2">
+            <div className={`flex flex-wrap gap-2 ${pm.length > 0 ? "" : "items-center justify-between"}`}>
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 {!isMine && !allIn && (
                   <button
@@ -152,15 +163,17 @@ export function PlansFeedSection({
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => onOpenPlanChat(plan)}
-                className="relative w-11 h-11 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
-                aria-label={`Chat about ${plan.title}`}
-                title="Open chat"
-              >
-                <MessageCircle size={16} />
-              </button>
+              {pm.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => onOpenPlanChat(plan)}
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                  aria-label={`Chat about ${plan.title}`}
+                  title="Open chat"
+                >
+                  <MessageCircle size={16} />
+                </button>
+              )}
             </div>
           </div>
         );

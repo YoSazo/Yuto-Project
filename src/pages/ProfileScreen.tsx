@@ -12,6 +12,7 @@ import {
   supabase,
 } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
+import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { Wallet, History, Plus, Copy, Check } from "lucide-react";
 
 
@@ -90,9 +91,6 @@ export default function ProfileScreen() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState("");
-  const [isToppingUp, setIsToppingUp] = useState(false);
-  const [topUpError, setTopUpError] = useState("");
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -100,43 +98,6 @@ export default function ProfileScreen() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
-
-  const handleTopUp = async () => {
-    if (!user || !phoneNumber || phoneNumber.length < 12) {
-      setTopUpError("Please save a valid M-PESA number first.");
-      return;
-    }
-    const amountNum = parseInt(topUpAmount);
-    if (!amountNum || amountNum < 10) {
-      setTopUpError("Minimum top-up is KSH 10.");
-      return;
-    }
-
-    setIsToppingUp(true);
-    setTopUpError("");
-    try {
-      const res = await fetch("/api/charge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone_number: phoneNumber,
-          amount: amountNum,
-          user_id: user.id,
-          is_topup: true,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTopUpError("Check your phone for the M-PESA prompt! Balance will update automatically.");
-        setTimeout(() => setShowTopUpModal(false), 4000);
-      } else {
-        setTopUpError(data.message || "Failed to initiate STK push.");
-      }
-    } catch {
-      setTopUpError("Network error. Try again.");
-    }
-    setIsToppingUp(false);
-  };
 
   const handleOpenHistory = async () => {
     setShowHistoryModal(true);
@@ -353,6 +314,7 @@ export default function ProfileScreen() {
             const cpX = midX + perpX;
             const cpY = midY + perpY;
             const pathD = `M ${cx} ${cy} Q ${cpX} ${cpY} ${nx} ${ny}`;
+            const motionD = `M 0 0 Q ${cpX - cx} ${cpY - cy} ${nx - cx} ${ny - cy}`;
             return (
               <g key={pos.id}>
                 <path
@@ -364,10 +326,13 @@ export default function ProfileScreen() {
                   strokeLinecap="round"
                   className="graph-line-flowing"
                 />
-                <circle r="3.5" fill="#5493b3" opacity="0.7">
-                  <animateMotion dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} path={pathD} />
-                  <animate attributeName="opacity" values="0;0.8;0.8;0" dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} />
-                </circle>
+                {/* Local path from (0,0) inside translated g — avoids default circle at SVG 0,0 flashing in corners */}
+                <g transform={`translate(${cx},${cy})`}>
+                  <circle r="3.5" fill="#5493b3">
+                    <animateMotion dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} path={motionD} rotate="0" />
+                    <animate attributeName="opacity" values="0;0.8;0.8;0" dur="2s" repeatCount="indefinite" begin={`${i * 0.5}s`} />
+                  </circle>
+                </g>
               </g>
             );
           })}
@@ -561,55 +526,8 @@ export default function ProfileScreen() {
         />
       </div>
 
-      {/* Top-Up Modal */}
-      {showTopUpModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="font-bold text-xl text-black">Top Up Yuto Balance</h2>
-              <button onClick={() => setShowTopUpModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
-            </div>
-            
-            <div className="mb-6 flex flex-col items-center w-full">
-              <span className="text-sm text-gray-400 font-semibold mb-2 uppercase tracking-wide">Amount (KSH)</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={topUpAmount}
-                onChange={(e) => setTopUpAmount(e.target.value.replace(/\D/g, ""))}
-                placeholder="0"
-                className="text-[48px] font-bold text-center text-black bg-transparent border-none outline-none w-full mb-4"
-              />
-              
-              {/* Frictionless Quick Buttons */}
-              <div className="flex gap-2 w-full mb-2">
-                {[100, 250, 500, 1000].map((preset) => (
-                  <button
-                    key={preset}
-                    onClick={() => setTopUpAmount(preset.toString())}
-                    className="flex-1 py-3 rounded-2xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors active:scale-95"
-                  >
-                    +{preset}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {topUpError && (
-              <p className={`text-sm text-center font-medium mb-4 ${topUpError.includes("Check your phone") ? "text-green-600" : "text-red-500"}`}>
-                {topUpError}
-              </p>
-            )}
-
-            <button
-              onClick={handleTopUp}
-              disabled={isToppingUp || !topUpAmount}
-              className="w-full py-4 bg-black text-white rounded-full font-bold text-lg disabled:opacity-50 transition-all active:scale-[0.98]"
-            >
-              {isToppingUp ? "Sending STK Push..." : "Top Up"}
-            </button>
-          </div>
-        </div>
+      {showTopUpModal && user && (
+        <YutoBalanceTopUpModal open={showTopUpModal} onClose={() => setShowTopUpModal(false)} userId={user.id} mpesaPhoneNumber={phoneNumber} />
       )}
 
 

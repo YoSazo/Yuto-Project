@@ -21,6 +21,7 @@ import {
   getSavedPhoneNumber,
 } from "../lib/supabase";
 import { FunctionPayModal } from "../components/home/FunctionPayModal";
+import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { FunctionMessagesModal } from "../components/home/FunctionMessagesModal";
 import { PlanMessagesModal } from "../components/home/PlanMessagesModal";
 import { HomeComposeSheet } from "../components/home/HomeComposeSheet";
@@ -465,56 +466,33 @@ export default function HomeScreen() {
         isPosting={isPosting}
         onPost={handlePost}
       />
-{showFunctionTopUp && user && pendingJoinFunction && (
-        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
-            <p className="text-center text-sm text-gray-500 mb-1">
-              Joining requires{" "}
-              <span className="font-bold text-black">
-                KSH {pendingJoinFunction.amount_per_person.toLocaleString()}
-              </span>{" "}
-              from your Yuto balance.
-            </p>
-            <p className="text-center text-xs text-gray-400 mb-4">
-              {functionTopUpAmount < pendingJoinFunction.amount_per_person ? (
-                <>
-                  You&apos;re short — add{" "}
-                  <span className="font-semibold text-black">KSH {functionTopUpAmount.toLocaleString()}</span> via
-                  M-PESA (you already have most of this covered).
-                </>
-              ) : (
-                <>
-                  Top up{" "}
-                  <span className="font-semibold text-black">KSH {functionTopUpAmount.toLocaleString()}</span> via
-                  M-PESA to continue.
-                </>
-              )}
-            </p>
-            <FunctionPayModal
-              amount={functionTopUpAmount}
-              functionId={pendingJoinFunction.id}
-              userId={user.id}
-              defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || undefined}
-              isTopUp
-              embedded
-              onClose={() => {
-                setShowFunctionTopUp(false);
-                setPendingJoinFunction(null);
-                setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
-              }}
-              onRefreshStatus={async () => {
-                await loadFeed();
-                const fn = pendingJoinFunction;
-                if (fn) {
-                  setShowFunctionTopUp(false);
-                  setPendingJoinFunction(null);
-                  setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
-                  await handleJoinFunction(fn);
-                }
-              }}
-            />
-          </div>
-        </div>
+      {showFunctionTopUp && user && pendingJoinFunction && (
+        <YutoBalanceTopUpModal
+          open
+          onClose={() => {
+            setShowFunctionTopUp(false);
+            setPendingJoinFunction(null);
+            setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
+          }}
+          userId={user.id}
+          mpesaPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          initialAmount={functionTopUpAmount}
+          contextLine={
+            functionTopUpAmount < pendingJoinFunction.amount_per_person
+              ? `Joining costs KSH ${pendingJoinFunction.amount_per_person.toLocaleString()}. You're about KSH ${functionTopUpAmount.toLocaleString()} short — add at least that to continue.`
+              : `Joining costs KSH ${pendingJoinFunction.amount_per_person.toLocaleString()}. Add at least KSH ${functionTopUpAmount.toLocaleString()} to your balance to continue.`
+          }
+          retryCtaLabel="I've paid — try joining again"
+          onRetryAfterPaid={async () => {
+            await loadFeed();
+            const fn = pendingJoinFunction;
+            if (!fn) return;
+            setShowFunctionTopUp(false);
+            setPendingJoinFunction(null);
+            setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
+            await handleJoinFunction(fn);
+          }}
+        />
       )}
 
       {/* Function Payment Modal */}
