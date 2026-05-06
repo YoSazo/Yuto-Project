@@ -1251,31 +1251,6 @@ export default function YutoGroupScreen() {
           </button>
         )}
       </div>
-
-      {/* STK Push 1 — paying your split to Yuto */}
-      {showPayModal && groupId && user && (
-        <PayNowModal
-          amount={perPersonAmount}
-          groupId={groupId}
-          userId={user.id}
-          defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || undefined}
-          onClose={() => setShowPayModal(false)}
-          onRefreshStatus={refetchPaymentStatus}
-        />
-      )}
-
-      {/* STK Push 2 — creator pays driver after all paid */}
-      {showPayDriverModal && (
-        <PayDriverModal
-          amount={totalAmount}
-          title={
-            groupType === "single" && groupName !== "Fare Share"
-              ? "Pay Now"
-              : "Pay Driver"
-          }
-          onClose={() => setShowPayDriverModal(false)}
-        />
-      )}
     </div>
   );
 }
