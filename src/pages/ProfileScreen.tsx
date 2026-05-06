@@ -80,6 +80,47 @@ export default function ProfileScreen() {
   const [points, setPoints] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [isToppingUp, setIsToppingUp] = useState(false);
+  const [topUpError, setTopUpError] = useState("");
+
+  const handleTopUp = async () => {
+    if (!user || !phoneNumber || phoneNumber.length < 12) {
+      setTopUpError("Please save a valid M-PESA number first.");
+      return;
+    }
+    const amountNum = parseInt(topUpAmount);
+    if (!amountNum || amountNum < 10) {
+      setTopUpError("Minimum top-up is KSH 10.");
+      return;
+    }
+
+    setIsToppingUp(true);
+    setTopUpError("");
+    try {
+      const res = await fetch("/api/charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone_number: phoneNumber,
+          amount: amountNum,
+          user_id: user.id,
+          is_topup: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTopUpError("Check your phone for the M-PESA prompt! Balance will update automatically.");
+        setTimeout(() => setShowTopUpModal(false), 4000);
+      } else {
+        setTopUpError(data.message || "Failed to initiate STK push.");
+      }
+    } catch {
+      setTopUpError("Network error. Try again.");
+    }
+    setIsToppingUp(false);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -354,12 +395,12 @@ export default function ProfileScreen() {
             </span>
           </div>
 
-          <button
-            type="button"
-            className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-md"
-          >
-            <Plus size={20} strokeWidth={3} />
-          </button>
+          <button 
+              onClick={() => setShowTopUpModal(true)}
+              className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-md"
+            >
+              <Plus size={20} strokeWidth={3} />
+            </button>
         </div>
       </div>
 
@@ -432,6 +473,44 @@ export default function ProfileScreen() {
           onClick={handleLogout}
         />
       </div>
+      {/* Top-Up Modal */}
+      {showTopUpModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
+          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="font-bold text-xl text-black">Top Up Yuto Balance</h2>
+              <button onClick={() => setShowTopUpModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+            </div>
+            
+            <div className="mb-6 flex flex-col items-center">
+              <span className="text-sm text-gray-400 font-semibold mb-2 uppercase tracking-wide">Amount (KSH)</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={topUpAmount}
+                onChange={(e) => setTopUpAmount(e.target.value.replace(/\D/g, ""))}
+                placeholder="0"
+                className="text-[48px] font-bold text-center text-black bg-transparent border-none outline-none w-full"
+              />
+              <div className="w-16 h-1 bg-gray-200 rounded-full mt-2" />
+            </div>
+
+            {topUpError && (
+              <p className={`text-sm text-center font-medium mb-4 ${topUpError.includes("Check your phone") ? "text-green-600" : "text-red-500"}`}>
+                {topUpError}
+              </p>
+            )}
+
+            <button
+              onClick={handleTopUp}
+              disabled={isToppingUp || !topUpAmount}
+              className="w-full py-4 bg-black text-white rounded-full font-bold text-lg disabled:opacity-50 transition-all active:scale-[0.98]"
+            >
+              {isToppingUp ? "Sending STK Push..." : "Top Up"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
