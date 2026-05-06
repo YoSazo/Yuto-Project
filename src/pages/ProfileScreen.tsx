@@ -243,7 +243,12 @@ export default function ProfileScreen() {
         // Referral stats (minimal): count converted referrals + total earned from bonus transactions
         const [refs, bonusTx] = await Promise.all([
           supabase.from("referrals").select("id", { count: "exact", head: true }).eq("referrer_id", user.id).eq("converted", true),
-          supabase.from("transactions").select("amount").eq("user_id", user.id).eq("type", "referral_bonus"),
+          supabase
+            .from("transactions")
+            .select("amount")
+            .eq("user_id", user.id)
+            .eq("type", "deposit")
+            .ilike("description", "Referral bonus%"),
         ]);
         setReferralCount(refs.count ?? 0);
         const earned = (bonusTx.data || []).reduce((sum, t: any) => sum + Math.max(0, Number(t.amount) || 0), 0);

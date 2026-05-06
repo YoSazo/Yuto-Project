@@ -124,7 +124,7 @@ async function maybeConvertReferralOnFirstTopUp(supabase: ReturnType<typeof crea
     const { error: txErr } = await supabase.from("transactions").insert({
       user_id: ref.referrer_id,
       amount: REFERRAL_BONUS_KES,
-      type: "referral_bonus",
+      type: "deposit",
       description: `Referral bonus (+KSH ${REFERRAL_BONUS_KES})`,
     });
     if (txErr) console.error("[webhook] referral_bonus transaction insert error:", txErr);
