@@ -84,6 +84,9 @@ export default function ProfileScreen() {
   const [topUpAmount, setTopUpAmount] = useState("");
   const [isToppingUp, setIsToppingUp] = useState(false);
   const [topUpError, setTopUpError] = useState("");
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const handleTopUp = async () => {
     if (!user || !phoneNumber || phoneNumber.length < 12) {
@@ -120,6 +123,27 @@ export default function ProfileScreen() {
       setTopUpError("Network error. Try again.");
     }
     setIsToppingUp(false);
+  };
+
+  const handleOpenHistory = async () => {
+    setShowHistoryModal(true);
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", user?.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      if (!error && data) {
+        setTransactions(data);
+      }
+    } catch (err) {
+      console.error("Failed to load history", err);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   useEffect(() => {
@@ -378,13 +402,13 @@ export default function ProfileScreen() {
             <Wallet size={16} />
             Yuto Balance
           </h2>
-          <button
-            type="button"
-            className="text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1"
-          >
-            <History size={12} />
-            History
-          </button>
+          <button 
+              onClick={handleOpenHistory}
+              className="text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1"
+            >
+              <History size={12} />
+              History
+            </button>
         </div>
 
         <div className="flex items-end justify-between relative z-10">
@@ -521,6 +545,59 @@ export default function ProfileScreen() {
             >
               {isToppingUp ? "Sending STK Push..." : "Top Up"}
             </button>
+          </div>
+        </div>
+      )}
+
+
+      {/* Transaction History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
+          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md h-[75vh] md:h-[600px] flex flex-col overflow-hidden modal-slide-up">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 shrink-0">
+              <h2 className="font-bold text-xl text-black">Wallet History</h2>
+              <button onClick={() => setShowHistoryModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+            </div>
+            
+            {/* Ledger List */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingHistory ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="w-8 h-8 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+                </div>
+              ) : transactions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <History size={48} className="mb-4 opacity-20" />
+                  <p>No transactions yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {transactions.map((tx) => {
+                    const isPositive = Number(tx.amount) > 0;
+                    return (
+                      <div key={tx.id} className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPositive ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
+                            {isPositive ? <Plus size={16} strokeWidth={3} /> : <span className="font-bold text-lg leading-none mb-1">-</span>}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm text-black">{tx.description || tx.type}</p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(tx.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`font-bold text-sm ${isPositive ? 'text-green-600' : 'text-black'}`}>
+                          {isPositive ? '+' : ''}KSH {Math.abs(Number(tx.amount)).toLocaleString()}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

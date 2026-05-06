@@ -844,18 +844,49 @@ export default function HomeScreen() {
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
     if (!user) return;
+    
     const isMember = eventFunction.function_members.some((m) => m.user_id === user.id);
     const isFull = eventFunction.max_capacity ? eventFunction.function_members.length >= eventFunction.max_capacity && !isMember : false;
-    if (isFull) return;
+    
+    if (isFull) {
+      alert("This function is currently full!");
+      return;
+    }
 
     try {
+      // 1. Create the pending member row (reserves their spot)
       if (!isMember) {
         await joinFunction(eventFunction.id, user.id);
       }
-      setFunctionPayTarget(eventFunction);
-      await loadFeed();
+
+      // 2. Instantly charge the Yuto Balance
+      const { error } = await supabase.rpc('pay_for_function', {
+        p_function_id: eventFunction.id,
+        p_amount: eventFunction.price
+      });
+
+      if (error) {
+        // Balance is too low
+        alert(error.message || "Insufficient Yuto Balance. Please top up.");
+        
+        // Clean up the unpaid row so they don't get stuck in a weird state
+        await supabase
+          .from("function_members")
+          .delete()
+          .eq("function_id", eventFunction.id)
+          .eq("user_id", user.id)
+          .eq("has_paid", false);
+          
+        return;
+      }
+
+      // 3. Success!
+      alert("Successfully joined the function! 🎉");
+      await loadFeed(); // Refreshes the feed so their avatar pops into the "paid" state
+      
     } catch (err) {
-      console.error(err);
+      console.error("Error joining function:", err);
+      alert("An unexpected error occurred.");
     }
   };
 
