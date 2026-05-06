@@ -1,5 +1,5 @@
 import UserAvatar from "../UserAvatar";
-import { MessageCircle, Users, MapPin, BadgeDollarSign, Sparkles, CalendarDays, Ticket } from "lucide-react";
+import { MessageCircle, Users, MapPin, BadgeDollarSign, Sparkles, CalendarDays, Ticket, Share2 } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 
 export function FunctionFeedSection({
@@ -20,6 +20,26 @@ export function FunctionFeedSection({
   onOpenTicket: (f: FunctionListing) => void;
 }) {
   if (functionsFeed.length === 0) return null;
+
+  const shareFunction = async (f: FunctionListing) => {
+    const url = `${window.location.origin}/function/${f.id}`;
+    const title = `🎉 ${f.host.display_name} is hosting a ${f.title}`;
+    const text = `${formatEventDate(f.date)} · KSH ${f.amount_per_person.toLocaleString("en-KE")}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        return;
+      }
+    } catch {
+      // fall back to copy
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      alert("Link copied!");
+    } catch {
+      alert(url);
+    }
+  };
 
   return (
     <div className="mb-6">
@@ -105,6 +125,15 @@ export function FunctionFeedSection({
                   </div>
 
                   <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void shareFunction(eventFunction)}
+                    className="w-11 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                    aria-label={`Share ${eventFunction.title}`}
+                    title="Share"
+                  >
+                    <Share2 size={16} />
+                  </button>
                     <button
                       type="button"
                       onClick={() => onOpenFunctionThread(eventFunction)}

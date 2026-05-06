@@ -91,6 +91,8 @@ export default function ProfileScreen() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [referralCount, setReferralCount] = useState(0);
+  const [referralEarned, setReferralEarned] = useState(0);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -236,6 +238,15 @@ export default function ProfileScreen() {
         if (profileData?.avatar_url) setAvatarUrl(profileData.avatar_url);
   
         setPoints(await fetchYutoBalance(user.id));
+
+        // Referral stats (minimal): count converted referrals + total earned from bonus transactions
+        const [refs, bonusTx] = await Promise.all([
+          supabase.from("referrals").select("id", { count: "exact", head: true }).eq("referrer_id", user.id).eq("converted", true),
+          supabase.from("transactions").select("amount").eq("user_id", user.id).eq("type", "referral_bonus"),
+        ]);
+        setReferralCount(refs.count ?? 0);
+        const earned = (bonusTx.data || []).reduce((sum, t: any) => sum + Math.max(0, Number(t.amount) || 0), 0);
+        setReferralEarned(earned);
   
         const [groups, friends, pending, plansRes] = await Promise.all([
           getMyGroups(),
@@ -273,6 +284,35 @@ export default function ProfileScreen() {
 
   const userName = profile?.display_name || "User";
   const userHandle = profile?.username ? `@${profile.username}` : "";
+  const inviteUrl = profile?.username ? `${window.location.origin}/i/${profile.username}` : "";
+
+  const handleShareInvite = async () => {
+    if (!inviteUrl) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Join me on Yuto",
+          text: "Pay together with me on Yuto 🚗",
+          url: inviteUrl,
+        });
+        return;
+      }
+    } catch {
+      // fall back to copy
+    }
+    await handleCopyInvite();
+  };
+
+  const handleCopyInvite = async () => {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 1500);
+    } catch {
+      // ignore
+    }
+  };
 
   const cx = 190;
   const cy = 190;
@@ -455,6 +495,43 @@ export default function ProfileScreen() {
             </button>
         </div>
       </div>
+
+      {/* Invite & Earn (clean + small) */}
+      {profile?.username && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div>
+              <p className="text-sm font-semibold text-black">Invite friends · Earn KSH 10</p>
+              <p className="text-xs text-gray-500">
+                When a new user signs up with your link and tops up, you get <span className="font-semibold text-black">KSH 10</span>.
+                {referralCount > 0 ? ` (${referralCount} converted · KSH ${referralEarned.toLocaleString()} earned)` : ""}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyInvite}
+              className="h-9 px-3 rounded-full bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center gap-1.5"
+              title="Copy link"
+            >
+              {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+              {copiedLink ? "Copied" : "Copy"}
+            </button>
+          </div>
+
+          <div className="flex gap-2">
+            <div className="flex-1 h-11 rounded-full border border-gray-200 px-4 flex items-center text-xs text-gray-600 overflow-hidden">
+              <span className="truncate">{inviteUrl}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleShareInvite()}
+              className="h-11 px-5 rounded-full bg-black text-white font-bold text-sm hover:bg-gray-800 transition-colors"
+            >
+              Share
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
         <div className="flex items-start justify-between gap-4 mb-3">

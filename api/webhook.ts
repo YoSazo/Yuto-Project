@@ -17,6 +17,39 @@ function getSupabaseClient() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 }
 
+const REFERRAL_BONUS_KES = 10;
+
+async function maybeConvertReferralOnFirstTopUp(supabase: ReturnType<typeof createClient>, referredUserId: string) {
+  // If this user has a referral row and it hasn't converted yet, convert it and credit the referrer once.
+  const { data: ref, error } = await supabase
+    .from("referrals")
+    .select("id, referrer_id, referred_id, converted")
+    .eq("referred_id", referredUserId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[webhook] referral lookup error:", error);
+    return;
+  }
+  if (!ref || ref.converted) return;
+
+  try {
+    // Credit referrer wallet
+    await supabase.rpc("topup_balance", { p_user_id: ref.referrer_id, p_amount: REFERRAL_BONUS_KES });
+    // Mark referral converted
+    await supabase.from("referrals").update({ converted: true }).eq("id", ref.id);
+    // Ledger entry (shows up in wallet history)
+    await supabase.from("transactions").insert({
+      user_id: ref.referrer_id,
+      amount: REFERRAL_BONUS_KES,
+      type: "referral_bonus",
+      description: `Referral bonus (+KSH ${REFERRAL_BONUS_KES})`,
+    });
+  } catch (e) {
+    console.error("[webhook] referral convert/credit error:", e);
+  }
+}
+
 async function processIntaSendWebhook(payload: {
   invoice_id?: string;
   state?: string;
@@ -43,6 +76,8 @@ async function processIntaSendWebhook(payload: {
     const amount = Number((payload as any).value ?? (payload as any).amount ?? 0);
     if (amount > 0) {
       await supabase.rpc("topup_balance", { p_user_id: uid, p_amount: amount });
+      // If this is their first ever top-up conversion, reward referrer.
+      await maybeConvertReferralOnFirstTopUp(supabase, uid);
     }
     return;
 
