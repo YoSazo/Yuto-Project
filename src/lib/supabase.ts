@@ -766,3 +766,52 @@ export async function sendDmMessage(conversationId: string, senderId: string, co
   const { error } = await supabase.from("dm_messages").insert({ conversation_id: conversationId, sender_id: senderId, content: trimmed });
   if (error) throw error;
 }
+
+export async function markDmRead(conversationId: string, userId: string) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("dm_reads")
+    .upsert(
+      { conversation_id: conversationId, user_id: userId, last_read_at: now, updated_at: now },
+      { onConflict: "conversation_id,user_id" },
+    );
+  if (error) throw error;
+}
+
+export async function getMyDmUnreadCounts(userId: string) {
+  const convos = await listMyDmConversations(userId);
+  if (convos.length === 0) return { total: 0, byConversationId: {} as Record<string, number> };
+
+  const convoIds = convos.map((c) => c.id);
+  const { data: reads, error: readsErr } = await supabase
+    .from("dm_reads")
+    .select("conversation_id, last_read_at")
+    .eq("user_id", userId)
+    .in("conversation_id", convoIds);
+  if (readsErr) throw readsErr;
+
+  const lastReadByConvo: Record<string, string> = {};
+  (reads || []).forEach((r) => {
+    lastReadByConvo[r.conversation_id] = r.last_read_at;
+  });
+
+  // Pull recent messages and compute unread in JS (fast enough for MVP).
+  const { data: msgs, error: msgsErr } = await supabase
+    .from("dm_messages")
+    .select("id, conversation_id, sender_id, created_at")
+    .in("conversation_id", convoIds)
+    .neq("sender_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(400);
+  if (msgsErr) throw msgsErr;
+
+  const byConversationId: Record<string, number> = {};
+  (msgs || []).forEach((m) => {
+    const lastRead = lastReadByConvo[m.conversation_id];
+    if (lastRead && new Date(m.created_at).getTime() <= new Date(lastRead).getTime()) return;
+    byConversationId[m.conversation_id] = (byConversationId[m.conversation_id] || 0) + 1;
+  });
+
+  const total = Object.values(byConversationId).reduce((a, b) => a + b, 0);
+  return { total, byConversationId };
+}

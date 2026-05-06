@@ -19,6 +19,7 @@ import {
   joinFunction,
   leaveFunction,
   getSavedPhoneNumber,
+  getMyDmUnreadCounts,
 } from "../lib/supabase";
 import { FunctionPayModal } from "../components/home/FunctionPayModal";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
@@ -40,6 +41,7 @@ export default function HomeScreen() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [functionsFeed, setFunctionsFeed] = useState<FunctionListing[]>([]);
   const [functionUnreadCounts, setFunctionUnreadCounts] = useState<Record<string, number>>({});
+  const [dmUnreadTotal, setDmUnreadTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [joiningPlanId, setJoiningPlanId] = useState<string | null>(null);
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
@@ -97,10 +99,18 @@ export default function HomeScreen() {
       .on("postgres_changes", { event: "*", schema: "public", table: "functions" }, () => loadFeed())
       .on("postgres_changes", { event: "*", schema: "public", table: "function_members" }, () => loadFeed())
       .on("postgres_changes", { event: "*", schema: "public", table: "function_messages" }, () => loadFeed())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_messages" }, () => {
+        void getMyDmUnreadCounts(user.id).then((u) => setDmUnreadTotal(u.total)).catch(() => {});
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user) return;
+    void getMyDmUnreadCounts(user.id).then((u) => setDmUnreadTotal(u.total)).catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     if (!user || !functionPayTarget) return;
@@ -452,7 +462,14 @@ export default function HomeScreen() {
           aria-label="Messages"
           title="Messages"
         >
-          <MessageCircle size={18} />
+          <span className="relative">
+            <MessageCircle size={18} />
+            {dmUnreadTotal > 0 && (
+              <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-extrabold flex items-center justify-center shadow-sm">
+                {Math.min(99, dmUnreadTotal)}
+              </span>
+            )}
+          </span>
         </button>
       </div>
 

@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
-import { getDmMessages, sendDmMessage, supabase, type DmMessage } from "../lib/supabase";
+import { getDmMessages, markDmRead, sendDmMessage, supabase, type DmMessage } from "../lib/supabase";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -30,6 +30,7 @@ export default function DirectMessageScreen() {
         const rows = await getDmMessages(conversationId);
         if (cancelled) return;
         setMessages(rows);
+        await markDmRead(conversationId, user.id);
 
         if (otherUserId) {
           const { data, error } = await supabase
@@ -65,6 +66,9 @@ export default function DirectMessageScreen() {
             if (prev.some((m) => m.id === row.id)) return prev;
             return [...prev, row];
           });
+          if (row.sender_id !== user?.id) {
+            void markDmRead(conversationId, user!.id);
+          }
         },
       )
       .subscribe();
