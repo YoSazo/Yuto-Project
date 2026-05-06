@@ -343,7 +343,14 @@ export default function ProfileScreen() {
       closeHighlightCreate();
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : "Couldn't create highlight.");
+      const msg =
+        (err as { message?: string })?.message ||
+        (err as { error?: { message?: string } })?.error?.message ||
+        (err as { details?: string })?.details ||
+        (err as { hint?: string })?.hint ||
+        (typeof err === "string" ? err : "") ||
+        "Couldn't create highlight.";
+      alert(msg);
     }
     setCreatingHighlight(false);
   };
