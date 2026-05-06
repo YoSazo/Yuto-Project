@@ -22,7 +22,11 @@ export function FunctionFeedSection({
   if (functionsFeed.length === 0) return null;
 
   const shareFunction = async (f: FunctionListing) => {
-    const url = `${window.location.origin}/function/${f.id}`;
+    const shareOrigin =
+      window.location.hostname === "localhost" || window.location.hostname.startsWith("127.")
+        ? window.location.origin
+        : "https://yuto.social";
+    const url = `${shareOrigin}/function/${f.id}`;
     const title = `🎉 ${f.host.display_name} is hosting a ${f.title}`;
     const text = `${formatEventDate(f.date)} · KSH ${f.amount_per_person.toLocaleString("en-KE")}`;
     try {

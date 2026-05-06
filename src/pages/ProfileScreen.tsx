@@ -91,6 +91,7 @@ export default function ProfileScreen() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [walletTab, setWalletTab] = useState<"balance" | "points">("balance");
   const [referralCount, setReferralCount] = useState(0);
   const [referralEarned, setReferralEarned] = useState(0);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -284,7 +285,13 @@ export default function ProfileScreen() {
 
   const userName = profile?.display_name || "User";
   const userHandle = profile?.username ? `@${profile.username}` : "";
-  const inviteUrl = profile?.username ? `${window.location.origin}/i/${profile.username}` : "";
+  const publicOrigin =
+    typeof window === "undefined"
+      ? "https://yuto.social"
+      : window.location.hostname === "localhost" || window.location.hostname.startsWith("127.")
+        ? window.location.origin
+        : "https://yuto.social";
+  const inviteUrl = profile?.username ? `${publicOrigin}/i/${profile.username}` : "";
 
   const handleShareInvite = async () => {
     if (!inviteUrl) return;
@@ -464,10 +471,29 @@ export default function ProfileScreen() {
         <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex items-center justify-between mb-4 relative z-10">
-            <h2 className="text-gray-400 font-medium text-sm flex items-center gap-2">
-              <Wallet size={16} />
-              Yuto Balance
-            </h2>
+            <div className="flex items-center gap-3">
+              <Wallet size={16} className="text-white/70" />
+              <div className="flex items-center gap-4 text-sm font-bold">
+                <button
+                  type="button"
+                  onClick={() => setWalletTab("balance")}
+                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${
+                    walletTab === "balance" ? "text-white" : "text-white/40"
+                  }`}
+                >
+                  Balance
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWalletTab("points")}
+                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${
+                    walletTab === "points" ? "text-white" : "text-white/40"
+                  }`}
+                >
+                  Points
+                </button>
+              </div>
+            </div>
             <div className="flex gap-2">
               <button onClick={() => setShowWithdrawModal(true)} className="text-xs font-bold bg-white text-black hover:bg-gray-200 transition-colors px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm">
                 Cash Out
@@ -479,59 +505,64 @@ export default function ProfileScreen() {
             </div>
           </div>
 
-        <div className="flex items-end justify-between relative z-10">
-          <div>
-            <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
-            <span className="text-4xl font-bold tracking-tight">
-              {points.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
+        {walletTab === "balance" ? (
+          <div className="flex items-end justify-between relative z-10">
+            <div>
+              <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
+              <span className="text-4xl font-bold tracking-tight">
+                {points.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
 
-          <button 
+            <button
               onClick={() => setShowTopUpModal(true)}
               className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-md"
             >
               <Plus size={20} strokeWidth={3} />
             </button>
-        </div>
+          </div>
+        ) : (
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-white/70 text-sm font-semibold">Earned</span>
+                <div className="mt-1">
+                  <span className="text-white/60 text-lg font-medium mr-1">KSH</span>
+                  <span className="text-4xl font-bold tracking-tight">{referralEarned.toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-white/70 text-xs font-semibold uppercase tracking-wide">Converted</p>
+                <p className="text-2xl font-extrabold">{referralCount}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-white/60 mt-4">
+              Earn <span className="text-white font-semibold">KSH 10</span> when a new user signs up with your link and tops up for the first time.
+            </p>
+
+            {profile?.username && (
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyInvite}
+                  className="flex-1 flex justify-center items-center gap-1.5 bg-white text-black py-3 rounded-xl text-sm font-bold transition-colors active:bg-gray-200"
+                >
+                  {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+                  {copiedLink ? "Copied!" : "Copy Link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleShareInvite()}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl text-sm font-bold transition-colors"
+                >
+                  Share
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-
-      {/* Invite & Earn (clean + small) */}
-      {profile?.username && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div>
-              <p className="text-sm font-semibold text-black">Invite friends · Earn KSH 10</p>
-              <p className="text-xs text-gray-500">
-                When a new user signs up with your link and tops up, you get <span className="font-semibold text-black">KSH 10</span>.
-                {referralCount > 0 ? ` (${referralCount} converted · KSH ${referralEarned.toLocaleString()} earned)` : ""}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleCopyInvite}
-              className="h-9 px-3 rounded-full bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center gap-1.5"
-              title="Copy link"
-            >
-              {copiedLink ? <Check size={14} /> : <Copy size={14} />}
-              {copiedLink ? "Copied" : "Copy"}
-            </button>
-          </div>
-
-          <div className="flex gap-2">
-            <div className="flex-1 h-11 rounded-full border border-gray-200 px-4 flex items-center text-xs text-gray-600 overflow-hidden">
-              <span className="truncate">{inviteUrl}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleShareInvite()}
-              className="h-11 px-5 rounded-full bg-black text-white font-bold text-sm hover:bg-gray-800 transition-colors"
-            >
-              Share
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
         <div className="flex items-start justify-between gap-4 mb-3">
