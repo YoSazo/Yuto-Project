@@ -163,12 +163,7 @@ export default function ProfileScreen() {
     if (amountNum > points) {
       setShowWithdrawModal(false);
       setWithdrawAmount("");
-      const shortfall = amountNum - points;
-      setTimeout(() => {
-        setTopUpAmount(shortfall.toString()); // pre-fill with the difference
-        setTopUpError(`You need KSH ${shortfall} more. Top up to continue.`);
-        setShowTopUpModal(true);
-      }, 300);
+      setTimeout(() => setShowTopUpModal(true), 300); // slight delay so withdraw modal closes first
       return;
     }
 
