@@ -1,6 +1,8 @@
 import UserAvatar from "../UserAvatar";
 import { ClipboardList, Trash2, UserCheck, Rocket, MessageCircle } from "lucide-react";
 import type { Plan } from "../../pages/home/types";
+import { PeopleListModal } from "../PeopleListModal";
+import { useMemo, useState } from "react";
 
 export function PlansFeedSection({
   loading,
@@ -27,6 +29,17 @@ export function PlansFeedSection({
   onNavigateToYutoGroup: (groupId: string) => void;
   onNavigateToCreator: (creatorId: string) => void;
 }) {
+  const [peopleModalPlanId, setPeopleModalPlanId] = useState<string | null>(null);
+
+  const planPeople = useMemo(() => {
+    if (!peopleModalPlanId) return [];
+    const plan = plans.find((p) => p.id === peopleModalPlanId);
+    const pm = plan?.plan_members ?? [];
+    const unique = new Map<string, (typeof pm)[number]["profiles"]>();
+    pm.forEach((m) => unique.set(m.profiles.id, m.profiles));
+    return Array.from(unique.values());
+  }, [peopleModalPlanId, plans]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -112,7 +125,13 @@ export function PlansFeedSection({
 
             {pm.length > 0 && (
               <div className="flex items-center justify-between gap-3 mb-1">
-                <div className="flex items-center gap-1 min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => setPeopleModalPlanId(plan.id)}
+                  className="flex items-center gap-1 min-w-0 flex-1 bg-transparent border-none p-0 text-left"
+                  aria-label="See who is in"
+                  title="See who's in"
+                >
                   {pm.slice(0, 5).map((m) => (
                     <UserAvatar
                       key={m.id}
@@ -126,7 +145,7 @@ export function PlansFeedSection({
                   <span className="text-xs text-gray-400 ml-1 truncate">
                     {joinedCount} {joinedCount === 1 ? "person" : "people"} in
                   </span>
-                </div>
+                </button>
                 <button
                   type="button"
                   onClick={() => onOpenPlanChat(plan)}
@@ -198,6 +217,18 @@ export function PlansFeedSection({
           </div>
         );
       })}
+
+      <PeopleListModal
+        open={!!peopleModalPlanId}
+        title={(() => {
+          const plan = plans.find((p) => p.id === peopleModalPlanId);
+          const count = plan?.plan_members?.length ?? 0;
+          return `${count} in`;
+        })()}
+        people={planPeople}
+        onClose={() => setPeopleModalPlanId(null)}
+        onNavigateToUser={(userId) => onNavigateToCreator(userId)}
+      />
     </div>
   );
 }

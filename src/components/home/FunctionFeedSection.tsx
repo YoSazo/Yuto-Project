@@ -1,6 +1,8 @@
 import UserAvatar from "../UserAvatar";
 import { MessageCircle, Users, MapPin, BadgeDollarSign, Sparkles, CalendarDays, Ticket, Share2, Store, Briefcase } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
+import { PeopleListModal } from "../PeopleListModal";
+import { useMemo, useState } from "react";
 
 function extractFulfillmentLine(description: string | null): string | null {
   if (!description) return null;
@@ -32,6 +34,17 @@ export function FunctionFeedSection({
   onOpenTicket: (f: FunctionListing) => void;
 }) {
   if (functionsFeed.length === 0) return null;
+
+  const [peopleModal, setPeopleModal] = useState<{ functionId: string; title: string } | null>(null);
+
+  const functionPeople = useMemo(() => {
+    if (!peopleModal) return [];
+    const f = functionsFeed.find((x) => x.id === peopleModal.functionId);
+    const fm = f?.function_members ?? [];
+    const unique = new Map<string, (typeof fm)[number]["profiles"]>();
+    fm.forEach((m) => unique.set(m.profiles.id, m.profiles));
+    return Array.from(unique.values());
+  }, [peopleModal, functionsFeed]);
 
   const shareFunction = async (f: FunctionListing) => {
     const shareOrigin =
@@ -187,7 +200,14 @@ export function FunctionFeedSection({
                     )}
                   </>
                 ) : (
-                  <span
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPeopleModal({
+                        functionId: eventFunction.id,
+                        title: `${joinedCount} going`,
+                      });
+                    }}
                     className={[
                       "font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border",
                       isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 text-gray-600 border-transparent",
@@ -200,7 +220,7 @@ export function FunctionFeedSection({
                       ·
                     </span>
                     <span>{paidCount} paid</span>
-                  </span>
+                  </button>
                 )}
                 {eventFunction.location && !isSell && !isService && (
                   <span
@@ -323,6 +343,14 @@ export function FunctionFeedSection({
           );
         })}
       </div>
+
+      <PeopleListModal
+        open={!!peopleModal}
+        title={peopleModal?.title ?? "Going"}
+        people={functionPeople}
+        onClose={() => setPeopleModal(null)}
+        onNavigateToUser={(userId) => onNavigateToHost(userId)}
+      />
     </div>
   );
 }
