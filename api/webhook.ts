@@ -33,9 +33,12 @@ async function processIntaSendWebhook(payload: {
 
   const apiref = (payload.api_ref as string) ?? "";
   if (apiref.startsWith("TOPUP")) {
-    // apiref format: "TOPUP{userid_no_dashes}{timestamp}"
-    // userid without dashes is 32 chars, so slice 6 to 38
-    const raw = apiref.slice(6, 38);
+    // apiref format: "TOPUP" (5 chars) + 32 hex user id + numeric timestamp (charge.ts)
+    const raw = apiref.slice(5, 37);
+    if (!/^[a-f0-9]{32}$/i.test(raw)) {
+      console.error("[webhook] Invalid TOPUP api_ref (expected 32 hex chars after TOPUP)", apiref);
+      return;
+    }
     const uid = `${raw.slice(0,8)}-${raw.slice(8,12)}-${raw.slice(12,16)}-${raw.slice(16,20)}-${raw.slice(20)}`;
     const amount = Number((payload as any).value ?? (payload as any).amount ?? 0);
     if (amount > 0) {

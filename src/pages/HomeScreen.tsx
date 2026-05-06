@@ -144,6 +144,28 @@ function formatEventDate(dateValue: string | null) {
 }
 
 const FUNCTION_THREAD_SEEN_PREFIX = "yuto_function_thread_seen:";
+const MIN_MPESA_TOPUP_KES = 10;
+
+/** Gap to cover via M-PESA when join fails — uses RPC `(have …, need …)` if present, else profile balance vs share */
+async function computeFunctionTopUpGapKes(opts: {
+  shareKes: number;
+  rpcErrorMessage?: string | null;
+  userId: string;
+}): Promise<number> {
+  const share = Math.max(0, Math.ceil(Number(opts.shareKes) || 0));
+  const msg = opts.rpcErrorMessage ?? "";
+  const m = msg.match(/have\s+([\d.]+)\s*,?\s*need\s+([\d.]+)/i);
+  if (m) {
+    const have = parseFloat(m[1]) || 0;
+    const need = parseFloat(m[2]) || share;
+    return Math.max(MIN_MPESA_TOPUP_KES, Math.ceil(need - have));
+  }
+  const { data } = await supabase.from("profiles").select("balance").eq("id", opts.userId).maybeSingle();
+  const bal = Number(data?.balance) ?? 0;
+  const gap = Math.ceil(share - bal);
+  if (gap > 0) return Math.max(MIN_MPESA_TOPUP_KES, gap);
+  return Math.max(MIN_MPESA_TOPUP_KES, share);
+}
 
 function getFunctionThreadSeenAt(userId: string, functionId: string) {
   if (typeof window === "undefined") return 0;
@@ -626,6 +648,7 @@ export default function HomeScreen() {
   const [functionsFeed, setFunctionsFeed] = useState<FunctionListing[]>([]);
   const [functionUnreadCounts, setFunctionUnreadCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [joiningPlanId, setJoiningPlanId] = useState<string | null>(null);
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
@@ -652,6 +675,7 @@ export default function HomeScreen() {
   // Function payment state
   const [functionPayTarget, setFunctionPayTarget] = useState<FunctionListing | null>(null);
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
+  const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
   const [activeFunctionThread, setActiveFunctionThread] = useState<FunctionListing | null>(null);
 
@@ -683,7 +707,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!user || !functionPayTarget) return;
     const refreshed = functionsFeed.find((f) => f.id === functionPayTarget.id);
-    const hasPaid = refreshed?.function_members.some((m) => m.user_id === user.id && m.has_paid);
+    const hasPaid = refreshed?.function_members?.some((m) => m.user_id === user.id && m.has_paid);
     if (hasPaid) {
       setFunctionPayTarget(null);
     }
@@ -890,11 +914,17 @@ export default function HomeScreen() {
       const { error } = await supabase.rpc("pay_for_function", { p_function_id: eventFunction.id });
   
       if (error) {
-        // ✅ Instead of alert — open topup modal
+        // ✅ Roll back provisional member row, compute top-up gap (not always full ticket price)
         await supabase.from("function_members").delete()
           .eq("function_id", eventFunction.id).eq("user_id", user.id).eq("has_paid", false);
-        setPendingJoinFunction(eventFunction); // remember which function they were trying to join
-        setShowFunctionTopUp(true);            // open topup modal
+        const topUp = await computeFunctionTopUpGapKes({
+          shareKes: eventFunction.amount_per_person,
+          rpcErrorMessage: error.message,
+          userId: user.id,
+        });
+        setFunctionTopUpAmount(topUp);
+        setPendingJoinFunction(eventFunction);
+        setShowFunctionTopUp(true);
         return;
       }
   
@@ -908,82 +938,26 @@ export default function HomeScreen() {
     await loadFeed();
   };
 
-  const handleJoin = async (plan: YutoGroup) => {
-    if (!user) return;
+  const handleJoinOrLeavePlan = async (plan: Plan) => {
+    if (!user || !profile) return;
 
-    // Check if they are already in
-    const isMember = plan.group_members?.some((m) => m.user_id === user.id);
-    if (isMember) {
-      alert("You are already in this plan!");
-      return;
-    }
+    const members = plan.plan_members ?? [];
+    const isMember = members.some((m) => m.user_id === user.id);
+    const joinerName =
+      profile.display_name?.trim() || profile.username?.trim() || "Someone";
 
-    // Set loading state so the button shows a spinner or disables
     setJoiningPlanId(plan.id);
-    
+
     try {
-      // 1. First, we need to create the group_members row with has_paid = false
-      // (This reserves their spot and prepares the row for the RPC to update)
-      const { error: insertError } = await supabase
-        .from("group_members")
-        .insert({
-          group_id: plan.id,
-          user_id: user.id,
-          has_paid: false
-        });
-
-      if (insertError) {
-        // If they already have a row (e.g. they backed out previously), that's fine, we catch the unique constraint error
-        if (insertError.code !== '23505') throw insertError; 
+      if (isMember) {
+        await leavePlan(plan.id, user.id);
+      } else {
+        await joinPlan(plan.id, user.id, joinerName, plan.creator_id);
       }
-
-      // 2. Call the secure RPC to deduct balance and mark as paid
-      const { data: payResult, error: payError } = await supabase.rpc('pay_for_plan', {
-        p_group_id: plan.id,
-        p_amount: plan.price // Assumes plan.price is a number. If it's a string, use Number(plan.price)
-      });
-
-      if (payError) {
-        // If they don't have enough balance, the RPC throws an error.
-        // We catch it and tell them to top up.
-        console.error("Payment failed:", payError.message);
-        alert(payError.message || "Payment failed. Please try again.");
-        
-        // Optional: We can delete the unpaid row we just made to keep the DB clean, 
-        // or leave it as a "pending" state. We'll delete it to be safe.
-        await supabase.from("group_members").delete().eq("group_id", plan.id).eq("user_id", user.id).eq("has_paid", false);
-        return;
-      }
-
-      if (payResult) {
-        // 3. Success! Update the local state instantly so the UI reflects they are "In"
-        setPlansFeed(prev => prev.map(p => {
-          if (p.id === plan.id) {
-            return {
-              ...p,
-              group_members: [...(p.group_members || []), { user_id: user.id, has_paid: true }]
-            };
-          }
-          return p;
-        }));
-        
-        // Also update Public feed if it exists there
-        setPlansPublic(prev => prev.map(p => {
-          if (p.id === plan.id) {
-            return {
-              ...p,
-              group_members: [...(p.group_members || []), { user_id: user.id, has_paid: true }]
-            };
-          }
-          return p;
-        }));
-
-        alert("Successfully joined the plan! 🚀");
-      }
-
+      await loadFeed();
     } catch (error) {
-      console.error("Error joining plan:", error);
-      alert("An unexpected error occurred. Please try again.");
+      console.error(isMember ? "Error leaving plan:" : "Error joining plan:", error);
+      alert(error instanceof Error ? error.message : "Something went wrong. Try again.");
     } finally {
       setJoiningPlanId(null);
     }
@@ -992,7 +966,10 @@ export default function HomeScreen() {
   const handleYutoIt = async (plan: Plan) => {
     if (!user) return;
     if (!plan.amount) return;
-    const memberIds = [plan.creator_id, ...plan.plan_members.map((m) => m.user_id).filter((id) => id !== plan.creator_id)];
+    const memberIds = [
+      plan.creator_id,
+      ...(plan.plan_members ?? []).map((m) => m.user_id).filter((id) => id !== plan.creator_id),
+    ];
     try {
       const group = await yutoItPlan(plan.id, user.id, plan.title, plan.amount, memberIds);
       navigate(`/yuto/${group.id}`);
@@ -1046,12 +1023,13 @@ export default function HomeScreen() {
             <span className="text-xs text-gray-400">Hosted now</span>
           </div>
           <div className="flex flex-col gap-4 mb-6">
-            {functionsFeed.map((eventFunction) => {
+              {functionsFeed.map((eventFunction) => {
+              const fm = eventFunction.function_members ?? [];
               const isHost = eventFunction.host_id === user?.id;
-              const isMember = eventFunction.function_members.some((m) => m.user_id === user?.id);
-              const me = eventFunction.function_members.find((m) => m.user_id === user?.id);
-              const paidCount = eventFunction.function_members.filter((m) => m.has_paid).length;
-              const joinedCount = eventFunction.function_members.length;
+              const isMember = fm.some((m) => m.user_id === user?.id);
+              const me = fm.find((m) => m.user_id === user?.id);
+              const paidCount = fm.filter((m) => m.has_paid).length;
+              const joinedCount = fm.length;
               const isFull = eventFunction.max_capacity ? joinedCount >= eventFunction.max_capacity && !isMember : false;
               const canJoin = !isHost && !isMember && !isFull;
               const canPay = isMember && !me?.has_paid;
@@ -1171,11 +1149,12 @@ export default function HomeScreen() {
             <div className="flex flex-col gap-4">
               {plans.map((plan) => {
                 const isMine = plan.creator_id === user?.id;
-                const isMember = plan.plan_members.some((m) => m.user_id === user?.id);
-                const joinedCount = plan.plan_members.length;
+                const pm = plan.plan_members ?? [];
+                const isMember = pm.some((m) => m.user_id === user?.id);
+                const joinedCount = pm.length;
                 const slotsLeft = plan.slots ? plan.slots - joinedCount : null;
                 const allIn = plan.slots ? joinedCount >= plan.slots : false;
-                const canYutoIt = isMine && plan.amount && plan.plan_members.length > 0;
+                const canYutoIt = isMine && plan.amount && pm.length > 0;
 
                 return (
                   <div key={plan.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
@@ -1220,13 +1199,13 @@ export default function HomeScreen() {
                     </div>
 
                     {/* Members */}
-                    {plan.plan_members.length > 0 && (
+                    {pm.length > 0 && (
                       <div className="flex items-center gap-1 mb-3">
-                        {plan.plan_members.slice(0, 5).map((m) => (
+                        {pm.slice(0, 5).map((m) => (
                           <UserAvatar key={m.id} name={m.profiles.display_name} avatarUrl={m.profiles.avatar_url} size="sm" className="-ml-1 first:ml-0 border-2 border-white" />
                         ))}
-                        {plan.plan_members.length > 5 && (
-                          <span className="text-xs text-gray-400 ml-1">+{plan.plan_members.length - 5} more</span>
+                        {pm.length > 5 && (
+                          <span className="text-xs text-gray-400 ml-1">+{pm.length - 5} more</span>
                         )}
                         <span className="text-xs text-gray-400 ml-1">{joinedCount} {joinedCount === 1 ? "person" : "people"} in</span>
                       </div>
@@ -1237,10 +1216,20 @@ export default function HomeScreen() {
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                       {!isMine && !allIn && (
                         <button
-                          onClick={() => handleJoin(plan)}
-                          className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${isMember ? "bg-gray-100 text-gray-600" : "bg-black text-white"}`}
+                          type="button"
+                          onClick={() => void handleJoinOrLeavePlan(plan)}
+                          disabled={joiningPlanId === plan.id}
+                          className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${isMember ? "bg-gray-100 text-gray-600" : "bg-black text-white"}`}
                         >
-                          {isMember ? "Leave" : <span className="flex items-center justify-center gap-1.5"><UserCheck size={15} /> I&apos;m in</span>}
+                          {joiningPlanId === plan.id ? (
+                            "…"
+                          ) : isMember ? (
+                            "Leave"
+                          ) : (
+                            <span className="flex items-center justify-center gap-1.5">
+                              <UserCheck size={15} /> I&apos;m in
+                            </span>
+                          )}
                         </button>
                       )}
                       {allIn && plan.yuto_group_id && isMember && (
@@ -1494,17 +1483,29 @@ export default function HomeScreen() {
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
           <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
             <p className="text-center text-sm text-gray-500 mb-1">
-              You need{" "}
+              Joining requires{" "}
               <span className="font-bold text-black">
                 KSH {pendingJoinFunction.amount_per_person.toLocaleString()}
               </span>{" "}
-              to join this function.
+              from your Yuto balance.
             </p>
             <p className="text-center text-xs text-gray-400 mb-4">
-              Top up your balance to continue.
+              {functionTopUpAmount < pendingJoinFunction.amount_per_person ? (
+                <>
+                  You&apos;re short — add{" "}
+                  <span className="font-semibold text-black">KSH {functionTopUpAmount.toLocaleString()}</span> via
+                  M-PESA (you already have most of this covered).
+                </>
+              ) : (
+                <>
+                  Top up{" "}
+                  <span className="font-semibold text-black">KSH {functionTopUpAmount.toLocaleString()}</span> via
+                  M-PESA to continue.
+                </>
+              )}
             </p>
             <FunctionPayModal
-              amount={pendingJoinFunction.amount_per_person}
+              amount={functionTopUpAmount}
               functionId={pendingJoinFunction.id}
               userId={user.id}
               defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || undefined}
@@ -1513,6 +1514,7 @@ export default function HomeScreen() {
               onClose={() => {
                 setShowFunctionTopUp(false);
                 setPendingJoinFunction(null);
+                setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
               }}
               onRefreshStatus={async () => {
                 await loadFeed();
@@ -1520,6 +1522,7 @@ export default function HomeScreen() {
                 if (fn) {
                   setShowFunctionTopUp(false);
                   setPendingJoinFunction(null);
+                  setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
                   await handleJoinFunction(fn);
                 }
               }}
