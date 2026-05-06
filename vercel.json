@@ -1,6 +1,8 @@
 {
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/function/:functionId", "destination": "/api/share-function?functionId=:functionId" },
+    { "source": "/og/function/:functionId.png", "destination": "/api/og-function?functionId=:functionId" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }
