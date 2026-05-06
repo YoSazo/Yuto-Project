@@ -113,6 +113,8 @@ export default function ProfileScreen() {
   const [highlightFiles, setHighlightFiles] = useState<[File | null, File | null]>([null, null]);
   const [highlightPreviews, setHighlightPreviews] = useState<[string | null, string | null]>([null, null]);
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
+  const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
+  const highlightGestureRef = useRef<{ startY: number; moved: boolean } | null>(null);
 
   const handleOpenHistory = async () => {
     setShowHistoryModal(true);
@@ -527,44 +529,39 @@ export default function ProfileScreen() {
       </div>
 
       {/* Highlights */}
-      <div className="flex items-center justify-center gap-4 mb-6">
-        {highlights.length === 0 ? (
-          <button
-            type="button"
-            onClick={() => setShowHighlightCreate(true)}
-            className="w-16 h-16 rounded-full border-2 border-gray-200 bg-white flex items-center justify-center text-black shadow-sm"
-            aria-label="Add highlight"
-          >
-            <Plus size={22} />
-          </button>
-        ) : (
-          <>
-            {highlights.slice(0, 2).map((h) => (
-              <button
-                key={h.id}
-                type="button"
-                onClick={() => setActiveHighlight(h)}
-                className="flex flex-col items-center gap-1 bg-transparent border-none p-0"
-              >
-                <div className="w-16 h-16 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
-                  {h.photos[0]?.url ? (
-                    <img src={h.photos[0].url} alt="Highlight" className="w-full h-full object-cover" />
-                  ) : null}
-                </div>
-              </button>
-            ))}
-            {highlights.length < 2 && (
-              <button
-                type="button"
-                onClick={() => setShowHighlightCreate(true)}
-                className="w-16 h-16 rounded-full border-2 border-dashed border-gray-200 bg-white flex items-center justify-center text-gray-500"
-                aria-label="Add highlight"
-              >
-                <Plus size={22} />
-              </button>
-            )}
-          </>
-        )}
+      <div className="w-full max-w-md mx-auto flex items-center justify-between mb-6">
+        <button
+          type="button"
+          onClick={() => setShowHighlightCreate(true)}
+          disabled={highlights.length >= 2}
+          className={`w-16 h-16 rounded-full border-2 bg-white flex items-center justify-center shadow-sm ${
+            highlights.length >= 2 ? "border-gray-100 text-gray-300 cursor-not-allowed" : "border-gray-200 text-black"
+          }`}
+          aria-label="Add highlight"
+          title={highlights.length >= 2 ? "Max 2 highlights" : "Add highlight"}
+        >
+          <Plus size={22} />
+        </button>
+
+        <div className="flex items-center justify-end gap-4 flex-1">
+          {highlights.slice(0, 2).map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              onClick={() => {
+                setActiveHighlightIdx(0);
+                setActiveHighlight(h);
+              }}
+              className="bg-transparent border-none p-0"
+            >
+              <div className="w-16 h-16 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
+                {h.photos[0]?.url ? (
+                  <img src={h.photos[0].url} alt="Highlight" className="w-full h-full object-cover" />
+                ) : null}
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* NEW: Yuto Wallet Card */}
@@ -788,21 +785,79 @@ export default function ProfileScreen() {
 
       {/* Highlight Viewer */}
       {activeHighlight && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
-          <button type="button" className="absolute inset-0 z-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={() => setActiveHighlight(null)} />
-          <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-4 modal-slide-up">
-            <div className="flex items-center justify-between mb-3">
-              <p className="font-bold text-black">Highlight</p>
-              <button onClick={() => setActiveHighlight(null)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {activeHighlight.photos.slice(0, 2).map((p) => (
-                <div key={p.id} className="rounded-2xl overflow-hidden bg-gray-100 aspect-square">
-                  <img src={p.url} alt="Highlight photo" className="w-full h-full object-cover" />
-                </div>
-              ))}
-            </div>
+        <div
+          className="fixed inset-0 z-50 fade-in bg-black"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setActiveHighlight(null);
+          }}
+          tabIndex={-1}
+          onPointerDown={(e) => {
+            highlightGestureRef.current = { startY: e.clientY, moved: false };
+          }}
+          onPointerMove={(e) => {
+            const g = highlightGestureRef.current;
+            if (!g) return;
+            const dy = e.clientY - g.startY;
+            if (dy > 18) g.moved = true;
+            if (dy > 90) {
+              highlightGestureRef.current = null;
+              setActiveHighlight(null);
+            }
+          }}
+          onPointerUp={() => {
+            highlightGestureRef.current = null;
+          }}
+          onPointerCancel={() => {
+            highlightGestureRef.current = null;
+          }}
+        >
+          {/* Progress bars */}
+          <div className="absolute top-3 left-3 right-3 z-20 flex gap-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                <div
+                  className="h-full bg-white"
+                  style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }}
+                />
+              </div>
+            ))}
           </div>
+
+          {/* Photo */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <img
+              src={activeHighlight.photos[activeHighlightIdx]?.url}
+              alt="Highlight"
+              className="max-w-full max-h-full w-full h-full object-contain"
+              draggable={false}
+            />
+          </div>
+
+          {/* Tap zones */}
+          <button
+            type="button"
+            className="absolute inset-y-0 left-0 w-1/2 border-none bg-transparent z-30"
+            aria-label="Previous photo"
+            onClick={() => {
+              setActiveHighlightIdx((prev) => {
+                if (prev === 1) return 0;
+                return 0;
+              });
+            }}
+          />
+          <button
+            type="button"
+            className="absolute inset-y-0 right-0 w-1/2 border-none bg-transparent z-30"
+            aria-label="Next photo"
+            onClick={() => {
+              setActiveHighlightIdx((prev) => {
+                if (prev === 0) return 1;
+                setActiveHighlight(null);
+                return 1;
+              });
+            }}
+          />
+          {/* Close hint: swipe down */}
         </div>
       )}
 
