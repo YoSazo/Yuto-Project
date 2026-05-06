@@ -628,7 +628,7 @@ export default function ProfileScreen() {
             </svg>
           }
           label="Split History"
-          sublabel="View past fare splits"
+          sublabel="View past splits"
           onClick={() => navigate("/activity")}
         />
         <MenuItem
