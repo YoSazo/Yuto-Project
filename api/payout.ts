@@ -1,7 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 
+// IntaSend send-money API base. For live use `https://api.intasend.com`.
 const INTASEND_BASE = process.env.INTASEND_HOST || "https://sandbox.intasend.com";
+const INTASEND_SECRET_KEY = process.env.INTASEND_SECRET_KEY;
+const INTASEND_DEVICE_ID = process.env.INTASEND_DEVICE_ID;
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -38,6 +41,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── Validate required fields ──────────────────────
   if (!group_id || !user_id || !amount || !payment_type) {
     return res.status(400).json({ success: false, message: "Missing required fields" });
+  }
+  if (!INTASEND_SECRET_KEY) {
+    return res.status(500).json({ success: false, message: "Missing INTASEND_SECRET_KEY" });
+  }
+  if (!INTASEND_DEVICE_ID) {
+    return res.status(500).json({ success: false, message: "Missing INTASEND_DEVICE_ID" });
   }
 
   const supabase = getSupabase();
@@ -95,11 +104,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── Build IntaSend transaction ────────────────────
   let transaction: Record<string, unknown>;
+  let provider: "MPESA-B2C" | "MPESA-B2B";
 
   if (payment_type === "phone") {
     if (!phone_number) {
       return res.status(400).json({ success: false, message: "Missing phone number" });
     }
+    provider = "MPESA-B2C";
     transaction = {
       name: "Payee",
       account: phone_number,
@@ -110,6 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!till_number) {
       return res.status(400).json({ success: false, message: "Missing till number" });
     }
+    provider = "MPESA-B2B";
     transaction = {
       name: "Merchant",
       account: till_number,
@@ -121,6 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!business_no || !account_no) {
       return res.status(400).json({ success: false, message: "Missing business or account number" });
     }
+    provider = "MPESA-B2B";
     transaction = {
       name: "Business",
       account: business_no,
@@ -135,13 +148,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── Fire IntaSend B2C ─────────────────────────────
   try {
+    const startedAt = Date.now();
     const initiateRes = await fetch(`${INTASEND_BASE}/api/v1/send-money/initiate/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.INTASEND_SECRET_KEY!}`,
+        Authorization: `Bearer ${INTASEND_SECRET_KEY}`,
       },
       body: JSON.stringify({
+        device_id: INTASEND_DEVICE_ID,
+        provider,
         currency: "KES",
         requires_approval: "NO",
         transactions: [transaction],
@@ -164,6 +180,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         p_amount: amount,
         p_group_id: group_id,
       });
+      console.error("[payout] initiate failed:", {
+        status: initiateRes.status,
+        duration_ms: Date.now() - startedAt,
+        provider,
+        body: initiateData,
+      });
       return res.status(400).json({
         success: false,
         message: initiateData.detail || initiateData.message || "IntaSend payout failed — balance refunded",
@@ -176,7 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.INTASEND_SECRET_KEY!}`,
+          Authorization: `Bearer ${INTASEND_SECRET_KEY}`,
         },
         body: JSON.stringify({
           nonce: initiateData.nonce,
@@ -190,6 +212,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           p_user_id: user_id,
           p_amount: amount,
           p_group_id: group_id,
+        });
+        console.error("[payout] approve failed:", {
+          status: approveRes.status,
+          provider,
+          body: approveData,
         });
         return res.status(400).json({
           success: false,
