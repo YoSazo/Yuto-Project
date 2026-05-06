@@ -564,20 +564,19 @@ export default function ProfileScreen() {
         <p className="text-sm text-gray-400">{userHandle}</p>
       </div>
 
-      {/* Highlights */}
+      {/* Highlights — no + when both slots are used; row stays centered */}
       <div className="flex items-center justify-center gap-4 mb-6">
-        <button
-          type="button"
-          onClick={() => setShowHighlightCreate(true)}
-          disabled={highlights.length >= 2}
-          className={`w-16 h-16 rounded-full border-2 bg-white flex items-center justify-center shadow-sm ${
-            highlights.length >= 2 ? "border-gray-100 text-gray-300 cursor-not-allowed" : "border-gray-200 text-black"
-          }`}
-          aria-label="Add highlight"
-          title={highlights.length >= 2 ? "Max 2 highlights" : "Add highlight"}
-        >
-          <Plus size={22} />
-        </button>
+        {highlights.length < 2 && (
+          <button
+            type="button"
+            onClick={() => setShowHighlightCreate(true)}
+            className="w-16 h-16 rounded-full border-2 border-gray-200 bg-white text-black flex items-center justify-center shadow-sm"
+            aria-label="Add highlight"
+            title="Add highlight"
+          >
+            <Plus size={22} />
+          </button>
+        )}
 
         <div className="flex items-center justify-center gap-4">
           {highlights.slice(0, 2).map((h) => (
