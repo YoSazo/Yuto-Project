@@ -161,7 +161,14 @@ export default function ProfileScreen() {
       return;
     }
     if (amountNum > points) {
-      setWithdrawError("Insufficient Yuto Balance.");
+      setShowWithdrawModal(false);
+      setWithdrawAmount("");
+      const shortfall = amountNum - points;
+      setTimeout(() => {
+        setTopUpAmount(shortfall.toString()); // pre-fill with the difference
+        setTopUpError(`You need KSH ${shortfall} more. Top up to continue.`);
+        setShowTopUpModal(true);
+      }, 300);
       return;
     }
 
