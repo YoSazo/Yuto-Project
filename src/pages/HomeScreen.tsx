@@ -2,10 +2,31 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getPlansPublic, getPlansFriends, createPlan, joinPlan, leavePlan, yutoItPlan, deletePlan, addPlanUpdate, getPlanUpdates, uploadPlanImage, getFunctionsPublic, createFunction, joinFunction, leaveFunction, getFunctionMessages, sendFunctionMessage, getSavedPhoneNumber, saveProfilePhoneNumber, getPlanMessages, sendPlanMessage } from "../lib/supabase";
+import {
+  supabase,
+  getPlansPublic,
+  getPlansFriends,
+  createPlan,
+  joinPlan,
+  leavePlan,
+  yutoItPlan,
+  deletePlan,
+  addPlanUpdate,
+  getPlanUpdates,
+  uploadPlanImage,
+  getFunctionsPublic,
+  createFunction,
+  joinFunction,
+  leaveFunction,
+  getFunctionMessages,
+  sendFunctionMessage,
+  getSavedPhoneNumber,
+  saveProfilePhoneNumber,
+  getPlanMessages,
+  sendPlanMessage,
+} from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { Trash2, ClipboardList, Rocket, UserCheck, Send, Users, Globe, ImagePlus, X, CalendarDays, MapPin, BadgeDollarSign, Sparkles, PartyPopper, MessageCircle } from "lucide-react";
-import { supabase } from "../lib/supabase";
 interface PlanMember {
   id: string;
   user_id: string;
@@ -121,9 +142,6 @@ function formatEventDate(dateValue: string | null) {
     day: "numeric",
   });
 }
-
-const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
-const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
 
 const FUNCTION_THREAD_SEEN_PREFIX = "yuto_function_thread_seen:";
 
@@ -633,6 +651,8 @@ export default function HomeScreen() {
 
   // Function payment state
   const [functionPayTarget, setFunctionPayTarget] = useState<FunctionListing | null>(null);
+  const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
+  const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
   const [activeFunctionThread, setActiveFunctionThread] = useState<FunctionListing | null>(null);
 
   // Plan updates state
