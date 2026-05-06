@@ -249,35 +249,35 @@ export default function ProfileScreen() {
     const fetchData = async () => {
       try {
         if (!user) return;
-
+  
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", user.id)
           .single();
-
         if (profileError) throw profileError;
-
-        if (profileData?.avatar_url) {
-          setAvatarUrl(profileData.avatar_url);
-        }
-
-        const { data: balData } = await supabase.from("profiles").select("balance").eq("id", user.id).single();
-setPoints(balData?.balance ?? 0);
-
-        }
-
+        if (profileData?.avatar_url) setAvatarUrl(profileData.avatar_url);
+  
+        // ✅ Balance — no separate try/catch needed
+        const { data: balData } = await supabase
+          .from("profiles")
+          .select("balance")
+          .eq("id", user.id)
+          .single();
+        setPoints(balData?.balance ?? 0);
+  
         const [groups, friends, pending, plansRes] = await Promise.all([
           getMyGroups(),
           getFriends(user.id),
           getPendingRequests(user.id),
           supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", user.id),
         ]);
-
+  
         const paidGroups = (groups as any[]).filter((g: any) =>
           g.group_members.some((m: any) => m.user_id === user.id && m.has_paid)
         );
         const totalSpent = paidGroups.reduce((sum: number, g: any) => sum + g.per_person, 0);
+  
         setStats({
           totalYutos: groups.length,
           totalSpent,
@@ -286,12 +286,12 @@ setPoints(balData?.balance ?? 0);
         });
         setPendingCount(pending.length);
       } catch (err) {
-        console.error("Error fetching profile:", err);
+        console.error("Error fetching profile", err);
       } finally {
         setLoading(false);
       }
     };
-
+  
     fetchData();
   }, [user]);
 
