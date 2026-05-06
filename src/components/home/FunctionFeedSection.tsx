@@ -1,5 +1,5 @@
 import UserAvatar from "../UserAvatar";
-import { MessageCircle, Users, MapPin, BadgeDollarSign, Sparkles, CalendarDays } from "lucide-react";
+import { MessageCircle, Users, MapPin, BadgeDollarSign, Sparkles, CalendarDays, Ticket } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 
 export function FunctionFeedSection({
@@ -9,6 +9,7 @@ export function FunctionFeedSection({
   onNavigateToHost,
   onOpenFunctionThread,
   onJoinFunction,
+  onOpenTicket,
 }: {
   functionsFeed: FunctionListing[];
   currentUserId?: string;
@@ -16,6 +17,7 @@ export function FunctionFeedSection({
   onNavigateToHost: (hostUserId: string) => void;
   onOpenFunctionThread: (f: FunctionListing) => void;
   onJoinFunction: (f: FunctionListing) => void;
+  onOpenTicket: (f: FunctionListing) => void;
 }) {
   if (functionsFeed.length === 0) return null;
 
@@ -114,7 +116,17 @@ export function FunctionFeedSection({
                   {isHost ? (
                     <span className="text-sm font-semibold text-gray-500">Hosting</span>
                   ) : isMember && me?.has_paid ? (
-                    <span className="text-sm font-semibold text-green-600">You&apos;re in</span>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <span className="text-sm font-semibold text-green-600">You&apos;re in</span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenTicket(eventFunction)}
+                        className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-green-200 bg-green-50 text-green-800 font-bold text-xs hover:bg-green-100 transition-colors tap-scale"
+                      >
+                        <Ticket size={14} aria-hidden />
+                        Ticket
+                      </button>
+                    </div>
                   ) : canPay ? (
                     <button
                       type="button"

@@ -152,3 +152,113 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+/* Function entry ticket — moving layers discourage static screenshots */
+@keyframes ticketRingGlow {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ticket-live-ring {
+  position: relative;
+}
+
+.ticket-live-ring::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 24px;
+  background: conic-gradient(from 0deg, #5493b3, #111827, #22c55e, #93c5fd, #5493b3);
+  animation: ticketRingSpin 4.5s linear infinite, ticketRingGlow 3.2s ease-in-out infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes ticketRingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ticketScanDrift {
+  0% {
+    transform: translateY(-4px);
+  }
+  100% {
+    transform: translateY(4px);
+  }
+}
+
+.ticket-scanlines {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(15, 23, 42, 0.04) 3px,
+    rgba(15, 23, 42, 0.04) 4px
+  );
+  animation: ticketScanDrift 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes ticketWatermarkSlide {
+  0% {
+    transform: translate(-8%, -12%) rotate(-18deg);
+  }
+  100% {
+    transform: translate(8%, 10%) rotate(-14deg);
+  }
+}
+
+.ticket-watermark-text {
+  position: absolute;
+  left: -20%;
+  top: 35%;
+  font-size: clamp(56px, 18vw, 120px);
+  white-space: nowrap;
+  opacity: 0.05;
+  animation: ticketWatermarkSlide 14s ease-in-out infinite alternate;
+}
+
+@keyframes ticketShimmerSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(180%);
+  }
+}
+
+.ticket-inner-shimmer {
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 45%,
+    transparent 85%
+  );
+  animation: ticketShimmerSweep 3.8s ease-in-out infinite;
+}
+
+@keyframes ticketCodePulseBand {
+  0% {
+    opacity: 0.2;
+    transform: scaleY(1) translateY(0);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scaleY(1.08) translateY(-2px);
+  }
+  100% {
+    opacity: 0.2;
+    transform: scaleY(1) translateY(0);
+  }
+}
+
+.ticket-code-pulse {
+  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.22), transparent 55%);
+  animation: ticketCodePulseBand 2.2s ease-in-out infinite;
+}

@@ -21,6 +21,7 @@ import {
   getSavedPhoneNumber,
 } from "../lib/supabase";
 import { FunctionPayModal } from "../components/home/FunctionPayModal";
+import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { FunctionMessagesModal } from "../components/home/FunctionMessagesModal";
 import { PlanMessagesModal } from "../components/home/PlanMessagesModal";
@@ -63,6 +64,8 @@ export default function HomeScreen() {
   const planImageInputRef = useRef<HTMLInputElement>(null);
   const functionImageInputRef = useRef<HTMLInputElement>(null);
   const activeTabRef = useRef(activeTab);
+  /** Auto-show entry ticket once per function per mount (manual “Ticket” still works). */
+  const autoShownTicketFnIdRef = useRef<string | null>(null);
 
   // Function payment state
   const [functionPayTarget, setFunctionPayTarget] = useState<FunctionListing | null>(null);
@@ -70,6 +73,7 @@ export default function HomeScreen() {
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
   const [activeFunctionThread, setActiveFunctionThread] = useState<FunctionListing | null>(null);
+  const [functionTicket, setFunctionTicket] = useState<FunctionListing | null>(null);
 
   // Plan updates state
   const [planUpdates, setPlanUpdates] = useState<Record<string, PlanUpdate[]>>({});
@@ -101,6 +105,10 @@ export default function HomeScreen() {
     const refreshed = functionsFeed.find((f) => f.id === functionPayTarget.id);
     const hasPaid = refreshed?.function_members?.some((m) => m.user_id === user.id && m.has_paid);
     if (hasPaid) {
+      if (autoShownTicketFnIdRef.current !== functionPayTarget.id) {
+        autoShownTicketFnIdRef.current = functionPayTarget.id;
+        setFunctionTicket(refreshed ?? functionPayTarget);
+      }
       setFunctionPayTarget(null);
     }
   }, [functionsFeed, functionPayTarget, user]);
@@ -321,6 +329,10 @@ export default function HomeScreen() {
       }
   
       await loadFeed();
+      if (autoShownTicketFnIdRef.current !== eventFunction.id) {
+        autoShownTicketFnIdRef.current = eventFunction.id;
+        setFunctionTicket(eventFunction);
+      }
     } catch (err) {
       console.error("Error joining function", err);
     }
@@ -376,7 +388,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <div className="flex flex-col min-h-full overflow-y-auto pb-36 px-5 pt-6">
+    <div className="flex flex-col overflow-y-auto pb-28 px-5 pt-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
@@ -415,6 +427,7 @@ export default function HomeScreen() {
           onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
           onOpenFunctionThread={setActiveFunctionThread}
           onJoinFunction={handleJoinFunction}
+          onOpenTicket={(f) => setFunctionTicket(f)}
         />
       )}
 
@@ -523,6 +536,15 @@ export default function HomeScreen() {
           plan={activePlanChat}
           currentUserId={user.id}
           onClose={() => setActivePlanChat(null)}
+        />
+      )}
+
+      {functionTicket && user && (
+        <FunctionTicketModal
+          functionItem={functionsFeed.find((f) => f.id === functionTicket.id) ?? functionTicket}
+          userId={user.id}
+          attendeeDisplayName={profile?.display_name?.trim() || profile?.username?.trim() || "Guest"}
+          onClose={() => setFunctionTicket(null)}
         />
       )}
 

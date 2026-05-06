@@ -79,7 +79,7 @@ export function PlansFeedSection({
 
             <p className="font-bold text-black text-lg mb-2">{plan.title}</p>
 
-            <div className="flex items-center gap-3 mb-3 flex-wrap">
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
               {plan.amount && (
                 <span className="bg-green-50 text-green-700 font-bold text-sm px-3 py-1 rounded-full">KSH {plan.amount.toLocaleString()}</span>
               )}
@@ -91,7 +91,7 @@ export function PlansFeedSection({
             </div>
 
             {pm.length > 0 && (
-              <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center justify-between gap-3 mb-1">
                 <div className="flex items-center gap-1 min-w-0 flex-1">
                   {pm.slice(0, 5).map((m) => (
                     <UserAvatar
@@ -119,8 +119,8 @@ export function PlansFeedSection({
               </div>
             )}
 
-            <div className={`flex flex-wrap gap-2 ${pm.length > 0 ? "" : "items-center justify-between"}`}>
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className={`flex flex-wrap gap-1.5 ${pm.length > 0 ? "" : "items-center justify-between"}`}>
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
                 {!isMine && !allIn && (
                   <button
                     type="button"
