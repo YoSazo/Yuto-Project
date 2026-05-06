@@ -52,7 +52,7 @@ function Confetti() {
 
 type PaymentTab = "phone" | "buygoods" | "paybill";
 
-const MIN_TOPUP_KES = 50;
+const MIN_TOPUP_KES = 20;
 
 /** M-PESA top-up amount from RPC messages like `Insufficient … (have 0.00, need 20)` */
 function inferTopUpKes(errorMessage: string, shareKes: number): number {

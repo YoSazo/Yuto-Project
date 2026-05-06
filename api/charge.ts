@@ -15,8 +15,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enforce minimum wallet top-up
   if (is_topup) {
     const n = Number(amount);
-    if (!Number.isFinite(n) || n < 50) {
-      return res.status(400).json({ success: false, message: "Minimum top-up is KSH 50." });
+    if (!Number.isFinite(n) || n < 20) {
+      return res.status(400).json({ success: false, message: "Minimum top-up is KSH 20." });
     }
   }
 

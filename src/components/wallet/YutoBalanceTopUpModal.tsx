@@ -14,7 +14,7 @@ export function YutoBalanceTopUpModal({
   initialAmount = 0,
   title = "Top Up Yuto Balance",
   contextLine,
-  minAmount = 50,
+  minAmount = 20,
   presets = DEFAULT_PRESETS,
   retryCtaLabel = "I've paid — continue",
   onRetryAfterPaid,
