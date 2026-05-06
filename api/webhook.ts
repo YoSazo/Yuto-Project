@@ -143,7 +143,30 @@ async function processIntaSendWebhook(payload: {
 }) {
   const state = payload.state;
   if (String(payload.currency || "").toUpperCase() !== "KES") return;
-  if (state !== "COMPLETE") return;
+  if (state !== "COMPLETE") {
+    // Helpful diagnostics for FAILED / PENDING / PROCESSING, etc.
+    const reason =
+      (payload as any).failed_reason ??
+      (payload as any).failedReason ??
+      (payload as any).reason ??
+      (payload as any).message ??
+      (payload as any).detail ??
+      null;
+    const code =
+      (payload as any).failed_code ??
+      (payload as any).failedCode ??
+      (payload as any).code ??
+      null;
+    console.log("[webhook] non-complete event:", JSON.stringify({
+      state,
+      invoice_id: payload.invoice_id,
+      api_ref: payload.api_ref,
+      provider: payload.provider,
+      code,
+      reason,
+    }));
+    return;
+  }
 
   const supabase = getSupabaseClient();
 
