@@ -122,6 +122,9 @@ function formatEventDate(dateValue: string | null) {
   });
 }
 
+const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
+const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
+
 const FUNCTION_THREAD_SEEN_PREFIX = "yuto_function_thread_seen:";
 
 function getFunctionThreadSeenAt(userId: string, functionId: string) {
@@ -155,13 +158,17 @@ function FunctionPayModal({
   defaultPhoneNumber,
   onClose,
   onRefreshStatus,
+  isTopUp = false,
+  embedded = false,
 }: {
   amount: number;
   functionId: string;
   userId: string;
   defaultPhoneNumber?: string | null;
   onClose: () => void;
-  onRefreshStatus?: () => void;
+  onRefreshStatus?: () => void | Promise<void>;
+  isTopUp?: boolean;
+  embedded?: boolean;
 }) {
   const [phone, setPhone] = useState(defaultPhoneNumber || "254");
   const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">("input");
@@ -184,12 +191,11 @@ function FunctionPayModal({
       const res = await fetch("/api/charge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone_number: phone,
-          amount,
-          function_id: functionId,
-          user_id: userId,
-        }),
+        body: JSON.stringify(
+          isTopUp
+            ? { phone_number: phone, amount, user_id: userId, is_topup: true }
+            : { phone_number: phone, amount, function_id: functionId, user_id: userId },
+        ),
       });
       const data = await res.json();
       if (data.success) {
@@ -205,13 +211,14 @@ function FunctionPayModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-      <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
-        {step === "input" || step === "error" ? (
+  const title = isTopUp ? "Top up balance" : "Pay to join";
+  const primaryCta = isTopUp ? "Top up" : "Pay";
+
+  const modalBody =
+    step === "input" || step === "error" ? (
           <>
             <div className="flex justify-between items-center mb-5">
-              <h2 className="font-bold text-xl text-black">Pay to join</h2>
+              <h2 className="font-bold text-xl text-black">{title}</h2>
               <button
                 onClick={onClose}
                 className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer"
@@ -219,9 +226,11 @@ function FunctionPayModal({
                 ✕
               </button>
             </div>
+            {!embedded && (
             <p className="text-center text-sm text-gray-500 mb-5">
               Amount: <span className="font-bold text-black">KSH {amount.toLocaleString()}</span>
             </p>
+            )}
             <div className="mb-5">
               <label className="text-xs text-gray-500 mb-1.5 block">M-PESA Phone Number</label>
               <input
@@ -244,12 +253,12 @@ function FunctionPayModal({
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
               }`}
             >
-              Pay KSH {amount.toLocaleString()}
+              {primaryCta} KSH {amount.toLocaleString()}
             </button>
             {step === "error" && onRefreshStatus && (
               <button
                 type="button"
-                onClick={onRefreshStatus}
+                onClick={() => void onRefreshStatus()}
                 className="mt-3 w-full text-sm text-gray-500 underline hover:text-black text-center"
               >
                 Already paid? Check status
@@ -275,15 +284,20 @@ function FunctionPayModal({
             {onRefreshStatus && (
               <button
                 type="button"
-                onClick={onRefreshStatus}
+                onClick={() => void onRefreshStatus()}
                 className="mt-4 text-sm text-gray-500 underline hover:text-black"
               >
                 I already paid — refresh
               </button>
             )}
           </div>
-        )}
-      </div>
+        );
+
+  if (embedded) return <>{modalBody}</>;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
+      <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">{modalBody}</div>
     </div>
   );
 }
@@ -844,44 +858,29 @@ export default function HomeScreen() {
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
     if (!user) return;
-  
-    const isMember = eventFunction.function_members.some((m) => m.user_id === user.id);
-    const isFull = eventFunction.max_capacity
-      ? eventFunction.function_members.length >= eventFunction.max_capacity && !isMember
+    const isMember = eventFunction.functionmembers.some(m => m.userid === user.id);
+    const isFull = eventFunction.maxcapacity
+      ? eventFunction.functionmembers.length >= eventFunction.maxcapacity && !isMember
       : false;
-  
-    if (isFull) {
-      alert("This function is currently full!");
-      return;
-    }
+    if (isFull) { alert("This function is currently full!"); return; }
   
     try {
-      // Reserve the spot first (has_paid = false by default)
-      if (!isMember) {
-        await joinFunction(eventFunction.id, user.id);
-      }
+      if (!isMember) await joinFunction(eventFunction.id, user.id);
   
-      // Deduct Yuto Balance and mark as paid atomically
-      const { error } = await supabase.rpc("pay_for_function", {
-        p_function_id: eventFunction.id,
-      });
+      const { error } = await supabase.rpc("pay_for_function", { p_function_id: eventFunction.id });
   
       if (error) {
-        alert(error.message || "Insufficient Yuto Balance. Please top up.");
-        // Clean up the unpaid row
-        await supabase
-          .from("function_members")
-          .delete()
-          .eq("function_id", eventFunction.id)
-          .eq("user_id", user.id)
-          .eq("has_paid", false);
+        // ✅ Instead of alert — open topup modal
+        await supabase.from("function_members").delete()
+          .eq("function_id", eventFunction.id).eq("user_id", user.id).eq("has_paid", false);
+        setPendingJoinFunction(eventFunction); // remember which function they were trying to join
+        setShowFunctionTopUp(true);            // open topup modal
         return;
       }
   
       await loadFeed();
     } catch (err) {
-      console.error("Error joining function:", err);
-      alert("An unexpected error occurred.");
+      console.error("Error joining function", err);
     }
   };
 
@@ -1471,7 +1470,45 @@ export default function HomeScreen() {
           </div>
         </div>
       )}
-{/* Function Payment Modal */}
+{showFunctionTopUp && user && pendingJoinFunction && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
+          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+            <p className="text-center text-sm text-gray-500 mb-1">
+              You need{" "}
+              <span className="font-bold text-black">
+                KSH {pendingJoinFunction.amount_per_person.toLocaleString()}
+              </span>{" "}
+              to join this function.
+            </p>
+            <p className="text-center text-xs text-gray-400 mb-4">
+              Top up your balance to continue.
+            </p>
+            <FunctionPayModal
+              amount={pendingJoinFunction.amount_per_person}
+              functionId={pendingJoinFunction.id}
+              userId={user.id}
+              defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || undefined}
+              isTopUp
+              embedded
+              onClose={() => {
+                setShowFunctionTopUp(false);
+                setPendingJoinFunction(null);
+              }}
+              onRefreshStatus={async () => {
+                await loadFeed();
+                const fn = pendingJoinFunction;
+                if (fn) {
+                  setShowFunctionTopUp(false);
+                  setPendingJoinFunction(null);
+                  await handleJoinFunction(fn);
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Function Payment Modal */}
       {functionPayTarget && user && (
         <FunctionPayModal
           amount={functionPayTarget.amount_per_person}

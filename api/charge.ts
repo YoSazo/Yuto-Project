@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (is_topup) {
     // Top-up reference formatted as: TOPUP_uuid_timestamp
-    api_ref = `TOPUP_${user_id}_${Date.now()}`;
+    api_ref = `TOPUP${user_id.replace(/-/g, "")}${Date.now()}`;
   } else {
     targetType = group_id ? "group" : function_id ? "function" : null;
     if (!targetId || !targetType) return res.status(400).json({ error: "Missing targets" });
