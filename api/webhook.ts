@@ -20,6 +20,47 @@ function getSupabaseClient() {
 
 const REFERRAL_BONUS_KES = 10;
 
+async function creditWalletBalance(supabase: ReturnType<typeof createClient>, userId: string, amountKes: number) {
+  // Avoid `topup_balance` RPC: some DBs have an enum mismatch (`transaction_type` missing "topup") which breaks credits.
+  if (!Number.isFinite(amountKes) || amountKes <= 0) return { ok: false as const, reason: "invalid_amount" as const };
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data: w, error: readErr } = await supabase
+      .from("wallets")
+      .select("id, balance")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (readErr) {
+      console.error("[webhook] wallets read error:", readErr);
+      return { ok: false as const, reason: "read_error" as const };
+    }
+
+    const current = Number(w?.balance ?? 0) || 0;
+    const next = current + amountKes;
+
+    if (!w?.id) {
+      const { error: insertErr } = await supabase.from("wallets").insert({ user_id: userId, balance: next });
+      if (!insertErr) return { ok: true as const, previous: 0, next };
+      console.error("[webhook] wallets insert error (retrying):", insertErr);
+      continue;
+    }
+
+    const { error: updateErr } = await supabase
+      .from("wallets")
+      .update({ balance: next })
+      .eq("id", w.id)
+      // optimistic concurrency: retry if balance changed between read & write
+      .eq("balance", w.balance as any);
+
+    if (!updateErr) return { ok: true as const, previous: current, next };
+
+    console.error("[webhook] wallets update error (retrying):", updateErr);
+  }
+
+  return { ok: false as const, reason: "retry_exhausted" as const };
+}
+
 function extractKesAmount(payload: Record<string, unknown>): number {
   const candidates: unknown[] = [
     payload.value,
@@ -72,16 +113,21 @@ async function maybeConvertReferralOnFirstTopUp(supabase: ReturnType<typeof crea
 
   try {
     // Credit referrer wallet
-    await supabase.rpc("topup_balance", { p_user_id: ref.referrer_id, p_amount: REFERRAL_BONUS_KES });
+    const credited = await creditWalletBalance(supabase, ref.referrer_id, REFERRAL_BONUS_KES);
+    if (!credited.ok) {
+      console.error("[webhook] referral bonus credit failed:", credited);
+      return;
+    }
     // Mark referral converted
     await supabase.from("referrals").update({ converted: true }).eq("id", ref.id);
-    // Ledger entry (shows up in wallet history)
-    await supabase.from("transactions").insert({
+    // Ledger entry (best-effort; some DBs use an enum for type)
+    const { error: txErr } = await supabase.from("transactions").insert({
       user_id: ref.referrer_id,
       amount: REFERRAL_BONUS_KES,
       type: "referral_bonus",
       description: `Referral bonus (+KSH ${REFERRAL_BONUS_KES})`,
     });
+    if (txErr) console.error("[webhook] referral_bonus transaction insert error:", txErr);
   } catch (e) {
     console.error("[webhook] referral convert/credit error:", e);
   }
@@ -115,9 +161,9 @@ async function processIntaSendWebhook(payload: {
       amount = await fetchAmountFromStatus(String(payload.invoice_id));
     }
     if (amount > 0) {
-      const { error: topUpErr } = await supabase.rpc("topup_balance", { p_user_id: uid, p_amount: amount });
-      if (topUpErr) {
-        console.error("[webhook] topup_balance rpc error:", topUpErr);
+      const credited = await creditWalletBalance(supabase, uid, amount);
+      if (!credited.ok) {
+        console.error("[webhook] wallet credit failed:", credited);
         return;
       }
       // If this is their first ever top-up conversion, reward referrer.
