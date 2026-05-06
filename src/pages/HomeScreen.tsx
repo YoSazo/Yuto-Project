@@ -31,8 +31,7 @@ import { PlansFeedSection } from "../components/home/PlansFeedSection";
 import { type Plan, type PlanUpdate, type FunctionListing } from "./home/types";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { getUnreadFunctionMessageCount } from "./home/threadStorage";
-import { Users, Globe } from "lucide-react";
-import { Send } from "lucide-react";
+import { Users, Globe, MessageCircle, Send } from "lucide-react";
 
 export default function HomeScreen() {
   const { user, profile } = useAuth();
@@ -441,9 +440,20 @@ export default function HomeScreen() {
   return (
     <div className="flex flex-col overflow-y-auto pb-28 px-5 pt-6">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
-        <span className="text-2xl font-bold text-black">Home</span>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
+          <span className="text-2xl font-bold text-black">Home</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/messages")}
+          className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+          aria-label="Messages"
+          title="Messages"
+        >
+          <MessageCircle size={18} />
+        </button>
       </div>
 
       {/* Tab switcher */}

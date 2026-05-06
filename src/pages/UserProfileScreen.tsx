@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getProfile, getFriends, sendFriendRequest, getHighlightsByUser, type Highlight } from "../lib/supabase";
+import { supabase, getProfile, getFriends, sendFriendRequest, getHighlightsByUser, getOrCreateDmConversation, type Highlight } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
-import { ArrowLeft, UserPlus, Check, Clock } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, Clock, MessageCircle } from "lucide-react";
 
 const STAT_POSITIONS = [
   { id: "splits", angle: -2.4, label: "Splits" },
@@ -94,6 +94,17 @@ export default function UserProfileScreen() {
       console.error(err);
     }
     setActionLoading(false);
+  };
+
+  const handleMessage = async () => {
+    if (!user || !targetUserId) return;
+    try {
+      const convo = await getOrCreateDmConversation(user.id, targetUserId);
+      navigate(`/messages/${convo.id}`, { state: { otherUserId: targetUserId } });
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't open messages. Try again.");
+    }
   };
 
   if (loading) {
@@ -204,20 +215,42 @@ export default function UserProfileScreen() {
 
       {/* Action Buttons */}
       <div className="px-2">
-        {friendStatus === "none" && (
-          <button onClick={handleAddFriend} disabled={actionLoading} className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors shadow-lg shadow-black/10">
-            <UserPlus size={20} /> Add Friend
+        {friendStatus === "friends" ? (
+          <button
+            onClick={() => void handleMessage()}
+            className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors shadow-lg shadow-black/10"
+          >
+            <MessageCircle size={20} /> Message
           </button>
-        )}
-        {friendStatus === "pending" && (
-          <button disabled className="w-full py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold flex items-center justify-center gap-2">
-            <Clock size={20} /> Request Pending
-          </button>
-        )}
-        {friendStatus === "friends" && (
-          <button disabled className="w-full py-4 bg-green-50 text-green-600 rounded-2xl font-bold flex items-center justify-center gap-2 border border-green-200">
-            <Check size={20} /> You are friends
-          </button>
+        ) : (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleAddFriend}
+              disabled={actionLoading || friendStatus !== "none"}
+              className={`flex-1 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-black/10 ${
+                friendStatus === "none"
+                  ? "bg-black text-white hover:bg-gray-800"
+                  : "bg-gray-100 text-gray-500 shadow-none"
+              }`}
+            >
+              {friendStatus === "pending" ? (
+                <>
+                  <Clock size={20} /> Pending
+                </>
+              ) : (
+                <>
+                  <UserPlus size={20} /> Add Friend
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => void handleMessage()}
+              className="flex-1 py-4 bg-gray-100 text-black rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+            >
+              <MessageCircle size={20} /> Message
+            </button>
+          </div>
         )}
       </div>
 

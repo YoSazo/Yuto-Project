@@ -14,6 +14,8 @@ import InviteScreen from "./pages/InviteScreen";
 import UserProfileScreen from "./pages/UserProfileScreen";
 import HomeScreen from "./pages/HomeScreen";
 import AddToHomeScreen from "./pages/AddToHomeScreen";
+import MessagesScreen from "./pages/MessagesScreen";
+import DirectMessageScreen from "./pages/DirectMessageScreen";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthScreen /> },
@@ -33,6 +35,8 @@ export const router = createBrowserRouter([
       { path: "/yuto/:groupId/chat", element: <YutoChatScreen /> },
       { path: "/user/:id", element: <UserProfileScreen /> },
       { path: "/home", element: <HomeScreen /> },
+      { path: "/messages", element: <MessagesScreen /> },
+      { path: "/messages/:conversationId", element: <DirectMessageScreen /> },
       { path: "/add-to-home", element: <AddToHomeScreen /> },
     ],
   },

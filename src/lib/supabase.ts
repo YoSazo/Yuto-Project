@@ -692,3 +692,77 @@ export async function sendPlanMessage(planId: string, userId: string, content: s
     throw new Error(data.message || "Couldn't send message. Try again.");
   }
 }
+
+// ─── Direct Messages (1:1) ────────────────────────────
+
+export type DmConversation = {
+  id: string;
+  user_low: string;
+  user_high: string;
+  created_at: string;
+};
+
+export type DmMessage = {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  sender?: { id: string; username: string; display_name: string; avatar_url: string | null };
+};
+
+function canonicalPair(a: string, b: string) {
+  return a < b ? { user_low: a, user_high: b } : { user_low: b, user_high: a };
+}
+
+export async function getOrCreateDmConversation(meId: string, otherUserId: string): Promise<DmConversation> {
+  const { user_low, user_high } = canonicalPair(meId, otherUserId);
+
+  const existing = await supabase
+    .from("dm_conversations")
+    .select("id, user_low, user_high, created_at")
+    .eq("user_low", user_low)
+    .eq("user_high", user_high)
+    .maybeSingle();
+
+  if (existing.error) throw existing.error;
+  if (existing.data) return existing.data as DmConversation;
+
+  const created = await supabase
+    .from("dm_conversations")
+    .insert({ user_low, user_high })
+    .select("id, user_low, user_high, created_at")
+    .single();
+  if (created.error) throw created.error;
+  return created.data as DmConversation;
+}
+
+export async function listMyDmConversations(meId: string) {
+  const { data, error } = await supabase
+    .from("dm_conversations")
+    .select("id, user_low, user_high, created_at")
+    .or(`user_low.eq.${meId},user_high.eq.${meId}`)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []) as DmConversation[];
+}
+
+export async function getDmMessages(conversationId: string) {
+  const { data, error } = await supabase
+    .from("dm_messages")
+    .select(
+      `id, conversation_id, sender_id, content, created_at,
+       sender:profiles!dm_messages_sender_id_fkey(id, username, display_name, avatar_url)`
+    )
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data || []) as DmMessage[];
+}
+
+export async function sendDmMessage(conversationId: string, senderId: string, content: string) {
+  const trimmed = content.trim();
+  if (!trimmed) return;
+  const { error } = await supabase.from("dm_messages").insert({ conversation_id: conversationId, sender_id: senderId, content: trimmed });
+  if (error) throw error;
+}
