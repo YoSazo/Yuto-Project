@@ -291,20 +291,31 @@ export default function MessagesScreen() {
         </div>
       ) : activeTab === "business" ? (
         <div className="flex flex-col gap-6">
-          <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Business</p>
-            <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-              <div className="bg-gray-50 rounded-2xl p-3">
-                <p className="text-[11px] font-semibold text-gray-400">Revenue</p>
-                <p className="text-base font-extrabold text-black">KSH {(bizDashboard?.revenueThisMonthKes || 0).toLocaleString()}</p>
+          <div className="bg-black rounded-3xl p-6 text-white relative overflow-hidden shadow-lg">
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 mb-5">
+              <div className="absolute left-0 top-0">
+                <Briefcase size={16} className="text-white/70" />
               </div>
-              <div className="bg-gray-50 rounded-2xl p-3">
-                <p className="text-[11px] font-semibold text-gray-400">Orders</p>
-                <p className="text-base font-extrabold text-black">{(bizDashboard?.ordersThisMonth || 0).toLocaleString()}</p>
+              <div className="flex items-center justify-center text-base font-extrabold">
+                Business
               </div>
-              <div className="bg-gray-50 rounded-2xl p-3">
-                <p className="text-[11px] font-semibold text-gray-400">Listings</p>
-                <p className="text-base font-extrabold text-black">{(bizDashboard?.activeListings || 0).toLocaleString()}</p>
+            </div>
+
+            <div className="relative z-10 grid grid-cols-3 gap-3 text-center">
+              <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
+                <p className="text-[11px] font-semibold text-white/60">Revenue</p>
+                <p className="text-base font-extrabold text-white">KSH {(bizDashboard?.revenueThisMonthKes || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
+                <p className="text-[11px] font-semibold text-white/60">Orders</p>
+                <p className="text-base font-extrabold text-white">{(bizDashboard?.ordersThisMonth || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
+                <p className="text-[11px] font-semibold text-white/60">Listings</p>
+                <p className="text-base font-extrabold text-white">{(bizDashboard?.activeListings || 0).toLocaleString()}</p>
               </div>
             </div>
           </div>
