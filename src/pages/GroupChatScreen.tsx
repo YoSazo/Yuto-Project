@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Pencil, Plus, Send } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
@@ -25,6 +25,7 @@ import { FunctionCard } from "../components/cards/FunctionCard";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
+import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 
 function parseShare(m: GroupChatMessage): DmSharePayload | null {
   if ((m.message_type ?? "text") !== "share") return null;
@@ -52,8 +53,7 @@ export default function GroupChatScreen() {
   const [messages, setMessages] = useState<GroupChatMessage[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
+  const { scrollViewportRef, bottomRef, contentRef, onScrollViewport } = useThreadScrollToBottom(groupId, loading, messages.length);
   const [showSharePicker, setShowSharePicker] = useState(false);
   const [previewShare, setPreviewShare] = useState<{ title: string; subtitle: string; kindLabel: string } | null>(
     null,
@@ -137,13 +137,6 @@ export default function GroupChatScreen() {
       supabase.removeChannel(channel);
     };
   }, [groupId, user]);
-
-  useLayoutEffect(() => {
-    if (loading || !groupId) return;
-    const el = scrollViewportRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [loading, groupId, messages]);
 
   useEffect(() => {
     if (!groupId) return;
@@ -384,14 +377,20 @@ export default function GroupChatScreen() {
         </div>
       </div>
 
-      <div ref={scrollViewportRef} className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
+      <div
+        ref={scrollViewportRef}
+        onScroll={onScrollViewport}
+        className="flex-1 overflow-y-auto px-5 py-4 min-h-0 overscroll-contain"
+      >
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : !meta ? (
-          <div className="py-16 text-center text-gray-400 font-semibold">Group not found</div>
         ) : (
+          <div ref={contentRef} className="w-full">
+            {!meta ? (
+              <div className="py-16 text-center text-gray-400 font-semibold">Group not found</div>
+            ) : (
           <div className="flex flex-col gap-3">
             {messages.map((m) => {
               const mine = m.sender_id === user?.id;
@@ -436,6 +435,8 @@ export default function GroupChatScreen() {
               );
             })}
             <div ref={bottomRef} />
+          </div>
+            )}
           </div>
         )}
       </div>

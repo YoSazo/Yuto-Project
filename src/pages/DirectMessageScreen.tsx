@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Send } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
@@ -23,6 +23,7 @@ import { PlanCard } from "../components/cards/PlanCard";
 import { FunctionCard } from "../components/cards/FunctionCard";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
+import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -39,8 +40,11 @@ export default function DirectMessageScreen() {
   const [text, setText] = useState("");
   const [showSharePicker, setShowSharePicker] = useState(false);
   const [previewShare, setPreviewShare] = useState<{ title: string; subtitle: string; kindLabel: string } | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
+  const { scrollViewportRef, bottomRef, contentRef, onScrollViewport } = useThreadScrollToBottom(
+    conversationId,
+    loading,
+    messages.length,
+  );
   const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
@@ -117,13 +121,6 @@ export default function DirectMessageScreen() {
       supabase.removeChannel(channel);
     };
   }, [conversationId, user]);
-
-  useLayoutEffect(() => {
-    if (loading || !conversationId) return;
-    const el = scrollViewportRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [loading, conversationId, messages]);
 
   const title = useMemo(() => other?.display_name || "Message", [other]);
 
@@ -269,13 +266,17 @@ export default function DirectMessageScreen() {
         </div>
       </div>
 
-      <div ref={scrollViewportRef} className="flex-1 overflow-y-auto px-5 py-4 min-h-0">
+      <div
+        ref={scrollViewportRef}
+        onScroll={onScrollViewport}
+        className="flex-1 overflow-y-auto px-5 py-4 min-h-0 overscroll-contain"
+      >
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div ref={contentRef} className="flex flex-col gap-2">
             {messages.map((m) => {
               const mine = m.sender_id === user?.id;
               const share = parseShare(m);
