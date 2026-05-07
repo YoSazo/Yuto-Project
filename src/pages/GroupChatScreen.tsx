@@ -21,6 +21,9 @@ import {
   setGroupChatTitle,
   getHighlightById,
   ensureFunctionAttendeeChat,
+  createWalletOffer,
+  acceptWalletOffer,
+  getWalletOfferById,
   supabase,
   type DmSharePayload,
   type GroupChatMessage,
@@ -61,12 +64,15 @@ function parseShare(m: GroupChatMessage): DmSharePayload | null {
       group_id: String((p as any).group_id),
       amount_kes: typeof (p as any).amount_kes === "number" ? (p as any).amount_kes : undefined,
       memo: typeof (p as any).memo === "string" ? (p as any).memo : undefined,
+      media_url: typeof (p as any).media_url === "string" ? (p as any).media_url : undefined,
+      media_type: typeof (p as any).media_type === "string" ? (p as any).media_type : undefined,
     } as any;
   }
   if (p.kind === "profile" && typeof p.user_id === "string") return { kind: "profile", user_id: p.user_id };
   if (p.kind === "highlight" && typeof p.highlight_id === "string" && typeof p.user_id === "string") {
     return { kind: "highlight", highlight_id: p.highlight_id, user_id: p.user_id };
   }
+  if (p.kind === "wallet_offer" && typeof (p as any).offer_id === "string") return { kind: "wallet_offer", offer_id: String((p as any).offer_id) };
   return null;
 }
 
@@ -100,6 +106,7 @@ export default function GroupChatScreen() {
   const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
   const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
+  const [walletOfferCache, setWalletOfferCache] = useState<Record<string, any | null>>({});
 
   useEffect(() => {
     if (!groupId || !user) return;
@@ -181,6 +188,7 @@ export default function GroupChatScreen() {
     const missing = shares.filter((s) => {
       if (s.payload.kind === "highlight") return false;
       if (s.payload.kind === "group") return !((s.payload as any).group_id in groupShareCache);
+      if (s.payload.kind === "wallet_offer") return !((s.payload as any).offer_id in walletOfferCache);
       if (s.payload.kind === "plan") return !(`plan:${s.payload.plan_id}` in shareCache);
       if (s.payload.kind === "function" || s.payload.kind === "listing") return !(`fn:${(s.payload as { function_id: string }).function_id}` in shareCache);
       return false;
@@ -193,6 +201,10 @@ export default function GroupChatScreen() {
         const groupIds = missing
           .filter((m) => m.payload.kind === "group")
           .map((m) => ((m.payload as any).group_id as string))
+          .filter(Boolean);
+        const offerIds = missing
+          .filter((m) => m.payload.kind === "wallet_offer")
+          .map((m) => String((m.payload as any).offer_id))
           .filter(Boolean);
         const planIds = missing.filter((m) => m.payload.kind === "plan").map((m) => (m.payload as { plan_id: string }).plan_id);
         const fnIds = missing
@@ -234,6 +246,16 @@ export default function GroupChatScreen() {
         if (fnErr) throw fnErr;
         if (groupErr) throw groupErr;
 
+        const offers = await Promise.all(
+          (offerIds || []).map(async (id) => {
+            try {
+              return await getWalletOfferById(id);
+            } catch {
+              return null;
+            }
+          }),
+        );
+
         if (cancelled) return;
         setShareCache((prev: any) => {
           const next = { ...prev };
@@ -262,6 +284,14 @@ export default function GroupChatScreen() {
           });
           return next;
         });
+
+        setWalletOfferCache((prev) => {
+          const next = { ...prev };
+          (offerIds || []).forEach((id, idx) => {
+            next[String(id)] = offers[idx] ?? null;
+          });
+          return next;
+        });
       } catch (e) {
         console.error(e);
       }
@@ -270,7 +300,33 @@ export default function GroupChatScreen() {
     return () => {
       cancelled = true;
     };
-  }, [messages, shareCache, groupShareCache, groupId]);
+  }, [messages, shareCache, groupShareCache, walletOfferCache, groupId]);
+
+  // Live accept-state for wallet offer cards.
+  useEffect(() => {
+    if (!user) return;
+    const offerIds = Array.from(
+      new Set(
+        messages
+          .map((m) => parseShare(m))
+          .filter((p): p is Extract<DmSharePayload, { kind: "wallet_offer" }> => p?.kind === "wallet_offer")
+          .map((p) => p.offer_id),
+      ),
+    );
+    if (offerIds.length === 0) return;
+    const channel = supabase
+      .channel(`group-wallet-offers-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "wallet_offers" }, (payload) => {
+        const row = payload.new as any;
+        const id = String(row?.id || "");
+        if (!id || !offerIds.includes(id)) return;
+        setWalletOfferCache((prev) => ({ ...prev, [id]: row }));
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [messages, user]);
 
   useEffect(() => {
     if (!groupId) return;
@@ -500,6 +556,57 @@ export default function GroupChatScreen() {
     shareKey: string,
     mine: boolean,
   ) => {
+    if (share.kind === "wallet_offer") {
+      const offer = walletOfferCache[share.offer_id] as any;
+      const pending = offer?.status === "pending";
+      const accepted = offer?.status === "accepted";
+      const canAccept = !!user && pending && offer && String(offer.sender_id) !== String(user.id);
+      return (
+        <div className="w-full max-w-[min(100vw-4rem,48rem)]">
+          <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+            <div className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Money</p>
+              <p className="mt-1 font-extrabold text-black text-lg truncate">{offer?.note || "Yuto send"}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Amount: <span className="font-bold text-black">KSH {Number(offer?.amount_kes || 0).toLocaleString("en-KE")}</span>
+              </p>
+              <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                {accepted ? (
+                  <button type="button" disabled className="flex-1 h-11 rounded-2xl bg-green-500 text-white font-extrabold opacity-90 cursor-not-allowed">
+                    Claimed
+                  </button>
+                ) : pending ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!user) return;
+                      try {
+                        await acceptWalletOffer(share.offer_id);
+                        const fresh = await getWalletOfferById(share.offer_id);
+                        setWalletOfferCache((prev) => ({ ...prev, [share.offer_id]: fresh }));
+                      } catch (e) {
+                        console.error(e);
+                        alert(e instanceof Error ? e.message : "Couldn't claim.");
+                      }
+                    }}
+                    disabled={!canAccept}
+                    className={`flex-1 h-11 rounded-2xl font-extrabold transition-colors whitespace-nowrap ${
+                      canAccept ? "bg-black hover:bg-gray-800 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    Claim
+                  </button>
+                ) : (
+                  <button type="button" disabled className="flex-1 h-11 rounded-2xl bg-gray-200 text-gray-500 font-extrabold cursor-not-allowed">
+                    Unavailable
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
     if (share.kind === "group") {
       const g = groupShareCache[share.group_id];
       const amt = g?.per_person || (share as any).amount_kes || 0;
@@ -862,6 +969,11 @@ export default function GroupChatScreen() {
           );
         }}
         onRequestSplit={(args) => requestSplitInGroupChat(args)}
+        onSendMoney={async ({ amountKes, note }) => {
+          if (!user || !groupId) throw new Error("Missing group chat.");
+          const offerId = await createWalletOffer({ amountKes, note: note || null, groupChatId: groupId });
+          await sendGroupChatShareMessage(groupId, user.id, { kind: "wallet_offer", offer_id: offerId } as any);
+        }}
       />
 
       {groupPay && user && (

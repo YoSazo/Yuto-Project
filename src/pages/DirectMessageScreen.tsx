@@ -17,6 +17,9 @@ import {
   upsertDmBusinessContext,
   getHighlightById,
   ensureFunctionAttendeeChat,
+  createWalletOffer,
+  acceptWalletOffer,
+  getWalletOfferById,
   supabase,
   type DmMessage,
   type DmSharePayload,
@@ -68,6 +71,7 @@ export default function DirectMessageScreen() {
   const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
   const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
+  const [walletOfferCache, setWalletOfferCache] = useState<Record<string, any | null>>({});
 
   const parseShare = (m: DmMessage): DmSharePayload | null => {
     if (m.message_type !== "share") return null;
@@ -79,12 +83,20 @@ export default function DirectMessageScreen() {
       return { kind: "listing", function_id: p.function_id, listing_kind: p.listing_kind };
     }
     if (p.kind === "group" && typeof p.group_id === "string") {
-      return { kind: "group", group_id: p.group_id, amount_kes: typeof p.amount_kes === "number" ? p.amount_kes : undefined, memo: typeof p.memo === "string" ? p.memo : undefined };
+      return {
+        kind: "group",
+        group_id: p.group_id,
+        amount_kes: typeof p.amount_kes === "number" ? p.amount_kes : undefined,
+        memo: typeof p.memo === "string" ? p.memo : undefined,
+        media_url: typeof p.media_url === "string" ? p.media_url : undefined,
+        media_type: typeof p.media_type === "string" ? p.media_type : undefined,
+      };
     }
     if (p.kind === "profile" && typeof p.user_id === "string") return { kind: "profile", user_id: p.user_id };
     if (p.kind === "highlight" && typeof p.highlight_id === "string" && typeof p.user_id === "string") {
       return { kind: "highlight", highlight_id: p.highlight_id, user_id: p.user_id };
     }
+    if (p.kind === "wallet_offer" && typeof p.offer_id === "string") return { kind: "wallet_offer", offer_id: p.offer_id };
     return null;
   };
 
@@ -288,6 +300,7 @@ export default function DirectMessageScreen() {
     const missing = shares.filter((s) => {
       if (s.payload.kind === "highlight") return false;
       if (s.payload.kind === "group") return !(s.payload.group_id in groupShareCache);
+      if (s.payload.kind === "wallet_offer") return !(s.payload.offer_id in walletOfferCache);
       if (s.payload.kind === "plan") return !(`plan:${s.payload.plan_id}` in shareCache);
       if (s.payload.kind === "function" || s.payload.kind === "listing") return !(`fn:${s.payload.function_id}` in shareCache);
       return false;
@@ -300,6 +313,9 @@ export default function DirectMessageScreen() {
         const groupIds = missing
           .filter((m) => m.payload.kind === "group")
           .map((m) => (m.payload as Extract<DmSharePayload, { kind: "group" }>).group_id);
+        const offerIds = missing
+          .filter((m) => m.payload.kind === "wallet_offer")
+          .map((m) => (m.payload as Extract<DmSharePayload, { kind: "wallet_offer" }>).offer_id);
         const planIds = missing.filter((m) => m.payload.kind === "plan").map((m) => (m.payload as { plan_id: string }).plan_id);
         const fnIds = missing
           .filter((m) => m.payload.kind === "function" || m.payload.kind === "listing")
@@ -332,6 +348,16 @@ export default function DirectMessageScreen() {
             ? { data: [] as Record<string, unknown>[], error: null }
             : await supabase.from("groups").select("id, name, per_person, status").in("id", groupIds);
         if (groupErr) throw groupErr;
+
+        const offers = await Promise.all(
+          (offerIds || []).map(async (id) => {
+            try {
+              return await getWalletOfferById(id);
+            } catch {
+              return null;
+            }
+          }),
+        );
 
         if (cancelled) return;
         setShareCache((prev) => {
@@ -366,6 +392,14 @@ export default function DirectMessageScreen() {
           });
           return next;
         });
+
+        setWalletOfferCache((prev) => {
+          const next = { ...prev };
+          (offerIds || []).forEach((id, idx) => {
+            next[String(id)] = offers[idx] ?? null;
+          });
+          return next;
+        });
       } catch (e) {
         console.error(e);
       }
@@ -374,7 +408,7 @@ export default function DirectMessageScreen() {
     return () => {
       cancelled = true;
     };
-  }, [messages, shareCache, groupShareCache, conversationId]);
+  }, [messages, shareCache, groupShareCache, walletOfferCache, conversationId]);
 
   // Live paid-state for quick split cards (flip Pay Now -> Paid).
   useEffect(() => {
@@ -423,6 +457,32 @@ export default function DirectMessageScreen() {
 
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [messages, user]);
+
+  // Live accept-state for wallet offer cards.
+  useEffect(() => {
+    if (!user) return;
+    const offerIds = Array.from(
+      new Set(
+        messages
+          .map((m) => parseShare(m))
+          .filter((p): p is Extract<DmSharePayload, { kind: "wallet_offer" }> => p?.kind === "wallet_offer")
+          .map((p) => p.offer_id),
+      ),
+    );
+    if (offerIds.length === 0) return;
+    const channel = supabase
+      .channel(`dm-wallet-offers-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "wallet_offers" }, (payload) => {
+        const row = payload.new as any;
+        const id = String(row?.id || "");
+        if (!id || !offerIds.includes(id)) return;
+        setWalletOfferCache((prev) => ({ ...prev, [id]: row }));
+      })
+      .subscribe();
+    return () => {
       supabase.removeChannel(channel);
     };
   }, [messages, user]);
@@ -552,7 +612,77 @@ export default function DirectMessageScreen() {
                     </div>
                   ) : listedShare ? (
                     <div className="max-w-[99%] w-[99%] md:w-[760px]">
-                      {listedShare.kind === "group" ? (
+                      {listedShare.kind === "wallet_offer" ? (
+                        <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+                          <div className="p-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Money</p>
+                            <p className="mt-1 font-extrabold text-black text-lg truncate">{(walletOfferCache as any)[listedShare.offer_id]?.note || "Yuto send"}</p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              Amount:{" "}
+                              <span className="font-bold text-black">
+                                KSH {Number((walletOfferCache as any)[listedShare.offer_id]?.amount_kes || 0).toLocaleString("en-KE")}
+                              </span>
+                            </p>
+                            <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                              {(() => {
+                                const offer = (walletOfferCache as any)[listedShare.offer_id] as any;
+                                const pending = offer?.status === "pending";
+                                const accepted = offer?.status === "accepted";
+                                const canAccept =
+                                  !!user &&
+                                  pending &&
+                                  offer &&
+                                  String(offer.sender_id) !== String(user.id) &&
+                                  (!offer.recipient_user_id || String(offer.recipient_user_id) === String(user.id));
+                                if (accepted) {
+                                  return (
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="flex-1 h-11 rounded-2xl bg-green-500 text-white font-extrabold opacity-90 cursor-not-allowed"
+                                    >
+                                      Accepted
+                                    </button>
+                                  );
+                                }
+                                if (!pending) {
+                                  return (
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="flex-1 h-11 rounded-2xl bg-gray-200 text-gray-500 font-extrabold cursor-not-allowed"
+                                    >
+                                      Unavailable
+                                    </button>
+                                  );
+                                }
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (!user) return;
+                                      try {
+                                        await acceptWalletOffer(listedShare.offer_id);
+                                        const fresh = await getWalletOfferById(listedShare.offer_id);
+                                        setWalletOfferCache((prev) => ({ ...prev, [listedShare.offer_id]: fresh }));
+                                      } catch (e) {
+                                        console.error(e);
+                                        alert(e instanceof Error ? e.message : "Couldn't accept.");
+                                      }
+                                    }}
+                                    disabled={!canAccept}
+                                    className={`flex-1 h-11 rounded-2xl font-extrabold transition-colors whitespace-nowrap ${
+                                      canAccept ? "bg-black hover:bg-gray-800 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                    }`}
+                                  >
+                                    Accept
+                                  </button>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      ) : listedShare.kind === "group" ? (
                         <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
                           {(listedShare as any).media_url ? (
                             <FixedMediaCarousel
@@ -800,6 +930,16 @@ export default function DirectMessageScreen() {
           );
         }}
         onRequestSplit={(args) => requestSplitInDm(args)}
+        onSendMoney={async ({ amountKes, note }) => {
+          if (!user || !conversationId || !otherUserId) throw new Error("Missing DM context.");
+          const offerId = await createWalletOffer({
+            amountKes,
+            note: note || null,
+            dmConversationId: conversationId,
+            recipientUserId: otherUserId,
+          });
+          await sendDmShareMessage(conversationId, user.id, { kind: "wallet_offer", offer_id: offerId } as any);
+        }}
       />
 
       {previewShare && (

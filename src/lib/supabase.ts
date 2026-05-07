@@ -1175,8 +1175,74 @@ export type DmSharePayload =
   | { kind: "function"; function_id: string }
   | { kind: "listing"; function_id: string; listing_kind: "sell" | "service" }
   | { kind: "group"; group_id: string; amount_kes?: number; memo?: string; media_url?: string; media_type?: string }
+  | { kind: "wallet_offer"; offer_id: string }
   | { kind: "profile"; user_id: string }
   | { kind: "highlight"; highlight_id: string; user_id: string };
+
+export async function createWalletOffer(args: {
+  amountKes: number;
+  note?: string | null;
+  dmConversationId?: string | null;
+  groupChatId?: string | null;
+  recipientUserId?: string | null;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc("create_wallet_offer", {
+    p_amount_kes: args.amountKes,
+    p_note: args.note ?? null,
+    p_dm_conversation_id: args.dmConversationId ?? null,
+    p_group_chat_id: args.groupChatId ?? null,
+    p_recipient_user_id: args.recipientUserId ?? null,
+  });
+  if (error) throw error;
+  return String(data);
+}
+
+export async function acceptWalletOffer(offerId: string) {
+  const { error } = await supabase.rpc("accept_wallet_offer", { p_offer_id: offerId });
+  if (error) throw error;
+}
+
+export type WalletOfferRow = {
+  id: string;
+  sender_id: string;
+  recipient_user_id: string | null;
+  dm_conversation_id: string | null;
+  group_chat_id: string | null;
+  amount_kes: number;
+  note: string | null;
+  status: "pending" | "accepted" | "cancelled" | string;
+  accepted_by: string | null;
+  accepted_at: string | null;
+  created_at: string;
+  sender?: { id: string; username: string; display_name: string; avatar_url: string | null } | null;
+  accepted_by_profile?: { id: string; username: string; display_name: string; avatar_url: string | null } | null;
+};
+
+export async function getWalletOfferById(offerId: string): Promise<WalletOfferRow | null> {
+  const { data, error } = await supabase
+    .from("wallet_offers")
+    .select(
+      `
+      id,
+      sender_id,
+      recipient_user_id,
+      dm_conversation_id,
+      group_chat_id,
+      amount_kes,
+      note,
+      status,
+      accepted_by,
+      accepted_at,
+      created_at,
+      sender:profiles!wallet_offers_sender_id_fkey(id,username,display_name,avatar_url),
+      accepted_by_profile:profiles!wallet_offers_accepted_by_fkey(id,username,display_name,avatar_url)
+    `,
+    )
+    .eq("id", offerId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as any) || null;
+}
 
 export type PublicPost = {
   id: string;
