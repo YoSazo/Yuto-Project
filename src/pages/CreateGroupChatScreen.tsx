@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { createGroupChat, getFriends } from "../lib/supabase";
+import { createGroupChat, getFriends, getOrCreateDmConversation, sendDmMessage, sendGroupChatMessage } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 
 interface FriendRow {
@@ -18,6 +18,7 @@ export default function CreateGroupChatScreen() {
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
+  const [note, setNote] = useState("");
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -40,14 +41,29 @@ export default function CreateGroupChatScreen() {
     setSelectedFriends((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
+  const isGroup = selectedFriends.length > 1;
   const valid = selectedFriends.length > 0;
 
   const handleCreate = async () => {
     if (!user || !valid) return;
     setCreating(true);
     try {
+      if (!isGroup) {
+        const otherId = selectedFriends[0];
+        if (!otherId) return;
+        const convo = await getOrCreateDmConversation(user.id, otherId);
+        if (note.trim()) {
+          await sendDmMessage(convo.id, user.id, note.trim());
+        }
+        navigate(`/messages/${convo.id}`, { replace: true });
+        return;
+      }
+
       const title = groupName.trim() || "Group chat";
       const chat = await createGroupChat(user.id, selectedFriends, title);
+      if (note.trim()) {
+        await sendGroupChatMessage(chat.id, user.id, note.trim());
+      }
       navigate(`/messages/group/${chat.id}`, { replace: true });
     } catch (e) {
       console.error(e);
@@ -69,24 +85,26 @@ export default function CreateGroupChatScreen() {
           <button type="button" onClick={() => navigate(-1)} className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0" aria-label="Back">
             <ArrowLeft size={18} />
           </button>
-          <span className="text-xl font-bold text-black">New group</span>
+          <span className="text-xl font-bold text-black">{isGroup ? "New group" : "New message"}</span>
         </div>
       </div>
 
       <div className="mt-2 flex-1">
-        <div className="mb-8">
-          <p className="font-semibold text-sm text-gray-500 mb-3 text-center">Name your group</p>
-          <input
-            type="text"
-            value={groupName}
-            onChange={(e) => setGroupName(e.target.value.slice(0, 40))}
-            placeholder="Trip to Nanyuki, roomies, study crew…"
-            maxLength={40}
-            className="w-full text-sm text-center text-gray-600 bg-gray-50 border-none outline-none rounded-full px-4 py-3 placeholder-gray-300"
-          />
-        </div>
+        {isGroup && (
+          <div className="mb-8">
+            <p className="font-semibold text-sm text-gray-500 mb-3 text-center">Name your group</p>
+            <input
+              type="text"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value.slice(0, 40))}
+              placeholder="Trip to Nanyuki, roomies, study crew…"
+              maxLength={40}
+              className="w-full text-sm text-center text-gray-600 bg-gray-50 border-none outline-none rounded-full px-4 py-3 placeholder-gray-300"
+            />
+          </div>
+        )}
 
-        <p className="font-semibold text-sm text-gray-500 mb-3">Add people</p>
+        <p className="font-semibold text-sm text-gray-500 mb-3">Send to</p>
         {friends.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-sm text-gray-400 mb-2">No friends yet</p>
@@ -117,6 +135,14 @@ export default function CreateGroupChatScreen() {
       </div>
 
       <div className="mt-auto pb-6 pt-8">
+        {valid && (
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value.slice(0, 600))}
+            placeholder="Add a note…"
+            className="w-full mb-3 min-h-[54px] max-h-[140px] resize-none rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700 outline-none border border-transparent focus:border-gray-200 placeholder-gray-300"
+          />
+        )}
         <button
           type="button"
           onClick={() => void handleCreate()}
@@ -125,7 +151,7 @@ export default function CreateGroupChatScreen() {
             valid && !creating ? "bg-black text-white active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"
           }`}
         >
-          {creating ? "Creating…" : "Create group"}
+          {creating ? "Creating…" : isGroup ? "Create group" : "Create message"}
         </button>
       </div>
     </div>

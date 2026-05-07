@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Briefcase, Plus, Users } from "lucide-react";
+import { ArrowLeft, Briefcase, SquarePen, Users } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import { SegmentedTabsBar } from "../components/ui/SegmentedTabsBar";
@@ -254,10 +254,10 @@ export default function MessagesScreen() {
           type="button"
           onClick={() => navigate("/messages/group/new")}
           className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
-          aria-label="New group chat"
-          title="New group chat"
+          aria-label="New message"
+          title="New message"
         >
-          <Plus size={20} />
+          <SquarePen size={20} />
         </button>
       </div>
 
