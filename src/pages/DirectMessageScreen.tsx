@@ -33,6 +33,7 @@ import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeT
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 import { GroupChargeModal } from "../components/wallet/GroupChargeModal";
+import { ConfirmUnsendModal } from "../components/ui/ConfirmUnsendModal";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -65,6 +66,7 @@ export default function DirectMessageScreen() {
   const [groupShareCache, setGroupShareCache] = useState<Record<string, { id: string; name: string; per_person: number; status: string }>>({});
   const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
   const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
+  const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
 
   const parseShare = (m: DmMessage): DmSharePayload | null => {
     if (m.message_type !== "share") return null;
@@ -501,17 +503,7 @@ export default function DirectMessageScreen() {
                   {mine && (
                     <button
                       type="button"
-                      onClick={async () => {
-                        if (!user) return;
-                        if (!confirm("Delete this message?")) return;
-                        try {
-                          await deleteDmMessage(m.id, user.id);
-                          setMessages((prev) => prev.filter((x) => x.id !== m.id));
-                        } catch (e) {
-                          console.error(e);
-                          alert("Couldn't delete message.");
-                        }
-                      }}
+                      onClick={() => setConfirmDeleteMessageId(m.id)}
                       className="mr-2 mt-2 w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center shrink-0"
                       aria-label="Delete message"
                       title="Delete"
@@ -548,7 +540,7 @@ export default function DirectMessageScreen() {
                       )}
                     </div>
                   ) : listedShare ? (
-                    <div className="max-w-[95%] w-[95%] md:w-[420px]">
+                    <div className="max-w-[98%] w-[98%] md:w-[480px]">
                       {listedShare.kind === "group" ? (
                         <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
@@ -561,7 +553,7 @@ export default function DirectMessageScreen() {
                               KSH {(sharedGroup?.per_person || listedShare.amount_kes || 0).toLocaleString("en-KE")}
                             </span>
                           </p>
-                          <div className="mt-4 flex gap-2">
+                          <div className="mt-4 flex gap-3">
                             <button
                               type="button"
                               onClick={() => navigate(`/yuto/${listedShare.group_id}`)}
@@ -603,7 +595,7 @@ export default function DirectMessageScreen() {
                                     setGroupPay({ groupId: listedShare.group_id, amount: perPerson });
                                   }
                                 }}
-                                className="flex-1 h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
+                                className="flex-1 h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors whitespace-nowrap"
                               >
                                 Pay now
                               </button>
@@ -709,6 +701,23 @@ export default function DirectMessageScreen() {
           </div>
         )}
       </div>
+
+      <ConfirmUnsendModal
+        open={!!confirmDeleteMessageId}
+        onClose={() => setConfirmDeleteMessageId(null)}
+        onConfirm={async () => {
+          if (!user || !confirmDeleteMessageId) return;
+          const messageId = confirmDeleteMessageId;
+          setConfirmDeleteMessageId(null);
+          try {
+            await deleteDmMessage(messageId, user.id);
+            setMessages((prev) => prev.filter((x) => x.id !== messageId));
+          } catch (e) {
+            console.error(e);
+            alert("Couldn't delete message.");
+          }
+        }}
+      />
 
       <div className="px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-3 border-t border-gray-100">
         <div className="flex items-center gap-2">

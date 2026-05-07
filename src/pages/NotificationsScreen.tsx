@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, CheckCheck, Wallet, Ticket, Users } from "lucide-react";
+import { ArrowLeft, Bell, Wallet, Ticket, Users } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
-import {
-  getMyNotifications,
-  getMyNotificationUnreadCount,
-  markAllNotificationsRead,
-  markNotificationRead,
-  type AppNotification,
-} from "../lib/supabase";
+import { getMyNotifications, getMyNotificationUnreadCount, markAllNotificationsRead, markNotificationRead, type AppNotification } from "../lib/supabase";
 
 function iconForType(type: string) {
   if (/pay|paid|payout|topup|wallet/i.test(type)) return <Wallet size={18} />;
@@ -50,7 +44,13 @@ export default function NotificationsScreen() {
   };
 
   useEffect(() => {
-    void load();
+    void (async () => {
+      await load();
+      if (user) {
+        await markAllNotificationsRead(user.id).catch(() => {});
+        await load();
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -77,19 +77,7 @@ export default function NotificationsScreen() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={async () => {
-            if (!user) return;
-            await markAllNotificationsRead(user.id).catch(() => {});
-            await load();
-          }}
-          className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
-          aria-label="Mark all read"
-          title="Mark all read"
-        >
-          <CheckCheck size={18} />
-        </button>
+        <div className="w-11 h-11" />
       </div>
 
       {loading ? (

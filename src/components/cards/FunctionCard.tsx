@@ -116,13 +116,11 @@ export function FunctionCard({
       >
         <UserAvatar name={eventFunction.host.display_name} avatarUrl={eventFunction.host.avatar_url} size="sm" />
         <div className="flex-1">
-          <p className={["font-semibold text-sm", isFunction ? "text-white" : "text-black"].join(" ")}>
-            {isSell
-              ? `${eventFunction.host.display_name} has something for you`
-              : isService
-                ? `${eventFunction.host.display_name} is offering a service`
-                : `${eventFunction.host.display_name} is hosting a function`}
-          </p>
+          {isFunction && (
+            <p className={["font-semibold text-sm", isFunction ? "text-white" : "text-black"].join(" ")}>
+              {`${eventFunction.host.display_name} is hosting a function`}
+            </p>
+          )}
           {!isListing && (
             <p className={["text-xs", isFunction ? "text-white/70" : "text-gray-400"].join(" ")}>
               {formatEventDate(eventFunction.date)}

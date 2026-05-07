@@ -38,6 +38,7 @@ import { DmSharedHighlightCard } from "../components/dm/DmSharedHighlightCard";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 import { GroupChargeModal } from "../components/wallet/GroupChargeModal";
+import { ConfirmUnsendModal } from "../components/ui/ConfirmUnsendModal";
 
 function parseShare(m: GroupChatMessage): DmSharePayload | null {
   if ((m.message_type ?? "text") !== "share") return null;
@@ -97,6 +98,7 @@ export default function GroupChatScreen() {
   const [groupShareCache, setGroupShareCache] = useState<Record<string, { id: string; name: string; per_person: number; status: string }>>({});
   const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
   const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
+  const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!groupId || !user) return;
@@ -493,14 +495,14 @@ export default function GroupChatScreen() {
       const title = g?.name || (share as any).memo || "Split request";
       const paid = !!groupPaidById[share.group_id];
       return (
-        <div className="w-full max-w-[min(100vw-4rem,28rem)]">
+        <div className="w-full max-w-[min(100vw-4rem,32rem)]">
           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
             <p className="mt-1 font-extrabold text-black text-lg truncate">{title}</p>
             <p className="text-sm text-gray-500 mt-1">
               Amount: <span className="font-bold text-black">KSH {Number(amt).toLocaleString("en-KE")}</span>
             </p>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex gap-3">
               <button
                 type="button"
                 onClick={() => navigate(`/yuto/${share.group_id}`)}
@@ -539,7 +541,7 @@ export default function GroupChatScreen() {
                       setGroupPay({ groupId: share.group_id, amount: perPerson });
                     }
                   }}
-                  className="flex-1 h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
+                  className="flex-1 h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors whitespace-nowrap"
                 >
                   Pay your share
                 </button>
@@ -715,16 +717,7 @@ export default function GroupChatScreen() {
                     {mine && user && (
                       <button
                         type="button"
-                        onClick={async () => {
-                          if (!confirm("Delete this message?")) return;
-                          try {
-                            await deleteGroupChatMessage(m.id, user.id);
-                            setMessages((prev) => prev.filter((x) => x.id !== m.id));
-                          } catch (e) {
-                            console.error(e);
-                            alert("Couldn't delete message.");
-                          }
-                        }}
+                        onClick={() => setConfirmDeleteMessageId(m.id)}
                         className="self-end -mt-1 mb-1 w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center"
                         aria-label="Delete message"
                         title="Delete"
@@ -772,6 +765,23 @@ export default function GroupChatScreen() {
           </div>
         )}
       </div>
+
+      <ConfirmUnsendModal
+        open={!!confirmDeleteMessageId}
+        onClose={() => setConfirmDeleteMessageId(null)}
+        onConfirm={async () => {
+          if (!user || !confirmDeleteMessageId) return;
+          const messageId = confirmDeleteMessageId;
+          setConfirmDeleteMessageId(null);
+          try {
+            await deleteGroupChatMessage(messageId, user.id);
+            setMessages((prev) => prev.filter((x) => x.id !== messageId));
+          } catch (e) {
+            console.error(e);
+            alert("Couldn't delete message.");
+          }
+        }}
+      />
 
       <div className="px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-3 border-t border-gray-100 shrink-0">
         <div className="flex items-center gap-2">

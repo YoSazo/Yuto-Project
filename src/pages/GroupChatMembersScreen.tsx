@@ -27,23 +27,17 @@ export default function GroupChatMembersScreen() {
       try {
         const [{ data: meta }, { data: rows }] = await Promise.all([
           supabase.from("group_chats").select("title").eq("id", groupId).maybeSingle(),
-          supabase
-            .from("group_chat_members")
-            .select("profiles(id, username, display_name, avatar_url)")
-            .eq("group_chat_id", groupId),
+          supabase.rpc("get_group_chat_member_profiles", { p_group_id: groupId }),
         ]);
         if (cancelled) return;
         setTitle((meta?.title || "Members").trim() || "Members");
         const p =
-          (rows || [])
-            .map((r: any) => r.profiles)
-            .filter(Boolean)
-            .map((x: any) => ({
-              id: String(x.id),
-              username: String(x.username || ""),
-              display_name: String(x.display_name || x.username || "User"),
-              avatar_url: (x.avatar_url as string | null) ?? null,
-            })) || [];
+          (rows || []).map((x: any) => ({
+            id: String(x.id),
+            username: String(x.username || ""),
+            display_name: String(x.display_name || x.username || "User"),
+            avatar_url: (x.avatar_url as string | null) ?? null,
+          })) || [];
         setPeople(p);
       } finally {
         if (!cancelled) setLoading(false);
