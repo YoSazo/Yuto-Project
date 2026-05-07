@@ -138,6 +138,7 @@ export default function NotificationsScreen() {
                   }
                   else if (n.reference_kind === "function" && n.reference_id) navigate("/home", { state: { focus: { kind: "function", id: n.reference_id } } });
                   else if (n.reference_kind === "user" && n.reference_id) navigate(`/user/${n.reference_id}`);
+                  else if (n.reference_kind === "wallet_transfer") navigate("/profile");
                   else await load();
                 }}
                 className={[

@@ -725,10 +725,14 @@ export default function GroupChatScreen() {
                   ? (shareFull as Exclude<DmSharePayload, { kind: "profile" } | { kind: "highlight" }>)
                   : null;
               const shareKey =
-                listedShare?.kind === "plan" ? `plan:${listedShare.plan_id}` : listedShare ? `fn:${listedShare.function_id}` : null;
+                listedShare?.kind === "plan"
+                  ? `plan:${listedShare.plan_id}`
+                  : listedShare && (listedShare as any).function_id
+                    ? `fn:${(listedShare as any).function_id}`
+                    : null;
               const hlKey = hlShare ? `hl:${hlShare.highlight_id}` : null;
               const hlPack = hlKey ? highlightShareCache[hlKey] : null;
-              const isShareRow = !!(profileShare || hlShare || (listedShare && shareKey));
+              const isShareRow = !!(profileShare || hlShare || listedShare);
 
               return (
                 <div
@@ -768,8 +772,8 @@ export default function GroupChatScreen() {
                       ) : (
                         <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 font-semibold">Loading…</div>
                       )
-                    ) : listedShare && shareKey ? (
-                      renderListedShareBlock(listedShare, shareKey, mine)
+                    ) : listedShare ? (
+                      renderListedShareBlock(listedShare, shareKey || `share:${m.id}`, mine)
                     ) : (
                       <div
                         className={`px-4 py-3 rounded-2xl text-sm font-semibold whitespace-pre-wrap break-words ${
