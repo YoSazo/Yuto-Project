@@ -1,4 +1,4 @@
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Users } from "lucide-react";
 import type { Plan } from "../../pages/home/types";
 import { PeopleListModal } from "../PeopleListModal";
 import { useMemo, useState } from "react";
@@ -16,6 +16,7 @@ export function PlansFeedSection({
   onOpenPlanChat,
   onNavigateToYutoGroup,
   onNavigateToCreator,
+  onInviteFriends,
   onSharePlan,
 }: {
   loading: boolean;
@@ -29,6 +30,7 @@ export function PlansFeedSection({
   onOpenPlanChat: (plan: Plan) => void;
   onNavigateToYutoGroup: (groupId: string) => void;
   onNavigateToCreator: (creatorId: string) => void;
+  onInviteFriends?: () => void;
   onSharePlan?: (plan: Plan) => void;
 }) {
   const [peopleModalPlanId, setPeopleModalPlanId] = useState<string | null>(null);
@@ -58,6 +60,15 @@ export function PlansFeedSection({
         <p className="text-gray-400 text-sm mt-1">
           {activeTab === "public" ? "Be the first to post one!" : "Add friends to see their plans here"}
         </p>
+        {activeTab === "friends" && (
+          <button
+            type="button"
+            onClick={() => onInviteFriends?.()}
+            className="mt-5 h-12 px-6 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors flex items-center gap-2 tap-scale"
+          >
+            <Users size={16} /> Invite friends
+          </button>
+        )}
       </div>
     );
   }

@@ -174,9 +174,12 @@ export function PostsFeedSection({
                 })()}
 
                 {Array.isArray(post.media) && post.media.length > 0 ? (
-                  <PostMediaCarousel media={post.media as any} />
+                  <div className="mt-3 -ml-12 w-[calc(100%+3rem)]">
+                    <PostMediaCarousel media={post.media as any} />
+                  </div>
                 ) : post.media_url ? (
-                  <div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
+                  <div className="mt-3 -ml-12 w-[calc(100%+3rem)]">
+                    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
                     {(() => {
                       const mediaType = (post as any).media_type as string | undefined;
                       const url = String(post.media_url);
@@ -228,6 +231,7 @@ export function PostsFeedSection({
                       }
                       return <img src={url} alt="" className="w-full h-[220px] object-cover block" />;
                     })()}
+                    </div>
                   </div>
                 ) : null}
               </div>

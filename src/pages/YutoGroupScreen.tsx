@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { MessageCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
@@ -403,6 +403,7 @@ function PayOutModal({
 export default function YutoGroupScreen() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, profile } = useAuth();
 
   const [groupName, setGroupName] = useState("Fare Share");
@@ -467,6 +468,19 @@ export default function YutoGroupScreen() {
       }
     })();
   }, [groupId, user]);
+
+  // If routed from a high-intent notification, auto-pop Pay modal.
+  useEffect(() => {
+    const st = location.state as any;
+    if (!st?.autoPay) return;
+    if (loading) return;
+    if (!user) return;
+    const me = members.find((m) => m.user_id === user.id);
+    if (me?.isPaid) return;
+    setShowPayModal(true);
+    // clear so it doesn't pop repeatedly
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, loading, user, members, navigate, location.pathname]);
 
   // Real-time updates
   useEffect(() => {

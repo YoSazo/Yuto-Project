@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, Ticket } from "lucide-react";
+import { MessageCircle, Send, Store, Ticket } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 import UserAvatar from "../UserAvatar";
 import { confirmListingReceipt, ensureFunctionAttendeeChat } from "../../lib/supabase";
@@ -51,6 +51,7 @@ export function FunctionTicketModal({
   const navigate = useNavigate();
   const [tick, setTick] = useState(() => Date.now());
   const [joiningChat, setJoiningChat] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setTick(Date.now()), 1500);
@@ -68,6 +69,13 @@ export function FunctionTicketModal({
   const intentLabel = isListing ? "Proof" : "Ticket";
   const fulfillment = isListing ? extractFulfillmentLine(functionItem.description) : null;
   const buyerConfirmedAt = (me as any)?.buyer_confirmed_at as string | null | undefined;
+  const shareUrl = useMemo(() => {
+    const shareOrigin =
+      window.location.hostname === "localhost" || window.location.hostname.startsWith("127.")
+        ? window.location.origin
+        : "https://yuto.social";
+    return `${shareOrigin}/function/${functionItem.id}`;
+  }, [functionItem.id]);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
@@ -201,6 +209,40 @@ export function FunctionTicketModal({
               </p>
             </div>
 
+            {!isListing && me?.has_paid && (
+              <button
+                type="button"
+                disabled={sharing}
+                onClick={async () => {
+                  setSharing(true);
+                  const title = `🎟️ I just got my ticket to ${functionItem.title}`;
+                  const text = `Grab yours here: ${shareUrl}`;
+                  try {
+                    if (navigator.share) {
+                      await navigator.share({ title, text, url: shareUrl });
+                      return;
+                    }
+                  } catch {
+                    // fall back
+                  } finally {
+                    setSharing(false);
+                  }
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    alert("Link copied!");
+                  } catch {
+                    alert(shareUrl);
+                  } finally {
+                    setSharing(false);
+                  }
+                }}
+                className="w-full mt-4 py-3.5 bg-black text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 tap-scale disabled:opacity-60"
+              >
+                <Send size={16} />
+                {sharing ? "Preparing..." : "Share / Invite Friends"}
+              </button>
+            )}
+
             {isListing && me?.has_paid && !buyerConfirmedAt && (
               <button
                 type="button"
@@ -218,6 +260,25 @@ export function FunctionTicketModal({
               >
                 Confirm receipt
               </button>
+            )}
+
+            {isListing && me?.has_paid && (
+              <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Want to sell too?</p>
+                <p className="text-sm text-gray-700 mt-1 font-semibold">
+                  Open your own storefront on Yuto and start getting paid.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    navigate("/profile");
+                  }}
+                  className="mt-3 w-full h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors flex items-center justify-center gap-2"
+                >
+                  <Store size={16} /> Open my Storefront
+                </button>
+              </div>
             )}
 
             {!isListing && (

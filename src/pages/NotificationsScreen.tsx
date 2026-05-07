@@ -31,7 +31,7 @@ function timeAgo(ts: string) {
 }
 
 export default function NotificationsScreen() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<AppNotification[]>([]);
@@ -97,7 +97,42 @@ export default function NotificationsScreen() {
           <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
         </div>
       ) : grouped.length === 0 ? (
-        <div className="py-16 text-center text-gray-400 font-semibold">No notifications yet</div>
+        <div className="py-16 text-center">
+          <p className="text-gray-400 font-semibold">No alerts yet.</p>
+          <p className="text-sm text-gray-500 mt-2 font-semibold">
+            Invite a friend and your feed will light up fast.
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              const uname = profile?.username?.trim();
+              const shareOrigin =
+                window.location.hostname === "localhost" || window.location.hostname.startsWith("127.")
+                  ? window.location.origin
+                  : "https://yuto.social";
+              const url = uname ? `${shareOrigin}/invite/${encodeURIComponent(uname)}` : `${shareOrigin}/home`;
+              const title = "Join me on Yuto";
+              const text = "Add me on Yuto — we can split and buy things together.";
+              try {
+                if (navigator.share) {
+                  await navigator.share({ title, text, url });
+                  return;
+                }
+              } catch {
+                // fall back
+              }
+              try {
+                await navigator.clipboard.writeText(url);
+                alert("Invite link copied!");
+              } catch {
+                navigate("/friends");
+              }
+            }}
+            className="mt-5 h-12 px-6 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors tap-scale"
+          >
+            Invite a friend
+          </button>
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           {grouped.map((n) => {
@@ -109,7 +144,10 @@ export default function NotificationsScreen() {
                 onClick={async () => {
                   if (user && !n.is_read) await markNotificationRead(n.id, user.id).catch(() => {});
                   // basic deep-links
-                  if (n.reference_kind === "group" && n.reference_id) navigate(`/yuto/${n.reference_id}`);
+                  if (n.reference_kind === "group" && n.reference_id) {
+                    const autoPay = /split_invited|split_invite|split_payment_required|split_request/i.test(n.type);
+                    navigate(`/yuto/${n.reference_id}`, { state: autoPay ? { autoPay: true } : undefined });
+                  }
                   else if (n.reference_kind === "function" && n.reference_id) navigate("/home", { state: { focus: { kind: "function", id: n.reference_id } } });
                   else if (n.reference_kind === "user" && n.reference_id) navigate(`/user/${n.reference_id}`);
                   else await load();

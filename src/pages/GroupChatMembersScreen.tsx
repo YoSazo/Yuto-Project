@@ -2,16 +2,22 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
-import { supabase } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
+import { createGroup, getOrCreateDmConversation, sendDmMessage, sendDmShareMessage, supabase } from "../lib/supabase";
 
 type PersonRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
 export default function GroupChatMembersScreen() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [title, setTitle] = useState("Members");
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState<PersonRow[]>([]);
+  const [requesting, setRequesting] = useState<PersonRow | null>(null);
+  const [amountKes, setAmountKes] = useState("");
+  const [memo, setMemo] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!groupId) return;
@@ -73,20 +79,111 @@ export default function GroupChatMembersScreen() {
       ) : (
         <div className="flex flex-col gap-2">
           {people.map((p) => (
-            <button
+            <div
               key={p.id}
-              type="button"
-              onClick={() => navigate(`/user/${p.id}`)}
-              className="w-full rounded-2xl border border-gray-100 bg-white shadow-sm px-3 py-3 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors"
+              className="w-full rounded-2xl border border-gray-100 bg-white shadow-sm px-3 py-3 text-left flex items-center gap-3"
             >
-              <UserAvatar name={p.display_name} avatarUrl={p.avatar_url} size="md" />
-              <div className="min-w-0 flex-1">
-                <p className="font-extrabold text-black truncate">{p.display_name}</p>
-                <p className="text-sm text-gray-400 truncate">@{p.username}</p>
-              </div>
-              <span className="text-xs font-bold text-gray-400">View</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/user/${p.id}`)}
+                className="flex items-center gap-3 min-w-0 flex-1 bg-transparent border-none p-0 text-left hover:opacity-80 transition-opacity"
+              >
+                <UserAvatar name={p.display_name} avatarUrl={p.avatar_url} size="md" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-extrabold text-black truncate">{p.display_name}</p>
+                  <p className="text-sm text-gray-400 truncate">@{p.username}</p>
+                </div>
+              </button>
+              {user && p.id !== user.id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRequesting(p);
+                    setAmountKes("");
+                    setMemo("");
+                  }}
+                  className="shrink-0 h-10 px-4 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
+                >
+                  Request
+                </button>
+              )}
+            </div>
           ))}
+        </div>
+      )}
+
+      {requesting && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/60 backdrop-blur-sm">
+          <button
+            type="button"
+            className="absolute inset-0 z-0 cursor-default border-none bg-transparent"
+            aria-label="Dismiss"
+            onClick={() => setRequesting(null)}
+          />
+          <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-5 modal-slide-up">
+            <p className="font-extrabold text-black text-lg">Request a split</p>
+            <p className="text-sm text-gray-500 mt-1 font-semibold">
+              Ask <span className="font-extrabold text-black">{requesting.display_name}</span> to pay you back.
+            </p>
+
+            <div className="mt-4">
+              <p className="text-xs text-gray-400 mb-1 font-semibold">Amount (KSH)</p>
+              <input
+                value={amountKes}
+                onChange={(e) => setAmountKes(e.target.value.replace(/[^\d]/g, ""))}
+                inputMode="numeric"
+                placeholder="500"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-xl font-extrabold focus:outline-none focus:border-black transition-colors"
+              />
+            </div>
+            <div className="mt-3">
+              <p className="text-xs text-gray-400 mb-1 font-semibold">Memo</p>
+              <input
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder="Uber, drinks, coffee…"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base font-semibold focus:outline-none focus:border-black transition-colors"
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={submitting || !user || !Number(amountKes)}
+              onClick={async () => {
+                if (!user) return;
+                const target = requesting;
+                if (!target) return;
+                const total = Number(amountKes) || 0;
+                if (total <= 0) return;
+                setSubmitting(true);
+                try {
+                  const memberIds = [user.id, target.id];
+                  const perPerson = Math.ceil(total / memberIds.length);
+                  const group = await createGroup(memo.trim() || "Split request", total, perPerson, user.id, memberIds, "single");
+                  await supabase
+                    .from("group_members")
+                    .update({ has_paid: true, paid_at: new Date().toISOString(), has_joined: true, joined_at: new Date().toISOString() })
+                    .eq("group_id", group.id)
+                    .eq("user_id", user.id);
+
+                  const convo = await getOrCreateDmConversation(user.id, target.id);
+                  await sendDmShareMessage(convo.id, user.id, { kind: "group", group_id: group.id, amount_kes: perPerson, memo: memo.trim() } as any);
+                  await sendDmMessage(convo.id, user.id, `Split created: KSH ${perPerson.toLocaleString("en-KE")} each${memo.trim() ? ` for ${memo.trim()}` : ""}.`);
+
+                  setRequesting(null);
+                  navigate(`/messages/${convo.id}`, { state: { otherUserId: target.id } });
+                } catch (e) {
+                  console.error(e);
+                  alert("Couldn't send request. Try again.");
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+              className="mt-5 w-full h-12 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors disabled:opacity-50"
+            >
+              {submitting ? "Sending..." : `Request KSH ${Number(amountKes || 0).toLocaleString("en-KE") || ""}`.trim()}
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -620,6 +620,7 @@ export default function HomeScreen() {
         onOpenPlanChat={setActivePlanChat}
         onNavigateToYutoGroup={(groupId) => navigate(`/yuto/${groupId}`)}
         onNavigateToCreator={(creatorId) => navigate(`/user/${creatorId}`)}
+        onInviteFriends={() => navigate("/friends")}
         onSharePlan={
           user ? (plan) => setShareFeedPayload({ kind: "plan", plan_id: plan.id }) : undefined
         }
