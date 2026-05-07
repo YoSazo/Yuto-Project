@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 // IntaSend send-money API base. For live use `https://api.intasend.com`.
 const INTASEND_BASE = process.env.INTASEND_HOST || "https://sandbox.intasend.com";
 const INTASEND_SECRET_KEY = process.env.INTASEND_SECRET_KEY;
-const INTASEND_DEVICE_ID = process.env.INTASEND_DEVICE_ID;
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -44,9 +43,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (!INTASEND_SECRET_KEY) {
     return res.status(500).json({ success: false, message: "Missing INTASEND_SECRET_KEY" });
-  }
-  if (!INTASEND_DEVICE_ID) {
-    return res.status(500).json({ success: false, message: "Missing INTASEND_DEVICE_ID" });
   }
 
   const supabase = getSupabase();
@@ -156,7 +152,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         Authorization: `Bearer ${INTASEND_SECRET_KEY}`,
       },
       body: JSON.stringify({
-        device_id: INTASEND_DEVICE_ID,
         provider,
         currency: "KES",
         requires_approval: "NO",
