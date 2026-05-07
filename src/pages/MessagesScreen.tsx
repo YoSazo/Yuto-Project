@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Users } from "lucide-react";
+import { ArrowLeft, Briefcase, Plus, Users } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -264,14 +264,18 @@ export default function MessagesScreen() {
             onClick={() => setActiveTab("personal")}
             className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "personal" ? "text-black" : "text-gray-400"}`}
           >
-            Personal
+            <span className="flex items-center justify-center gap-1.5">
+              <Users size={14} /> Personal
+            </span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("business")}
             className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "business" ? "text-black" : "text-gray-400"}`}
           >
-            Business
+            <span className="flex items-center justify-center gap-1.5">
+              <Briefcase size={14} /> Business
+            </span>
           </button>
         </div>
       )}
