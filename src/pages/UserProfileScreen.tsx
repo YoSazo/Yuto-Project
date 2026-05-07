@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
@@ -29,6 +29,13 @@ export default function UserProfileScreen() {
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
   const [activeHighlightMediaReady, setActiveHighlightMediaReady] = useState(false);
+
+  const activeHighlightMediaKey =
+    activeHighlight?.photos?.[activeHighlightIdx]?.url ? `${activeHighlight.id}:${activeHighlightIdx}:${activeHighlight.photos[activeHighlightIdx]!.url}` : "";
+
+  useLayoutEffect(() => {
+    setActiveHighlightMediaReady(false);
+  }, [activeHighlightMediaKey]);
   const [sendProfileOpen, setSendProfileOpen] = useState(false);
   useEffect(() => {
     // If they click their own profile, redirect to their main profile tab
@@ -353,6 +360,7 @@ export default function UserProfileScreen() {
                       {isVideo ? (
                         <video
                           src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
+                          key={`video-${activeHighlightMediaKey}`}
                           className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
                           }`}
@@ -366,6 +374,7 @@ export default function UserProfileScreen() {
                         <img
                           src={active.url}
                           alt=""
+                          key={`img-${activeHighlightMediaKey}`}
                           className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady ? "opacity-100" : "opacity-0"
                           }`}

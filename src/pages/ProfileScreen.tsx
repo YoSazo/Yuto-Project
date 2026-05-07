@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode, type ChangeEvent } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, type ReactNode, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
@@ -117,6 +117,14 @@ export default function ProfileScreen() {
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
   const [activeHighlightMediaReady, setActiveHighlightMediaReady] = useState(false);
+
+  const activeHighlightMediaKey =
+    activeHighlight?.photos?.[activeHighlightIdx]?.url ? `${activeHighlight.id}:${activeHighlightIdx}:${activeHighlight.photos[activeHighlightIdx]!.url}` : "";
+
+  useLayoutEffect(() => {
+    // Prevent "previous image" lingering when switching items.
+    setActiveHighlightMediaReady(false);
+  }, [activeHighlightMediaKey]);
   const handleOpenHistory = async () => {
     setShowHistoryModal(true);
     setLoadingHistory(true);
@@ -901,6 +909,7 @@ export default function ProfileScreen() {
                       {isVideo ? (
                         <video
                           src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
+                          key={`video-${activeHighlightMediaKey}`}
                           className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
                           }`}
@@ -914,6 +923,7 @@ export default function ProfileScreen() {
                         <img
                           src={active.url}
                           alt=""
+                          key={`img-${activeHighlightMediaKey}`}
                           className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady ? "opacity-100" : "opacity-0"
                           }`}
