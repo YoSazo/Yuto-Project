@@ -1053,6 +1053,11 @@ export async function getPublicPosts(limit = 50): Promise<PublicPost[]> {
   return (data || []) as PublicPost[];
 }
 
+export async function deletePublicPost(postId: string) {
+  const { error } = await supabase.from("public_posts").delete().eq("id", postId);
+  if (error) throw error;
+}
+
 export async function sendDmShareMessage(conversationId: string, senderId: string, payload: DmSharePayload) {
   const { error } = await supabase.from("dm_messages").insert({
     conversation_id: conversationId,

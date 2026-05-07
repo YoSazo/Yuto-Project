@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Trash2 } from "lucide-react";
 import type { PublicPost } from "../../lib/supabase";
 import UserAvatar from "../UserAvatar";
 
@@ -23,9 +23,13 @@ function tagLabel(tag: { kind: string; listing_kind?: string }): string {
 export function PostsFeedSection({
   posts,
   onNavigateToTag,
+  currentUserId,
+  onDeletePost,
 }: {
   posts: PublicPost[];
   onNavigateToTag: (tag: any) => void;
+  currentUserId?: string;
+  onDeletePost?: (postId: string) => void;
 }) {
   const visiblePosts = useMemo(() => posts.filter((p) => !!p.content_text?.trim()), [posts]);
 
@@ -49,10 +53,21 @@ export function PostsFeedSection({
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 min-w-0">
-                  <p className="font-extrabold text-black truncate">
-                    {post.author.display_name || post.author.username}
-                  </p>
-                  <span className="text-xs text-gray-400 font-semibold">· {new Date(post.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}</span>
+                  <p className="font-extrabold text-black truncate">{post.author.display_name || post.author.username}</p>
+                  <span className="text-xs text-gray-400 font-semibold">
+                    · {new Date(post.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}
+                  </span>
+                  {currentUserId && post.user_id === currentUserId && onDeletePost && (
+                    <button
+                      type="button"
+                      onClick={() => onDeletePost(post.id)}
+                      className="ml-auto w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                      aria-label="Delete post"
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
 
                 <p className="mt-2 text-sm text-gray-800 whitespace-pre-wrap break-words">{post.content_text}</p>
@@ -74,8 +89,15 @@ export function PostsFeedSection({
                 {post.media_url && (
                   <div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
                     {post.media_type === "video" ? (
-                      // We store a thumbnail; show it in-feed for now.
-                      <img src={post.media_thumb_url || post.media_url} alt="" className="w-full h-[220px] object-cover" />
+                      <video
+                        src={post.media_url}
+                        poster={post.media_thumb_url || undefined}
+                        className="w-full h-[220px] object-cover bg-black"
+                        muted
+                        playsInline
+                        controls
+                        preload="metadata"
+                      />
                     ) : (
                       <img src={post.media_url} alt="" className="w-full h-[220px] object-cover" />
                     )}

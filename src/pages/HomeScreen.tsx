@@ -30,6 +30,7 @@ import {
   payForFunctionGroup,
   createPublicPost,
   getPublicPosts,
+  deletePublicPost,
   type PublicPost,
   type DmSharePayload,
 } from "../lib/supabase";
@@ -496,6 +497,14 @@ export default function HomeScreen() {
               const focus =
                 tag.kind === "plan" ? { kind: "plan" as const, id: tag.plan_id } : { kind: "function" as const, id: tag.function_id };
               navigate("/home", { state: { focus } });
+            }}
+            currentUserId={user?.id}
+            onDeletePost={(postId) => {
+              if (!user) return;
+              void deletePublicPost(postId).then(loadFeed).catch((e) => {
+                console.error(e);
+                alert("Couldn't delete post.");
+              });
             }}
           />
 
