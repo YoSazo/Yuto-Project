@@ -630,7 +630,15 @@ export default function GroupChatScreen() {
         </button>
         <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-extrabold text-black truncate">{title}</p>
+            <button
+              type="button"
+              onClick={() => groupId && navigate(`/messages/group/${groupId}/members`)}
+              className="bg-transparent border-none p-0 text-left font-extrabold text-black truncate hover:opacity-80 transition-opacity"
+              aria-label="View members"
+              title="View members"
+            >
+              {title}
+            </button>
             <p className="text-xs text-gray-400">Group</p>
           </div>
           {meta && (

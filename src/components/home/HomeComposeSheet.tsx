@@ -374,7 +374,6 @@ export function HomeComposeSheet({
                 placeholder="What's going on?"
                 value={postText}
                 onChange={(e) => setPostText(e.target.value)}
-                autoFocus
               />
 
               {taggedEntity && (

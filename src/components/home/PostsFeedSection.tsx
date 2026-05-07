@@ -3,6 +3,9 @@ import { MessageCircle, Trash2, Volume2, VolumeX } from "lucide-react";
 import type { PublicPost } from "../../lib/supabase";
 import UserAvatar from "../UserAvatar";
 import { PostMediaCarousel } from "./PostMediaCarousel";
+import { FunctionCard } from "../cards/FunctionCard";
+import type { FunctionListing } from "../../pages/home/types";
+import type { DmSharePayload } from "../../lib/supabase";
 
 function extractEntityTag(tagPayload: any): { kind: "plan" | "function" | "listing"; function_id?: string; plan_id?: string; listing_kind?: "sell" | "service" } | null {
   if (!tagPayload) return null;
@@ -25,6 +28,11 @@ export function PostsFeedSection({
   posts,
   onNavigateToTag,
   onNavigateToAuthor,
+  taggedFunctionsById,
+  onJoinFunction,
+  onOpenTicket,
+  onNavigateToHost,
+  onShareInMessages,
   currentUserId,
   onDeletePost,
   taggedProfilesById,
@@ -32,6 +40,11 @@ export function PostsFeedSection({
   posts: PublicPost[];
   onNavigateToTag: (tag: any) => void;
   onNavigateToAuthor?: (userId: string) => void;
+  taggedFunctionsById?: Record<string, FunctionListing>;
+  onJoinFunction?: (f: FunctionListing) => void;
+  onOpenTicket?: (f: FunctionListing) => void;
+  onNavigateToHost?: (hostId: string) => void;
+  onShareInMessages?: (payload: DmSharePayload) => void;
   currentUserId?: string;
   onDeletePost?: (postId: string) => void;
   taggedProfilesById?: Record<string, { id: string; username: string; display_name: string; avatar_url: string | null }>;
@@ -94,44 +107,69 @@ export function PostsFeedSection({
 
                 {Array.isArray((post as any)?.tag_payload?.tagged_user_ids) &&
                 ((post as any).tag_payload.tagged_user_ids as any[]).length > 0 ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <div className="mt-3 flex flex-col gap-2">
                     {((post as any).tag_payload.tagged_user_ids as any[])
                       .filter((id) => typeof id === "string")
-                      .slice(0, 5)
+                      .slice(0, 3)
                       .map((id) => {
                         const p = taggedProfilesById?.[id];
                         const label = p ? `@${p.username}` : "@user";
                         return (
-                          <span
+                          <button
                             key={id}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700"
+                            type="button"
+                            onClick={() => (p ? onNavigateToAuthor?.(p.id) : undefined)}
+                            className="w-full rounded-2xl border border-gray-100 bg-white shadow-sm px-3 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors"
                           >
-                            {p ? <UserAvatar name={p.display_name || p.username} avatarUrl={p.avatar_url} size="xs" /> : null}
-                            {label}
-                          </span>
+                            {p ? <UserAvatar name={p.display_name || p.username} avatarUrl={p.avatar_url} size="sm" /> : null}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-extrabold text-black truncate">{p?.display_name || p?.username || "User"}</p>
+                              <p className="text-xs text-gray-400 font-bold truncate">{label}</p>
+                            </div>
+                            <span className="text-xs font-bold text-gray-400">View profile</span>
+                          </button>
                         );
                       })}
-                    {((post as any).tag_payload.tagged_user_ids as any[]).length > 5 ? (
+                    {((post as any).tag_payload.tagged_user_ids as any[]).length > 3 ? (
                       <span className="text-xs font-bold text-gray-400">
-                        +{((post as any).tag_payload.tagged_user_ids as any[]).length - 5}
+                        +{((post as any).tag_payload.tagged_user_ids as any[]).length - 3} more
                       </span>
                     ) : null}
                   </div>
                 ) : null}
 
-                {extractEntityTag(post.tag_payload) && (
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      onClick={() => onNavigateToTag(extractEntityTag(post.tag_payload))}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors"
-                    >
-                      <MessageCircle size={14} className="opacity-70" />
-                      <span className="text-xs font-extrabold text-black">{tagLabel(extractEntityTag(post.tag_payload)!)}</span>
-                      <span className="text-xs text-gray-500 font-semibold">· Tap to view</span>
-                    </button>
-                  </div>
-                )}
+                {(() => {
+                  const tag = extractEntityTag(post.tag_payload);
+                  if (!tag) return null;
+                  if ((tag.kind === "function" || tag.kind === "listing") && tag.function_id && taggedFunctionsById?.[tag.function_id] && onNavigateToHost) {
+                    const f = taggedFunctionsById[tag.function_id]!;
+                    return (
+                      <div className="mt-3">
+                        <FunctionCard
+                          eventFunction={f}
+                          currentUserId={currentUserId}
+                          onNavigateToHost={onNavigateToHost}
+                          onJoinFunction={onJoinFunction}
+                          onOpenTicket={onOpenTicket}
+                          onShareInMessages={onShareInMessages}
+                        />
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToTag(tag)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors"
+                      >
+                        <MessageCircle size={14} className="opacity-70" />
+                        <span className="text-xs font-extrabold text-black">{tagLabel(tag)}</span>
+                        <span className="text-xs text-gray-500 font-semibold">· Tap to view</span>
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {Array.isArray(post.media) && post.media.length > 0 ? (
                   <PostMediaCarousel media={post.media as any} />

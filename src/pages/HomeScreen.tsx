@@ -552,6 +552,14 @@ export default function HomeScreen() {
               if (!userId) return;
               navigate(`/user/${userId}`);
             }}
+            taggedFunctionsById={functionsFeed.reduce((acc: Record<string, any>, f: any) => {
+              acc[f.id] = f;
+              return acc;
+            }, {})}
+            onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
+            onJoinFunction={handleJoinFunction}
+            onOpenTicket={(f) => setFunctionTicket(f)}
+            onShareInMessages={user ? (payload) => setShareFeedPayload(payload) : undefined}
             currentUserId={user?.id}
             taggedProfilesById={taggedProfilesById}
             onDeletePost={(postId) => {

@@ -12,6 +12,7 @@ import {
   getUserHostedFunctions,
   getOrCreateDmConversation,
   joinFunction,
+  getFunctionById,
   sendDmMessage,
   sendDmShareMessage,
   upsertDmBusinessContext,
@@ -40,7 +41,7 @@ export default function UserProfileScreen() {
   const { id: targetUserId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, profile: viewerProfile } = useAuth();
   
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState({ totalYutos: 0, totalSpent: 0, friendsCount: 0, plansCount: 0 });
@@ -204,11 +205,16 @@ export default function UserProfileScreen() {
       }
 
       // Open proof modal in-place
-      setTicketFunction(fn);
+      try {
+        const full = (await getFunctionById(fn.id)) as unknown as FunctionListing;
+        setTicketFunction(full);
+      } catch {
+        setTicketFunction(fn);
+      }
 
       // Also drop the purchased listing into DM with provider
       try {
-        const hostId = (fn as any)?.host?.id || (fn as any)?.host_id;
+        const hostId = targetUserId;
         if (hostId) {
           const convo = await getOrCreateDmConversation(user.id, hostId);
           const isSell = fn.location === "__SELL__";
@@ -235,6 +241,37 @@ export default function UserProfileScreen() {
     } catch (err) {
       console.error(err);
       alert("Couldn't complete purchase. Try again.");
+    }
+  };
+
+  const handleJoinHostedFunction = async (hosted: HostedFunctionItem) => {
+    if (!user) return;
+    try {
+      await joinFunction(hosted.id, user.id);
+      const { error } = await supabase.rpc("pay_for_function", { p_function_id: hosted.id });
+      if (error) {
+        await supabase
+          .from("function_members")
+          .delete()
+          .eq("function_id", hosted.id)
+          .eq("user_id", user.id)
+          .eq("has_paid", false);
+
+        const topUp = await computeFunctionTopUpGapKes({
+          shareKes: Number(hosted.amount_per_person) || 0,
+          rpcErrorMessage: error.message,
+          userId: user.id,
+        });
+        setFunctionTopUpAmount(topUp);
+        setPendingJoinFunction({ ...(hosted as any), location: hosted.location || "" } as any);
+        setShowFunctionTopUp(true);
+        return;
+      }
+      const full = (await getFunctionById(hosted.id)) as unknown as FunctionListing;
+      setTicketFunction(full);
+    } catch (e) {
+      console.error(e);
+      alert("Couldn't join. Try again.");
     }
   };
 
@@ -434,11 +471,9 @@ export default function UserProfileScreen() {
             {showcaseTab === "functions" ? (
               <div className="space-y-3">
                 {hostedFunctions.map((fn) => (
-                  <button
+                  <div
                     key={fn.id}
-                    type="button"
-                    onClick={() => navigate("/home", { state: { focus: { kind: "function", id: fn.id } } })}
-                    className="w-full rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left tap-scale flex gap-3 p-3"
+                    className="w-full rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left flex gap-3 p-3"
                   >
                     <div className="w-20 h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
                       {fn.image_url ? (
@@ -456,8 +491,24 @@ export default function UserProfileScreen() {
                         {fn.location ? ` · ${fn.location}` : ""}
                       </p>
                       <p className="text-sm text-black font-extrabold mt-1">KSH {fn.amount_per_person.toLocaleString()}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => navigate("/home", { state: { focus: { kind: "function", id: fn.id } } })}
+                          className="h-10 px-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-black font-extrabold transition-colors"
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleJoinHostedFunction(fn)}
+                          className="h-10 px-4 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
+                        >
+                          Join
+                        </button>
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -508,7 +559,7 @@ export default function UserProfileScreen() {
                         }}
                         className="mt-2 w-full h-10 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
                       >
-                        Buy now
+                        {listing.kind === "service" ? "Book now" : "Buy now"}
                       </button>
                     </div>
                   </button>
@@ -523,7 +574,7 @@ export default function UserProfileScreen() {
         <FunctionTicketModal
           functionItem={ticketFunction}
           userId={user.id}
-          attendeeDisplayName={profile?.display_name?.trim() || profile?.username?.trim() || "Guest"}
+          attendeeDisplayName={viewerProfile?.display_name?.trim() || viewerProfile?.username?.trim() || "Guest"}
           onClose={() => setTicketFunction(null)}
         />
       )}
@@ -537,7 +588,7 @@ export default function UserProfileScreen() {
             setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
           }}
           userId={user.id}
-          mpesaPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          mpesaPhoneNumber={viewerProfile?.phone_number || getSavedPhoneNumber(user.id) || ""}
           initialAmount={functionTopUpAmount}
           contextLine={`This costs KSH ${pendingJoinFunction.amount_per_person.toLocaleString("en-KE")}. Top up at least KSH ${functionTopUpAmount.toLocaleString("en-KE")} to continue.`}
           retryCtaLabel="I've paid — try again"
@@ -547,7 +598,12 @@ export default function UserProfileScreen() {
             setShowFunctionTopUp(false);
             setPendingJoinFunction(null);
             setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
-            await handleBuyListing(fn as any);
+            const loc = String((fn as any)?.location || "");
+            if (loc === "__SELL__" || loc === "__SERVICE__") {
+              await handleBuyListing(fn as any);
+            } else {
+              await handleJoinHostedFunction(fn as any);
+            }
           }}
         />
       )}

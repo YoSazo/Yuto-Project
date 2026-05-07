@@ -516,6 +516,12 @@ export async function getFunctionsPublic() {
   return data || [];
 }
 
+export async function getFunctionById(functionId: string) {
+  const { data, error } = await supabase.from("functions").select(FUNCTIONS_SELECT).eq("id", functionId).single();
+  if (error) throw error;
+  return data;
+}
+
 export type HostedFunctionItem = {
   id: string;
   title: string;
