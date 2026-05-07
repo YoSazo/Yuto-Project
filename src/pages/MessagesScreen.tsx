@@ -323,7 +323,16 @@ export default function MessagesScreen() {
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1">Orders & bookings</p>
             {businessItems.length === 0 ? (
-              <div className="py-10 text-center text-gray-400 font-semibold">No business messages yet</div>
+              (bizDashboard?.activeListings || 0) === 0 ? (
+                <div className="py-10 text-center">
+                  <p className="text-gray-500 font-extrabold">No listings yet</p>
+                  <p className="text-gray-400 text-sm mt-1 font-semibold">
+                    Create a <span className="text-black">Service</span> or post a <span className="text-black">Sell</span> listing to start receiving business messages.
+                  </p>
+                </div>
+              ) : (
+                <div className="py-10 text-center text-gray-400 font-semibold">No business messages yet</div>
+              )
             ) : (
               businessItems.map(({ convo, other, otherId, ctx }) => (
                 <button
