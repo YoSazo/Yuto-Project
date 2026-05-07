@@ -69,6 +69,8 @@ export default function UserProfileScreen() {
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
+  const [highlightReplyText, setHighlightReplyText] = useState("");
+  const [highlightReplySending, setHighlightReplySending] = useState(false);
 
   useEffect(() => {
     const st = location.state as { openHighlightId?: string } | null;
@@ -693,15 +695,53 @@ export default function UserProfileScreen() {
               </div>
 
               {user && targetUserId && (
-                <button
-                  type="button"
-                  onClick={() => setShareHighlightOpen(true)}
-                  className="absolute bottom-4 right-4 z-50 w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
-                  aria-label="Share highlight"
-                  title="Share highlight"
-                >
-                  <Send size={18} />
-                </button>
+                <div className="absolute bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShareHighlightOpen(true)}
+                      className="w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none shrink-0"
+                      aria-label="Send highlight to someone"
+                      title="Send highlight"
+                    >
+                      <Send size={18} />
+                    </button>
+
+                    <div className="flex-1 h-12 rounded-2xl bg-white/12 border border-white/15 backdrop-blur-sm flex items-center overflow-hidden">
+                      <input
+                        value={highlightReplyText}
+                        onChange={(e) => setHighlightReplyText(e.target.value)}
+                        placeholder="Send message…"
+                        className="flex-1 h-full bg-transparent border-none outline-none px-4 text-white placeholder:text-white/60 font-semibold text-sm"
+                      />
+                      <button
+                        type="button"
+                        disabled={highlightReplySending || !highlightReplyText.trim()}
+                        onClick={async () => {
+                          if (!user || !targetUserId) return;
+                          const text = highlightReplyText.trim();
+                          if (!text) return;
+                          setHighlightReplySending(true);
+                          try {
+                            const convo = await getOrCreateDmConversation(user.id, targetUserId);
+                            await sendDmMessage(convo.id, user.id, text);
+                            setHighlightReplyText("");
+                          } catch (e) {
+                            console.error(e);
+                            alert("Couldn't send message.");
+                          } finally {
+                            setHighlightReplySending(false);
+                          }
+                        }}
+                        className="h-full px-4 text-white font-extrabold disabled:opacity-40"
+                        aria-label="Send message"
+                        title="Send"
+                      >
+                        Send
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {(() => {
@@ -740,7 +780,7 @@ export default function UserProfileScreen() {
                           src={placeholderImage as string}
                           alt=""
                           aria-hidden
-                          className="absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                          className="absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none"
                           draggable={false}
                         />
                       )}
@@ -749,7 +789,7 @@ export default function UserProfileScreen() {
                         <video
                           src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
                           key={`video-${activeHighlightMediaKey}`}
-                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
                           }`}
                           playsInline
@@ -763,7 +803,7 @@ export default function UserProfileScreen() {
                           src={active.url}
                           alt=""
                           key={`img-${activeHighlightMediaKey}`}
-                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady ? "opacity-100" : "opacity-0"
                           }`}
                           draggable={false}

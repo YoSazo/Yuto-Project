@@ -953,15 +953,19 @@ export default function ProfileScreen() {
               </div>
 
               {user && (
-                <button
-                  type="button"
-                  onClick={() => setShareHighlightOpen(true)}
-                  className="absolute bottom-4 right-4 z-50 w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
-                  aria-label="Share highlight"
-                  title="Share highlight"
-                >
-                  <Send size={18} />
-                </button>
+                <div className="absolute bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShareHighlightOpen(true)}
+                      className="w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none shrink-0"
+                      aria-label="Send highlight to someone"
+                      title="Send highlight"
+                    >
+                      <Send size={18} />
+                    </button>
+                  </div>
+                </div>
               )}
 
               {(() => {
@@ -999,7 +1003,7 @@ export default function ProfileScreen() {
                           src={placeholderImage as string}
                           alt=""
                           aria-hidden
-                          className="absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                          className="absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none"
                           draggable={false}
                         />
                       )}
@@ -1008,7 +1012,7 @@ export default function ProfileScreen() {
                         <video
                           src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
                           key={`video-${activeHighlightMediaKey}`}
-                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
                           }`}
                           playsInline
@@ -1022,7 +1026,7 @@ export default function ProfileScreen() {
                           src={active.url}
                           alt=""
                           key={`img-${activeHighlightMediaKey}`}
-                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady ? "opacity-100" : "opacity-0"
                           }`}
                           draggable={false}

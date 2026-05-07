@@ -50,13 +50,13 @@ export function FunctionFeedSection({
   return (
     <div className="mb-6">
       <div className="flex flex-col gap-4 mb-6">
-        {events.length > 0 && (
+        {marketplace.length > 0 && (
           <>
             <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Functions</p>
-              <span className="text-xs text-gray-400">Hosted now</span>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Marketplace</p>
+              <span className="text-xs text-gray-400">Buy &amp; book</span>
             </div>
-            {events.map((eventFunction) => (
+            {marketplace.map((eventFunction) => (
               <FunctionCard
                 key={eventFunction.id}
                 eventFunction={eventFunction}
@@ -74,13 +74,13 @@ export function FunctionFeedSection({
           </>
         )}
 
-        {marketplace.length > 0 && (
+        {events.length > 0 && (
           <>
             <div className="flex items-center justify-between mt-2 mb-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Marketplace</p>
-              <span className="text-xs text-gray-400">Buy &amp; book</span>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Functions</p>
+              <span className="text-xs text-gray-400">Hosted now</span>
             </div>
-            {marketplace.map((eventFunction) => (
+            {events.map((eventFunction) => (
               <FunctionCard
                 key={eventFunction.id}
                 eventFunction={eventFunction}
