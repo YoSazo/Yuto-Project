@@ -34,6 +34,7 @@ import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModa
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 import { GroupChargeModal } from "../components/wallet/GroupChargeModal";
 import { ConfirmUnsendModal } from "../components/ui/ConfirmUnsendModal";
+import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -173,7 +174,7 @@ export default function DirectMessageScreen() {
     }
   };
 
-  const requestSplitInDm = async (args: { amountKes: number; memo: string }) => {
+  const requestSplitInDm = async (args: { amountKes: number; memo: string; mediaFile?: File | null }) => {
     if (!user || !conversationId) return;
     if (!otherUserId) throw new Error("Missing recipient. Open this DM from the inbox.");
     const { createGroup } = await import("../lib/supabase");
@@ -186,7 +187,18 @@ export default function DirectMessageScreen() {
       "single",
     );
     setGroupShareCache((prev) => ({ ...prev, [group.id]: { id: group.id, name: group.name, per_person: group.per_person, status: group.status } }));
-    await sendDmShareMessage(conversationId, user.id, { kind: "group", group_id: group.id, amount_kes: args.amountKes, memo: args.memo });
+    let media_url: string | undefined;
+    let media_type: string | undefined;
+    if (args.mediaFile instanceof File) {
+      try {
+        const { uploadPlanOrFunctionMedia } = await import("../lib/supabase");
+        media_url = await uploadPlanOrFunctionMedia(user.id, "group", args.mediaFile);
+        media_type = args.mediaFile.type || "application/octet-stream";
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    await sendDmShareMessage(conversationId, user.id, { kind: "group", group_id: group.id, amount_kes: args.amountKes, memo: args.memo, media_url, media_type } as any);
     await sendDmMessage(conversationId, user.id, `Split created: KSH ${args.amountKes.toLocaleString("en-KE")} each${args.memo ? ` for ${args.memo}` : ""}.`);
   };
 
@@ -540,10 +552,23 @@ export default function DirectMessageScreen() {
                       )}
                     </div>
                   ) : listedShare ? (
-                    <div className="max-w-[98%] w-[98%] md:w-[480px]">
+                    <div className="max-w-[99%] w-[99%] md:w-[760px]">
                       {listedShare.kind === "group" ? (
                         <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
+                          {(listedShare as any).media_url && (
+                            <div className="mt-3 rounded-xl overflow-hidden bg-gray-100">
+                              <FixedMediaCarousel
+                                items={[
+                                  {
+                                    url: String((listedShare as any).media_url),
+                                    type: String((listedShare as any).media_type || "").startsWith("video") ? "video" : "image",
+                                  },
+                                ]}
+                                showDots={false}
+                              />
+                            </div>
+                          )}
                           <p className="mt-1 font-extrabold text-black text-lg truncate">
                             {sharedGroup?.name || listedShare.memo || "Payment request"}
                           </p>
@@ -553,7 +578,7 @@ export default function DirectMessageScreen() {
                               KSH {(sharedGroup?.per_person || listedShare.amount_kes || 0).toLocaleString("en-KE")}
                             </span>
                           </p>
-                          <div className="mt-4 flex gap-3">
+                          <div className="mt-4 flex flex-col sm:flex-row gap-3">
                             <button
                               type="button"
                               onClick={() => navigate(`/yuto/${listedShare.group_id}`)}

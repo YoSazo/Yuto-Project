@@ -632,20 +632,14 @@ export default function HomeScreen() {
         currentUserId={user?.id}
         onSubmitPlan={async (data) => {
           if (!user) return;
-          let imageUrl: string | null = null;
-          if (data?.mediaFile instanceof File) {
-            try {
-              imageUrl = await uploadPlanImage(user.id, data.mediaFile);
-            } catch (e) {
-              console.error(e);
-            }
-          }
+          const mediaFiles = Array.isArray(data?.mediaFiles) ? (data.mediaFiles as File[]) : [];
           await createPlan(
             user.id,
             String(data?.title ?? "").trim(),
             data?.amount ? Number(data.amount) : null,
             null,
-            imageUrl,
+            null,
+            mediaFiles,
           );
           await loadFeed();
         }}
@@ -657,14 +651,7 @@ export default function HomeScreen() {
           const dateIso = data?.date ? new Date(String(data.date)).toISOString() : null;
           const location = (data?.location ?? null) as string | null;
           const maxCap = data?.max_capacity != null ? Number(data.max_capacity) : null;
-          let imageUrl: string | null = null;
-          if (data?.mediaFile instanceof File) {
-            try {
-              imageUrl = await uploadPlanImage(user.id, data.mediaFile);
-            } catch (e) {
-              console.error(e);
-            }
-          }
+          const mediaFiles = Array.isArray(data?.mediaFiles) ? (data.mediaFiles as File[]) : [];
           await createFunction(
             user.id,
             title,
@@ -673,7 +660,8 @@ export default function HomeScreen() {
             location,
             amountPerPerson,
             Number.isFinite(maxCap as number) ? (maxCap as number) : null,
-            imageUrl,
+            null,
+            mediaFiles,
           );
           await loadFeed();
         }}

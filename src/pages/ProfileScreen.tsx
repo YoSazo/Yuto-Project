@@ -6,12 +6,15 @@ import {
   fetchYutoBalance,
   createHighlight,
   getFriends,
+  transferYutoBalance,
   getHighlightsByUser,
   getMyGroups,
   getPendingRequests,
+  getOrCreateDmConversation,
   getSavedPhoneNumber,
   getUserListings,
   saveProfilePhoneNumber,
+  sendDmMessage,
   uploadHighlightAsset,
   uploadAvatar,
   supabase,
@@ -110,6 +113,13 @@ export default function ProfileScreen() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [sendFriends, setSendFriends] = useState<Array<{ id: string; username: string; display_name: string; avatar_url: string | null }>>([]);
+  const [sendSelectedId, setSendSelectedId] = useState<string | null>(null);
+  const [sendAmount, setSendAmount] = useState("");
+  const [sendNote, setSendNote] = useState("");
+  const [sendBusy, setSendBusy] = useState(false);
+  const [sendError, setSendError] = useState("");
 
   // Highlights (max 2, 2 photos each)
   const [highlights, setHighlights] = useState<Highlight[]>([]);
@@ -122,6 +132,8 @@ export default function ProfileScreen() {
   const [activeHighlightMediaReady, setActiveHighlightMediaReady] = useState(false);
   const [highlightViewerMuted, setHighlightViewerMuted] = useState(true);
   const [shareHighlightOpen, setShareHighlightOpen] = useState(false);
+  const [highlightReplyText, setHighlightReplyText] = useState("");
+  const [highlightReplySending, setHighlightReplySending] = useState(false);
   const [highlightStickerOpen, setHighlightStickerOpen] = useState(false);
   const [highlightStickerListingId, setHighlightStickerListingId] = useState<string | null>(null);
   const [myListings, setMyListings] = useState<Array<{ id: string; title: string; kind: "sell" | "service"; amount_per_person: number }>>([]);
@@ -313,6 +325,21 @@ export default function ProfileScreen() {
   
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    if (!showSendModal || !user) return;
+    setSendSelectedId(null);
+    setSendAmount("");
+    setSendNote("");
+    setSendBusy(false);
+    setSendError("");
+    getFriends(user.id)
+      .then((data) => {
+        const list = (data as any[]).map((f) => (f.requester_id === user.id ? f.addressee : f.requester));
+        setSendFriends(list || []);
+      })
+      .catch(() => setSendFriends([]));
+  }, [showSendModal, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -736,20 +763,31 @@ export default function ProfileScreen() {
         )}
 
         {walletTab === "balance" && (
-          <div className="relative z-10 mt-5 flex justify-center gap-3">
-            <button
-              onClick={() => setShowWithdrawModal(true)}
-              className="text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm"
-            >
-              Cash Out
-            </button>
-            <button
-              onClick={handleOpenHistory}
-              className="text-sm font-bold bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5"
-            >
-              <History size={12} />
-              History
-            </button>
+          <div className="relative z-10 mt-5">
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowWithdrawModal(true)}
+                className="text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm"
+              >
+                Cash Out
+              </button>
+              <button
+                onClick={handleOpenHistory}
+                className="text-sm font-bold bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5"
+              >
+                <History size={12} />
+                History
+              </button>
+            </div>
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowSendModal(true)}
+                className="w-full max-w-[360px] h-12 rounded-2xl bg-white text-black font-extrabold shadow-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+              >
+                <Send size={14} /> Send
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -957,6 +995,40 @@ export default function ProfileScreen() {
               {user && (
                 <div className="absolute bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-3">
                   <div className="flex items-center gap-3">
+                    <div className="flex-1 h-12 rounded-2xl bg-white/12 border border-white/15 backdrop-blur-sm flex items-center overflow-hidden">
+                      <input
+                        value={highlightReplyText}
+                        onChange={(e) => setHighlightReplyText(e.target.value)}
+                        placeholder="Send message…"
+                        className="flex-1 h-full bg-transparent border-none outline-none px-4 text-white placeholder:text-white/60 font-semibold text-sm"
+                      />
+                      <button
+                        type="button"
+                        disabled={highlightReplySending || !highlightReplyText.trim()}
+                        onClick={async () => {
+                          if (!user) return;
+                          const text = highlightReplyText.trim();
+                          if (!text) return;
+                          setHighlightReplySending(true);
+                          try {
+                            const convo = await getOrCreateDmConversation(user.id, user.id);
+                            await sendDmMessage(convo.id, user.id, text);
+                            setHighlightReplyText("");
+                          } catch (e) {
+                            console.error(e);
+                            alert("Couldn't send message.");
+                          } finally {
+                            setHighlightReplySending(false);
+                          }
+                        }}
+                        className="h-full px-4 text-white font-extrabold disabled:opacity-40"
+                        aria-label="Send message"
+                        title="Send"
+                      >
+                        Send
+                      </button>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => setShareHighlightOpen(true)}
@@ -988,7 +1060,7 @@ export default function ProfileScreen() {
                 );
               })()}
 
-              <div className="absolute inset-0 flex items-center justify-center px-4 pb-24 pt-14">
+              <div className="absolute inset-0 flex items-center justify-center pb-24 pt-14">
                 {(() => {
                   const active = activeHighlight.photos?.[activeHighlightIdx];
                   if (!active) return null;
@@ -999,13 +1071,13 @@ export default function ProfileScreen() {
                     : (!isVideo ? active.url : null);
 
                   return (
-                    <div className="relative w-full max-w-[520px] h-[78vh] max-h-[78vh] rounded-3xl overflow-hidden bg-black">
+                    <div className="relative w-full h-full bg-black">
                       {placeholderImage && (
                         <img
                           src={placeholderImage as string}
                           alt=""
                           aria-hidden
-                          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                          className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-auto max-h-full object-contain pointer-events-none"
                           draggable={false}
                         />
                       )}
@@ -1015,7 +1087,7 @@ export default function ProfileScreen() {
                           <video
                             src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
                             key={`video-${activeHighlightMediaKey}`}
-                            className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                            className={`absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-auto max-h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                               activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
                             }`}
                             playsInline
@@ -1043,7 +1115,7 @@ export default function ProfileScreen() {
                           src={active.url}
                           alt=""
                           key={`img-${activeHighlightMediaKey}`}
-                          className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                          className={`absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-auto max-h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady ? "opacity-100" : "opacity-0"
                           }`}
                           draggable={false}
@@ -1195,6 +1267,103 @@ export default function ProfileScreen() {
               className="w-full py-4 bg-black text-white rounded-full font-bold text-lg disabled:opacity-50 transition-all active:scale-[0.98]"
             >
               {isWithdrawing ? "Processing..." : "Withdraw"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showSendModal && user && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/60 backdrop-blur-sm">
+          <button
+            type="button"
+            className="absolute inset-0 z-0 cursor-default border-none bg-transparent"
+            aria-label="Dismiss"
+            onClick={() => setShowSendModal(false)}
+          />
+          <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-xl text-black">Send</h2>
+              <button onClick={() => setShowSendModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">
+                ✕
+              </button>
+            </div>
+
+            <div className="rounded-3xl border border-gray-200 p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Amount (KSH)</p>
+              <input
+                inputMode="numeric"
+                value={sendAmount}
+                onChange={(e) => setSendAmount(e.target.value.replace(/[^\d]/g, ""))}
+                placeholder="500"
+                className="w-full text-4xl font-black tracking-tight outline-none border-none bg-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1 font-semibold">Available: KSH {points.toLocaleString("en-KE")}</p>
+
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">To</p>
+                <div className="flex flex-wrap gap-3">
+                  {sendFriends.map((fr) => {
+                    const sel = sendSelectedId === fr.id;
+                    return (
+                      <button
+                        key={fr.id}
+                        type="button"
+                        onClick={() => setSendSelectedId(fr.id)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all tap-scale ${
+                          sel ? "border-black bg-black text-white" : "border-gray-200 bg-white text-black"
+                        }`}
+                      >
+                        <UserAvatar name={fr.display_name} avatarUrl={fr.avatar_url} size="sm" />
+                        <span className="text-sm font-bold">{fr.display_name}</span>
+                      </button>
+                    );
+                  })}
+                  {sendFriends.length === 0 && <p className="text-sm text-gray-400">No friends yet.</p>}
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Note (optional)</p>
+                <input
+                  value={sendNote}
+                  onChange={(e) => setSendNote(e.target.value)}
+                  placeholder="For lunch…"
+                  maxLength={60}
+                  className="w-full h-12 rounded-2xl border border-gray-200 px-4 text-sm outline-none focus:border-black transition-colors"
+                />
+              </div>
+            </div>
+
+            {sendError && <p className="text-red-500 text-sm text-center mt-3">{sendError}</p>}
+
+            <button
+              type="button"
+              disabled={sendBusy || !sendSelectedId || !sendAmount || Number(sendAmount || 0) > points}
+              onClick={async () => {
+                if (!sendSelectedId) return;
+                const amt = Number(sendAmount || 0);
+                if (!Number.isFinite(amt) || amt <= 0) return;
+                setSendBusy(true);
+                setSendError("");
+                try {
+                  await transferYutoBalance(user.id, sendSelectedId, amt, sendNote.trim() || null);
+                  const bal = await fetchYutoBalance(user.id);
+                  setPoints(bal);
+                  setShowSendModal(false);
+                } catch (e) {
+                  console.error(e);
+                  setSendError(e instanceof Error ? e.message : "Couldn't send. Try again.");
+                } finally {
+                  setSendBusy(false);
+                }
+              }}
+              className={`w-full mt-4 h-12 rounded-2xl font-extrabold text-base transition-colors ${
+                sendBusy || !sendSelectedId || !sendAmount || Number(sendAmount || 0) > points
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-black text-white hover:bg-gray-800"
+              }`}
+            >
+              {sendBusy ? "Sending…" : `Send KSH ${Number(sendAmount || 0).toLocaleString("en-KE")}`}
             </button>
           </div>
         </div>

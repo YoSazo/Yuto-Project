@@ -39,6 +39,7 @@ import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 import { GroupChargeModal } from "../components/wallet/GroupChargeModal";
 import { ConfirmUnsendModal } from "../components/ui/ConfirmUnsendModal";
+import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
 
 function parseShare(m: GroupChatMessage): DmSharePayload | null {
   if ((m.message_type ?? "text") !== "share") return null;
@@ -373,7 +374,7 @@ export default function GroupChatScreen() {
     }
   };
 
-  const requestSplitInGroupChat = async (args: { amountKes: number; memo: string }) => {
+  const requestSplitInGroupChat = async (args: { amountKes: number; memo: string; mediaFile?: File | null }) => {
     if (!user || !groupId) return;
     const memberIds = (await getGroupMemberIds(groupId)).filter(Boolean);
     const unique = Array.from(new Set(memberIds));
@@ -389,7 +390,18 @@ export default function GroupChatScreen() {
       "single",
     );
     setGroupShareCache((prev) => ({ ...prev, [group.id]: { id: group.id, name: group.name, per_person: group.per_person, status: group.status } }));
-    await sendGroupChatShareMessage(groupId, user.id, { kind: "group", group_id: group.id, amount_kes: perPerson, memo: args.memo } as any);
+    let media_url: string | undefined;
+    let media_type: string | undefined;
+    if (args.mediaFile instanceof File) {
+      try {
+        const { uploadPlanOrFunctionMedia } = await import("../lib/supabase");
+        media_url = await uploadPlanOrFunctionMedia(user.id, "group", args.mediaFile);
+        media_type = args.mediaFile.type || "application/octet-stream";
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    await sendGroupChatShareMessage(groupId, user.id, { kind: "group", group_id: group.id, amount_kes: perPerson, memo: args.memo, media_url, media_type } as any);
     await sendGroupChatMessage(groupId, user.id, `Split created: KSH ${perPerson.toLocaleString("en-KE")} each${args.memo ? ` for ${args.memo}` : ""}.`);
   };
 
@@ -495,14 +507,27 @@ export default function GroupChatScreen() {
       const title = g?.name || (share as any).memo || "Split request";
       const paid = !!groupPaidById[share.group_id];
       return (
-        <div className="w-full max-w-[min(100vw-4rem,32rem)]">
+        <div className="w-full max-w-[min(100vw-4rem,48rem)]">
           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
+            {(share as any).media_url && (
+              <div className="mt-3 rounded-xl overflow-hidden bg-gray-100">
+                <FixedMediaCarousel
+                  items={[
+                    {
+                      url: String((share as any).media_url),
+                      type: String((share as any).media_type || "").startsWith("video") ? "video" : "image",
+                    },
+                  ]}
+                  showDots={false}
+                />
+              </div>
+            )}
             <p className="mt-1 font-extrabold text-black text-lg truncate">{title}</p>
             <p className="text-sm text-gray-500 mt-1">
               Amount: <span className="font-bold text-black">KSH {Number(amt).toLocaleString("en-KE")}</span>
             </p>
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => navigate(`/yuto/${share.group_id}`)}

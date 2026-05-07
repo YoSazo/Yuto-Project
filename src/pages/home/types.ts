@@ -41,6 +41,7 @@ export interface Plan {
   amount: number | null;
   slots: number | null;
   image_url: string | null;
+  media?: Array<{ id: string; media_url: string; media_type: string; sort_index: number }>;
   yuto_group_id: string | null;
   created_at: string;
   status: string;
@@ -86,6 +87,7 @@ export interface FunctionListing {
   title: string;
   description: string | null;
   image_url: string | null;
+  media?: Array<{ id: string; media_url: string; media_type: string; sort_index: number }>;
   date: string | null;
   location: string | null;
   amount_per_person: number;

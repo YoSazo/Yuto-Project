@@ -699,16 +699,6 @@ export default function UserProfileScreen() {
               {user && targetUserId && (
                 <div className="absolute bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-3">
                   <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setShareHighlightOpen(true)}
-                      className="w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none shrink-0"
-                      aria-label="Send highlight to someone"
-                      title="Send highlight"
-                    >
-                      <Send size={18} />
-                    </button>
-
                     <div className="flex-1 h-12 rounded-2xl bg-white/12 border border-white/15 backdrop-blur-sm flex items-center overflow-hidden">
                       <input
                         value={highlightReplyText}
@@ -742,6 +732,16 @@ export default function UserProfileScreen() {
                         Send
                       </button>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShareHighlightOpen(true)}
+                      className="w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none shrink-0"
+                      aria-label="Send highlight to someone"
+                      title="Send highlight"
+                    >
+                      <Send size={18} />
+                    </button>
                   </div>
                 </div>
               )}
@@ -764,7 +764,7 @@ export default function UserProfileScreen() {
                 );
               })()}
 
-              <div className="absolute inset-0 flex items-center justify-center px-4 pb-24 pt-14">
+              <div className="absolute inset-0 flex items-center justify-center pb-24 pt-14">
                 {(() => {
                   const active = activeHighlight.photos?.[activeHighlightIdx];
                   if (!active) return null;
@@ -776,13 +776,13 @@ export default function UserProfileScreen() {
                     : (!isVideo ? active.url : null);
 
                   return (
-                    <div className="relative w-full max-w-[520px] h-[78vh] max-h-[78vh] rounded-3xl overflow-hidden bg-black">
+                    <div className="relative w-full h-full bg-black">
                       {placeholderImage && (
                         <img
                           src={placeholderImage as string}
                           alt=""
                           aria-hidden
-                          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                          className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-auto max-h-full object-contain pointer-events-none"
                           draggable={false}
                         />
                       )}
@@ -792,7 +792,7 @@ export default function UserProfileScreen() {
                           <video
                             src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
                             key={`video-${activeHighlightMediaKey}`}
-                            className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                            className={`absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-auto max-h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                               activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
                             }`}
                             playsInline
@@ -820,7 +820,7 @@ export default function UserProfileScreen() {
                           src={active.url}
                           alt=""
                           key={`img-${activeHighlightMediaKey}`}
-                          className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                          className={`absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-auto max-h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady ? "opacity-100" : "opacity-0"
                           }`}
                           draggable={false}

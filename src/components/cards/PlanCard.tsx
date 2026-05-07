@@ -1,6 +1,7 @@
 import UserAvatar from "../UserAvatar";
 import { MessageCircle, Rocket, Send, Trash2, UserCheck } from "lucide-react";
 import type { Plan } from "../../pages/home/types";
+import { FixedMediaCarousel } from "../media/FixedMediaCarousel";
 
 export function PlanCard({
   plan,
@@ -73,13 +74,41 @@ export function PlanCard({
         )}
       </div>
 
-      {plan.image_url && (
-        <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 w-full">
-          <img src={plan.image_url} alt="" className="block w-full h-auto" />
-        </div>
-      )}
+      {(() => {
+        const media = (plan.media || [])
+          .slice()
+          .sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0))
+          .map((m) => ({
+            url: m.media_url,
+            type: String(m.media_type || "").startsWith("video") ? ("video" as const) : ("image" as const),
+          }));
+        const fallback = plan.image_url ? [{ url: plan.image_url, type: "image" as const }] : [];
+        const items = media.length > 0 ? media : fallback;
+        if (items.length === 0) return null;
+        return (
+          <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 w-full">
+            <FixedMediaCarousel items={items} />
+          </div>
+        );
+      })()}
 
-      <p className="font-bold text-black text-lg mb-2">{plan.title}</p>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <p className="font-bold text-black text-lg flex-1 min-w-0">{plan.title}</p>
+        {onSharePlan && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSharePlan(plan);
+            }}
+            className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors tap-scale border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
+            aria-label={`Send ${plan.title} in messages`}
+            title="Share in messages"
+          >
+            <Send size={15} strokeWidth={2} />
+          </button>
+        )}
+      </div>
 
       <div className="flex items-center gap-3 mb-2 flex-wrap">
         {plan.amount && (

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 import type { DmSharePayload } from "../../lib/supabase";
+import { FixedMediaCarousel } from "../media/FixedMediaCarousel";
 
 function extractFulfillmentLine(description: string | null): string | null {
   if (!description) return null;
@@ -171,11 +172,23 @@ export function FunctionCard({
           </button>
         )}
       </div>
-      {eventFunction.image_url && (
-        <div className="mb-3 rounded-xl overflow-hidden bg-gray-100">
-          <img src={eventFunction.image_url} alt="Function cover" className="block w-full h-auto" />
-        </div>
-      )}
+      {(() => {
+        const media = (eventFunction.media || [])
+          .slice()
+          .sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0))
+          .map((m) => ({
+            url: m.media_url,
+            type: String(m.media_type || "").startsWith("video") ? ("video" as const) : ("image" as const),
+          }));
+        const fallback = eventFunction.image_url ? [{ url: eventFunction.image_url, type: "image" as const }] : [];
+        const items = media.length > 0 ? media : fallback;
+        if (items.length === 0) return null;
+        return (
+          <div className="mb-3 rounded-xl overflow-hidden bg-gray-100">
+            <FixedMediaCarousel items={items} />
+          </div>
+        );
+      })()}
       {cleanedDescription && (
         <p className={["text-sm mb-3", isFunction ? "text-white/80" : "text-gray-600"].join(" ")}>{cleanedDescription}</p>
       )}

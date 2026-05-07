@@ -460,6 +460,17 @@ export async function uploadPlanImage(creatorId: string, file: File): Promise<st
   return `${data.publicUrl}?t=${Date.now()}`;
 }
 
+export async function uploadPlanOrFunctionMedia(ownerId: string, kind: "plan" | "function" | "group", file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "bin";
+  const path = `${ownerId}/${kind}/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from("plan-images")
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (uploadError) throw uploadError;
+  const { data } = supabase.storage.from("plan-images").getPublicUrl(path);
+  return `${data.publicUrl}?t=${Date.now()}`;
+}
+
 function canvasBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to encode image"))), type, quality);
@@ -561,7 +572,8 @@ export async function uploadHighlightAsset(
 const FUNCTIONS_SELECT = `
   *,
   host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url),
-  function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))
+  function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url)),
+  media:function_media(id, media_url, media_type, sort_index)
 `;
 
 export async function getFunctionsPublic() {
@@ -619,6 +631,7 @@ export async function createFunction(
   amountPerPerson: number,
   maxCapacity: number | null,
   imageUrl?: string | null,
+  mediaFiles?: File[],
 ) {
   const { data, error } = await supabase
     .from("functions")
@@ -637,6 +650,26 @@ export async function createFunction(
     .select()
     .single();
   if (error) throw error;
+
+  const files = (mediaFiles || []).slice(0, 5);
+  if (data?.id && files.length > 0) {
+    const urls = await Promise.all(files.map((f) => uploadPlanOrFunctionMedia(hostId, "function", f)));
+    const { error: mErr } = await supabase.from("function_media").insert(
+      urls.map((u, i) => ({
+        function_id: data.id,
+        media_url: u,
+        media_type: files[i]!.type || "application/octet-stream",
+        sort_index: i,
+      })),
+    );
+    if (mErr) throw mErr;
+    // Back-compat for places still reading image_url.
+    if (!imageUrl) {
+      await supabase.from("functions").update({ image_url: urls[0] }).eq("id", data.id);
+      (data as any).image_url = urls[0];
+    }
+    (data as any).media = urls.map((u, i) => ({ id: "", media_url: u, media_type: files[i]!.type, sort_index: i }));
+  }
   return data;
 }
 
@@ -685,6 +718,16 @@ export async function sendFunctionMessage(functionId: string, userId: string, co
   if (!response.ok || !data.success) {
     throw new Error(data.message || "Couldn't send message. Try again.");
   }
+}
+
+export async function transferYutoBalance(fromUserId: string, toUserId: string, amountKes: number, note?: string | null) {
+  const { error } = await supabase.rpc("transfer_yuto_balance", {
+    p_to_user_id: toUserId,
+    p_amount_kes: Math.round(Number(amountKes || 0)),
+    p_note: note ?? null,
+  });
+  if (error) throw error;
+  // no return payload
 }
 
 // ─── Highlights ──────────────────────────────────────
@@ -827,7 +870,8 @@ export async function payForFunctionGroup(functionId: string, coveredFriendUserI
 const PLANS_SELECT = `
   *,
   creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url),
-  plan_members(id, user_id, profiles(id, username, display_name, avatar_url))
+  plan_members(id, user_id, profiles(id, username, display_name, avatar_url)),
+  media:plan_media(id, media_url, media_type, sort_index)
 `;
 
 /** All plans (public tab) */
@@ -866,7 +910,8 @@ export async function createPlan(
   title: string,
   amount: number | null,
   slots: number | null,
-  imageUrl?: string | null
+  imageUrl?: string | null,
+  mediaFiles?: File[],
 ) {
   const { data, error } = await supabase
     .from("plans")
@@ -874,6 +919,25 @@ export async function createPlan(
     .select()
     .single();
   if (error) throw error;
+
+  const files = (mediaFiles || []).slice(0, 5);
+  if (data?.id && files.length > 0) {
+    const urls = await Promise.all(files.map((f) => uploadPlanOrFunctionMedia(creatorId, "plan", f)));
+    const { error: mErr } = await supabase.from("plan_media").insert(
+      urls.map((u, i) => ({
+        plan_id: data.id,
+        media_url: u,
+        media_type: files[i]!.type || "application/octet-stream",
+        sort_index: i,
+      })),
+    );
+    if (mErr) throw mErr;
+    if (!imageUrl) {
+      await supabase.from("plans").update({ image_url: urls[0] }).eq("id", data.id);
+      (data as any).image_url = urls[0];
+    }
+    (data as any).media = urls.map((u, i) => ({ id: "", media_url: u, media_type: files[i]!.type, sort_index: i }));
+  }
   return data;
 }
 
@@ -1110,7 +1174,7 @@ export type DmSharePayload =
   | { kind: "plan"; plan_id: string }
   | { kind: "function"; function_id: string }
   | { kind: "listing"; function_id: string; listing_kind: "sell" | "service" }
-  | { kind: "group"; group_id: string; amount_kes?: number; memo?: string }
+  | { kind: "group"; group_id: string; amount_kes?: number; memo?: string; media_url?: string; media_type?: string }
   | { kind: "profile"; user_id: string }
   | { kind: "highlight"; highlight_id: string; user_id: string };
 

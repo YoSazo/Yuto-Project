@@ -41,8 +41,8 @@ export function HomeComposeSheet({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const createMediaInputRef = useRef<HTMLInputElement | null>(null);
-  const [createMediaFile, setCreateMediaFile] = useState<File | null>(null);
-  const [createMediaPreview, setCreateMediaPreview] = useState<string | null>(null);
+  const [createMediaFiles, setCreateMediaFiles] = useState<File[]>([]);
+  const [createMediaPreviews, setCreateMediaPreviews] = useState<string[]>([]);
 
   // --- POST MODE STATE ---
   const [postText, setPostText] = useState("");
@@ -83,9 +83,9 @@ export function HomeComposeSheet({
       setPostMediaFiles([]);
       postMediaPreviews.forEach((u) => URL.revokeObjectURL(u));
       setPostMediaPreviews([]);
-      setCreateMediaFile(null);
-      if (createMediaPreview) URL.revokeObjectURL(createMediaPreview);
-      setCreateMediaPreview(null);
+      setCreateMediaFiles([]);
+      createMediaPreviews.forEach((u) => URL.revokeObjectURL(u));
+      setCreateMediaPreviews([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -132,7 +132,7 @@ export function HomeComposeSheet({
           title: title.trim(),
           amount: parseInt(amount) || 0,
           date,
-          mediaFile: createMediaFile,
+          mediaFiles: createMediaFiles,
         });
       } else {
         const isSell = composeMode === "sell";
@@ -144,7 +144,7 @@ export function HomeComposeSheet({
           date: date || null,
           location: isSell ? "__SELL__" : isService ? "__SERVICE__" : location.trim() || null,
           max_capacity: parseInt(maxCapacity) || null,
-          mediaFile: createMediaFile,
+          mediaFiles: createMediaFiles,
         });
       }
       onClose();
@@ -255,26 +255,39 @@ export function HomeComposeSheet({
                 </div>
               )}
 
-              {/* Create mode media (photo) */}
+              {/* Create mode media (up to 5) */}
               <div className="mb-1">
-                {createMediaPreview ? (
+                {createMediaPreviews.length > 0 ? (
                   <div className="relative rounded-2xl overflow-hidden bg-gray-100 flex items-center justify-center">
-                    {createMediaFile?.type.startsWith("video/") ? (
-                      <video src={createMediaPreview} className="w-full h-64 object-cover" muted playsInline />
-                    ) : (
-                      <img src={createMediaPreview} alt="" className="w-full h-64 object-cover" draggable={false} />
-                    )}
+                    {(() => {
+                      const firstFile = createMediaFiles[0];
+                      const firstUrl = createMediaPreviews[0];
+                      if (!firstFile || !firstUrl) return null;
+                      const isVid = firstFile.type.startsWith("video/");
+                      return isVid ? (
+                        <video src={firstUrl} className="w-full h-64 object-cover" muted playsInline autoPlay loop />
+                      ) : (
+                        <img src={firstUrl} alt="" className="w-full h-64 object-cover" draggable={false} />
+                      );
+                    })()}
                     <button
                       type="button"
                       onClick={() => {
-                        if (createMediaPreview) URL.revokeObjectURL(createMediaPreview);
-                        setCreateMediaFile(null);
-                        setCreateMediaPreview(null);
+                        createMediaPreviews.forEach((u) => URL.revokeObjectURL(u));
+                        setCreateMediaFiles([]);
+                        setCreateMediaPreviews([]);
                       }}
                       className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white border-none"
                     >
                       <X size={16} />
                     </button>
+                    {createMediaPreviews.length > 1 && (
+                      <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-1.5">
+                        {createMediaPreviews.map((_, i) => (
+                          <span key={i} className={["w-1.5 h-1.5 rounded-full", i === 0 ? "bg-white" : "bg-white/40"].join(" ")} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -283,21 +296,21 @@ export function HomeComposeSheet({
                     className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
                   >
                     <ImageIcon size={20} />
-                    <span className="text-sm font-medium">Add photo</span>
+                    <span className="text-sm font-medium">Add photos / videos</span>
                   </button>
                 )}
                 <input
                   ref={createMediaInputRef}
                   type="file"
                   accept="image/*,video/*"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    if (!file) return;
-                    if (createMediaPreview) URL.revokeObjectURL(createMediaPreview);
-                    const url = URL.createObjectURL(file);
-                    setCreateMediaFile(file);
-                    setCreateMediaPreview(url);
+                    const files = Array.from(e.target.files || []).slice(0, 5);
+                    if (files.length === 0) return;
+                    createMediaPreviews.forEach((u) => URL.revokeObjectURL(u));
+                    setCreateMediaFiles(files);
+                    setCreateMediaPreviews(files.map((f) => URL.createObjectURL(f)));
                   }}
                 />
               </div>
@@ -417,6 +430,8 @@ export function HomeComposeSheet({
                   type="button"
                   onClick={() => postMediaInputRef.current?.click()}
                   className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-black hover:bg-gray-200 transition-colors"
+                  aria-label="Add photo or video"
+                  title="Add photo or video"
                 >
                   <ImageIcon size={20} />
                 </button>
