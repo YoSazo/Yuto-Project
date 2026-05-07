@@ -562,7 +562,7 @@ export default function GroupChatScreen() {
       const accepted = offer?.status === "accepted";
       const canAccept = !!user && pending && offer && String(offer.sender_id) !== String(user.id);
       return (
-        <div className="w-full max-w-[min(100vw-4rem,48rem)]">
+        <div className="w-full">
           <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
             <div className="p-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Money</p>
@@ -613,7 +613,7 @@ export default function GroupChatScreen() {
       const title = g?.name || (share as any).memo || "Split request";
       const paid = !!groupPaidById[share.group_id];
       return (
-        <div className="w-full max-w-[min(100vw-4rem,48rem)]">
+        <div className="w-full">
           <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
             {(share as any).media_url ? (
               <FixedMediaCarousel
