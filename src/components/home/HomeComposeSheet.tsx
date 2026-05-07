@@ -84,8 +84,6 @@ export function HomeComposeSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (!open) return null;
-
   const canCreateSubmit = useMemo(() => {
     if (!title.trim()) return false;
     if (composeMode === "plan") return true;
@@ -177,6 +175,8 @@ export function HomeComposeSheet({
       </div>
     </div>
   );
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm fade-in">
