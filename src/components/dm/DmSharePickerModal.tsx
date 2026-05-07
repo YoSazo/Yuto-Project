@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, Plus, ShoppingBag, Sparkles } from "lucide-react";
 import type { Plan, FunctionListing } from "../../pages/home/types";
+import { ComposeModeTabsBar, type ComposeMode } from "../home/ComposeModeTabsBar";
 import UserAvatar from "../UserAvatar";
-
-type PickKind = "plan" | "function" | "sell" | "service";
 
 export function DmSharePickerModal({
   open,
@@ -16,7 +14,7 @@ export function DmSharePickerModal({
   onPickPlan: (plan: Plan) => void;
   onPickFunction: (fn: FunctionListing, kind: "function" | "sell" | "service") => void;
 }) {
-  const [tab, setTab] = useState<PickKind>("plan");
+  const [tab, setTab] = useState<ComposeMode>("plan");
   const [loading, setLoading] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [functions, setFunctions] = useState<FunctionListing[]>([]);
@@ -77,44 +75,7 @@ export function DmSharePickerModal({
           </button>
         </div>
 
-        <div className="flex items-center gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => setTab("plan")}
-            className={`flex-1 py-2.5 rounded-2xl font-bold text-sm ${tab === "plan" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
-          >
-            <span className="inline-flex items-center justify-center gap-1.5">
-              <Sparkles size={16} /> Plan
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("function")}
-            className={`flex-1 py-2.5 rounded-2xl font-bold text-sm ${tab === "function" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
-          >
-            <span className="inline-flex items-center justify-center gap-1.5">
-              <Plus size={16} /> Function
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("sell")}
-            className={`flex-1 py-2.5 rounded-2xl font-bold text-sm ${tab === "sell" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
-          >
-            <span className="inline-flex items-center justify-center gap-1.5">
-              <ShoppingBag size={16} /> Sell
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("service")}
-            className={`flex-1 py-2.5 rounded-2xl font-bold text-sm ${tab === "service" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
-          >
-            <span className="inline-flex items-center justify-center gap-1.5">
-              <Briefcase size={16} /> Service
-            </span>
-          </button>
-        </div>
+        <ComposeModeTabsBar composeMode={tab} onComposeModeChange={setTab} className="mb-4" />
 
         {loading ? (
           <div className="flex items-center justify-center py-12">

@@ -1,18 +1,8 @@
 import type { ChangeEvent, RefObject } from "react";
-import { ClipboardList, PartyPopper, Store, Briefcase, ImagePlus, X, Send } from "lucide-react";
+import { ImagePlus, X, Send } from "lucide-react";
+import { ComposeModeTabsBar, type ComposeMode } from "./ComposeModeTabsBar";
 
-export type ComposeMode = "plan" | "function" | "sell" | "service";
-
-const composeTabs = [
-  { id: "plan", label: "Plan", Icon: ClipboardList },
-  { id: "function", label: "Function", Icon: PartyPopper },
-  { id: "sell", label: "Sell", Icon: Store },
-  { id: "service", label: "Services", Icon: Briefcase },
-] as const satisfies ReadonlyArray<{
-  id: ComposeMode;
-  label: string;
-  Icon: (p: { size?: number; className?: string }) => JSX.Element;
-}>;
+export type { ComposeMode };
 
 export function HomeComposeSheet({
   open,
@@ -108,45 +98,7 @@ export function HomeComposeSheet({
         <div className="mb-4">
           <p className="font-extrabold text-2xl text-black text-left">Post Something</p>
 
-          <div className="mt-3 relative h-[54px] w-full">
-            <div
-              className="absolute inset-0 rounded-full overflow-hidden border border-gray-200"
-              style={{
-                background: "rgba(255, 255, 255, 0.7)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                boxShadow: "0 4px 24px rgba(0, 0, 0, 0.06)",
-              }}
-            />
-
-            <div
-              className="absolute top-[5px] bottom-[5px] rounded-full bg-black z-20 transition-all duration-300 ease-out"
-              style={{
-                left: `calc(${composeTabs.findIndex((t) => t.id === composeMode) * 25}% + 5px)`,
-                width: "calc(25% - 10px)",
-              }}
-            />
-
-            <div className="relative h-full flex items-center z-30">
-              {composeTabs.map((tab) => {
-                const isLit = tab.id === composeMode;
-                const Icon = tab.Icon;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => onComposeModeChange(tab.id)}
-                    className="flex-1 relative flex flex-col items-center justify-center gap-0.5 h-full cursor-pointer bg-transparent border-none"
-                  >
-                    <Icon size={18} className={isLit ? "text-white" : "text-gray-400"} />
-                    <span className={`text-[10px] font-semibold transition-colors duration-200 ${isLit ? "text-white" : "text-gray-400"}`}>
-                      {tab.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <ComposeModeTabsBar composeMode={composeMode} onComposeModeChange={onComposeModeChange} className="mt-3" />
         </div>
 
         {composeMode === "plan" ? (
