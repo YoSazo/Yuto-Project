@@ -101,8 +101,7 @@ export function FunctionCard({
           : "bg-white border border-gray-200/80 text-black premium-function-card function-card-highlight",
       ].join(" ")}
     >
-      <div
-        className={`flex items-start gap-2 cursor-pointer hover:opacity-80 transition-opacity ${onShareInMessages ? "mb-2" : "mb-3"}`}
+      <div className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
         onClick={() => onNavigateToHost(eventFunction.host.id)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -145,8 +144,9 @@ export function FunctionCard({
         </span>
       </div>
 
-      {onShareInMessages && (
-        <div className="flex justify-end mb-3">
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <p className={["font-bold text-lg flex-1 min-w-0", isFunction ? "text-white" : "text-black"].join(" ")}>{eventFunction.title}</p>
+        {onShareInMessages && (
           <button
             type="button"
             onClick={() =>
@@ -159,7 +159,7 @@ export function FunctionCard({
               )
             }
             className={[
-              "w-9 h-9 rounded-xl flex items-center justify-center transition-colors tap-scale border",
+              "shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors tap-scale border",
               isFunction
                 ? "border-white/20 bg-white/10 text-white hover:bg-white/15"
                 : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-sm",
@@ -169,10 +169,8 @@ export function FunctionCard({
           >
             <Plane size={15} strokeWidth={2} />
           </button>
-        </div>
-      )}
-
-      <p className={["font-bold text-lg mb-1", isFunction ? "text-white" : "text-black"].join(" ")}>{eventFunction.title}</p>
+        )}
+      </div>
       {eventFunction.image_url && (
         <div className="mb-3 rounded-xl overflow-hidden bg-gray-100">
           <img src={eventFunction.image_url} alt="Function cover" className="block w-full h-auto" />
