@@ -160,11 +160,6 @@ export default function GroupChatMembersScreen() {
                   const memberIds = [user.id, target.id];
                   const perPerson = Math.ceil(total / memberIds.length);
                   const group = await createGroup(memo.trim() || "Split request", total, perPerson, user.id, memberIds, "single");
-                  await supabase
-                    .from("group_members")
-                    .update({ has_paid: true, paid_at: new Date().toISOString(), has_joined: true, joined_at: new Date().toISOString() })
-                    .eq("group_id", group.id)
-                    .eq("user_id", user.id);
 
                   const convo = await getOrCreateDmConversation(user.id, target.id);
                   await sendDmShareMessage(convo.id, user.id, { kind: "group", group_id: group.id, amount_kes: perPerson, memo: memo.trim() } as any);

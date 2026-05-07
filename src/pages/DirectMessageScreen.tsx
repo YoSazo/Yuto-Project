@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Send } from "lucide-react";
+import { ArrowLeft, Plus, Send, Trash2 } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -13,6 +13,7 @@ import {
   getOrCreateDmConversation,
   sendDmMessage,
   sendDmShareMessage,
+  deleteDmMessage,
   upsertDmBusinessContext,
   getHighlightById,
   ensureFunctionAttendeeChat,
@@ -53,7 +54,7 @@ export default function DirectMessageScreen() {
     loading,
     messages.length,
   );
-  const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
+  const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing | null>>({});
   const [highlightShareCache, setHighlightShareCache] = useState<Record<string, { highlight: Highlight; owner: ProfileRow }>>({});
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
   const [ticketFunction, setTicketFunction] = useState<FunctionListing | null>(null);
@@ -182,15 +183,9 @@ export default function DirectMessageScreen() {
       [user.id, otherUserId],
       "single",
     );
-    // mark requester as already paid (they already covered the cost)
-    await supabase
-      .from("group_members")
-      .update({ has_paid: true, paid_at: new Date().toISOString(), has_joined: true, joined_at: new Date().toISOString() })
-      .eq("group_id", group.id)
-      .eq("user_id", user.id);
     setGroupShareCache((prev) => ({ ...prev, [group.id]: { id: group.id, name: group.name, per_person: group.per_person, status: group.status } }));
     await sendDmShareMessage(conversationId, user.id, { kind: "group", group_id: group.id, amount_kes: args.amountKes, memo: args.memo });
-    await sendDmMessage(conversationId, user.id, `Requested KSH ${args.amountKes.toLocaleString("en-KE")}${args.memo ? ` for ${args.memo}` : ""}.`);
+    await sendDmMessage(conversationId, user.id, `Split created: KSH ${args.amountKes.toLocaleString("en-KE")} each${args.memo ? ` for ${args.memo}` : ""}.`);
   };
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
@@ -279,9 +274,9 @@ export default function DirectMessageScreen() {
 
     const missing = shares.filter((s) => {
       if (s.payload.kind === "highlight") return false;
-      if (s.payload.kind === "group") return !groupShareCache[s.payload.group_id];
-      if (s.payload.kind === "plan") return !shareCache[`plan:${s.payload.plan_id}`];
-      if (s.payload.kind === "function" || s.payload.kind === "listing") return !shareCache[`fn:${s.payload.function_id}`];
+      if (s.payload.kind === "group") return !(s.payload.group_id in groupShareCache);
+      if (s.payload.kind === "plan") return !(`plan:${s.payload.plan_id}` in shareCache);
+      if (s.payload.kind === "function" || s.payload.kind === "listing") return !(`fn:${s.payload.function_id}` in shareCache);
       return false;
     });
     if (missing.length === 0) return;
@@ -330,6 +325,14 @@ export default function DirectMessageScreen() {
           const next = { ...prev };
           (planRows || []).forEach((p) => (next[`plan:${(p as any).id}`] = p as any));
           (fnRows || []).forEach((f) => (next[`fn:${(f as any).id}`] = f as any));
+          planIds.forEach((id) => {
+            const k = `plan:${id}`;
+            if (!(k in next) && !(planRows || []).some((p: any) => String(p.id) === String(id))) next[k] = null;
+          });
+          fnIds.forEach((id) => {
+            const k = `fn:${id}`;
+            if (!(k in next) && !(fnRows || []).some((f: any) => String(f.id) === String(id))) next[k] = null;
+          });
           return next;
         });
         setGroupShareCache((prev) => {
@@ -341,6 +344,12 @@ export default function DirectMessageScreen() {
               per_person: Number(g.per_person || 0),
               status: String(g.status || "active"),
             };
+          });
+          groupIds.forEach((id) => {
+            const k = String(id);
+            if (!(k in next) && !(groupRows || []).some((g: any) => String(g.id) === String(id))) {
+              next[k] = { id: k, name: "Deleted split", per_person: 0, status: "deleted" };
+            }
           });
           return next;
         });
@@ -489,6 +498,27 @@ export default function DirectMessageScreen() {
               const groupPaid = listedShare?.kind === "group" ? !!groupPaidById[listedShare.group_id] : false;
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  {mine && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!user) return;
+                        if (!confirm("Delete this message?")) return;
+                        try {
+                          await deleteDmMessage(m.id, user.id);
+                          setMessages((prev) => prev.filter((x) => x.id !== m.id));
+                        } catch (e) {
+                          console.error(e);
+                          alert("Couldn't delete message.");
+                        }
+                      }}
+                      className="mr-2 mt-2 w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center shrink-0"
+                      aria-label="Delete message"
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                   {profileShare ? (
                     <div className="max-w-[95%] w-[95%] md:w-[268px]">
                       {user?.id ? (
@@ -631,6 +661,10 @@ export default function DirectMessageScreen() {
                             onOpenPeople={() => navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })}
                           />
                         )
+                      ) : shareKey && shareCache[shareKey] === null ? (
+                        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-500 font-semibold">
+                          This item was deleted.
+                        </div>
                       ) : (
                         <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 font-semibold">
                           Loading…

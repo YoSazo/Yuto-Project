@@ -1101,6 +1101,11 @@ export async function sendDmMessage(conversationId: string, senderId: string, co
   if (error) throw error;
 }
 
+export async function deleteDmMessage(messageId: string, senderId: string) {
+  const { error } = await supabase.from("dm_messages").delete().eq("id", messageId).eq("sender_id", senderId);
+  if (error) throw error;
+}
+
 export type DmSharePayload =
   | { kind: "plan"; plan_id: string }
   | { kind: "function"; function_id: string }
@@ -1448,6 +1453,11 @@ export async function sendGroupChatMessage(groupId: string, senderId: string, co
     sender_id: senderId,
     content: trimmed,
   });
+  if (error) throw error;
+}
+
+export async function deleteGroupChatMessage(messageId: string, senderId: string) {
+  const { error } = await supabase.from("group_chat_messages").delete().eq("id", messageId).eq("sender_id", senderId);
   if (error) throw error;
 }
 

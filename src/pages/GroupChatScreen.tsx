@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil, Plus, Send } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -17,6 +17,7 @@ import {
   upsertDmBusinessContext,
   sendGroupChatMessage,
   sendGroupChatShareMessage,
+  deleteGroupChatMessage,
   setGroupChatTitle,
   getHighlightById,
   ensureFunctionAttendeeChat,
@@ -82,7 +83,7 @@ export default function GroupChatScreen() {
   const [previewShare, setPreviewShare] = useState<{ title: string; subtitle: string; kindLabel: string } | null>(
     null,
   );
-  const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
+  const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing | null>>({});
   const [highlightShareCache, setHighlightShareCache] = useState<Record<string, { highlight: Highlight; owner: ProfileRow }>>({});
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
   const [ticketFunction, setTicketFunction] = useState<FunctionListing | null>(null);
@@ -176,9 +177,9 @@ export default function GroupChatScreen() {
 
     const missing = shares.filter((s) => {
       if (s.payload.kind === "highlight") return false;
-      if (s.payload.kind === "group") return !groupShareCache[(s.payload as any).group_id];
-      if (s.payload.kind === "plan") return !shareCache[`plan:${s.payload.plan_id}`];
-      if (s.payload.kind === "function" || s.payload.kind === "listing") return !shareCache[`fn:${(s.payload as { function_id: string }).function_id}`];
+      if (s.payload.kind === "group") return !((s.payload as any).group_id in groupShareCache);
+      if (s.payload.kind === "plan") return !(`plan:${s.payload.plan_id}` in shareCache);
+      if (s.payload.kind === "function" || s.payload.kind === "listing") return !(`fn:${(s.payload as { function_id: string }).function_id}` in shareCache);
       return false;
     });
     if (missing.length === 0) return;
@@ -231,16 +232,30 @@ export default function GroupChatScreen() {
         if (groupErr) throw groupErr;
 
         if (cancelled) return;
-        setShareCache((prev) => {
+        setShareCache((prev: any) => {
           const next = { ...prev };
           (planRows || []).forEach((p) => (next[`plan:${(p as { id: string }).id}`] = p as Plan));
           (fnRows || []).forEach((f) => (next[`fn:${(f as { id: string }).id}`] = f as FunctionListing));
+          planIds.forEach((id) => {
+            const k = `plan:${id}`;
+            if (!(k in next) && !(planRows || []).some((p: any) => String(p.id) === String(id))) next[k] = null;
+          });
+          fnIds.forEach((id) => {
+            const k = `fn:${id}`;
+            if (!(k in next) && !(fnRows || []).some((f: any) => String(f.id) === String(id))) next[k] = null;
+          });
           return next;
         });
         setGroupShareCache((prev) => {
           const next = { ...prev };
           (groupRows || []).forEach((g: any) => {
             next[String(g.id)] = { id: String(g.id), name: String(g.name || "Split"), per_person: Number(g.per_person || 0), status: String(g.status || "active") };
+          });
+          groupIds.forEach((id) => {
+            const k = String(id);
+            if (!(k in next) && !(groupRows || []).some((g: any) => String(g.id) === String(id))) {
+              next[k] = { id: k, name: "Deleted split", per_person: 0, status: "deleted" };
+            }
           });
           return next;
         });
@@ -371,12 +386,6 @@ export default function GroupChatScreen() {
       unique,
       "single",
     );
-    // requester already paid the full amount; others owe shares
-    await supabase
-      .from("group_members")
-      .update({ has_paid: true, paid_at: new Date().toISOString(), has_joined: true, joined_at: new Date().toISOString() })
-      .eq("group_id", group.id)
-      .eq("user_id", user.id);
     setGroupShareCache((prev) => ({ ...prev, [group.id]: { id: group.id, name: group.name, per_person: group.per_person, status: group.status } }));
     await sendGroupChatShareMessage(groupId, user.id, { kind: "group", group_id: group.id, amount_kes: perPerson, memo: args.memo } as any);
     await sendGroupChatMessage(groupId, user.id, `Split created: KSH ${perPerson.toLocaleString("en-KE")} each${args.memo ? ` for ${args.memo}` : ""}.`);
@@ -540,7 +549,7 @@ export default function GroupChatScreen() {
         </div>
       );
     }
-    const sharedItem = shareCache[shareKey];
+    const sharedItem = (shareCache as any)[shareKey];
     const focusKind = share.kind === "plan" ? "plan" : "function";
     const focusId = share.kind === "plan" ? share.plan_id : share.function_id;
     const flexBtn = mine ? "justify-end" : "justify-start";
@@ -606,6 +615,8 @@ export default function GroupChatScreen() {
               }
             />
           )
+        ) : (shareCache as any)[shareKey] === null ? (
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-500 font-semibold">This item was deleted.</div>
         ) : (
           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 font-semibold">Loading…</div>
         )}
@@ -701,6 +712,26 @@ export default function GroupChatScreen() {
                   <UserAvatar name={avatarName} avatarUrl={avatarUrl} size="sm" className="ring-2 ring-white shrink-0" />
                   <div className={`min-w-0 flex flex-col gap-1 flex-1 ${mine ? "items-end" : "items-start"}`}>
                     <span className="text-[11px] font-semibold text-gray-500 leading-none px-0.5">{label}</span>
+                    {mine && user && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!confirm("Delete this message?")) return;
+                          try {
+                            await deleteGroupChatMessage(m.id, user.id);
+                            setMessages((prev) => prev.filter((x) => x.id !== m.id));
+                          } catch (e) {
+                            console.error(e);
+                            alert("Couldn't delete message.");
+                          }
+                        }}
+                        className="self-end -mt-1 mb-1 w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center"
+                        aria-label="Delete message"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                     {profileShare ? (
                       user?.id ? <DmSharedProfileCard viewerUserId={user.id} sharedUserId={profileShare.user_id} /> : null
                     ) : hlShare && user ? (
