@@ -214,6 +214,16 @@ export default function MessagesScreen() {
           .then((u) => setUnreadByGroup(u.byGroupId))
           .catch(() => {});
       })
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "group_chat_members", filter: `user_id=eq.${user.id}` },
+        () => {
+          // New chat membership (e.g. created after Split) → refresh inbox immediately.
+          void listMyGroupChats(user.id)
+            .then((rows) => setGroups(rows))
+            .catch(() => {});
+        },
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);

@@ -466,6 +466,36 @@ export async function getFunctionsPublic() {
   return data || [];
 }
 
+export type HostedFunctionItem = {
+  id: string;
+  title: string;
+  date: string | null;
+  location: string | null;
+  amount_per_person: number;
+  image_url: string | null;
+};
+
+/** Hosted *event* functions (not __SELL__/__SERVICE__) for profile “Functions” tab. */
+export async function getUserHostedFunctions(userId: string): Promise<HostedFunctionItem[]> {
+  const { data, error } = await supabase
+    .from("functions")
+    .select("id, title, date, location, amount_per_person, image_url, status, is_public, host_id")
+    .eq("host_id", userId)
+    .eq("status", "open")
+    .neq("location", "__SELL__")
+    .neq("location", "__SERVICE__")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return ((data || []) as HostedFunctionItem[]).map((r) => ({
+    id: r.id,
+    title: r.title,
+    date: r.date ?? null,
+    location: r.location ?? null,
+    amount_per_person: Number((r as any).amount_per_person) || 0,
+    image_url: (r as any).image_url ?? null,
+  }));
+}
+
 export async function createFunction(
   hostId: string,
   title: string,

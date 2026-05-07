@@ -9,8 +9,10 @@ import {
   sendFriendRequest,
   getHighlightsByUser,
   getUserListings,
+  getUserHostedFunctions,
   getOrCreateDmConversation,
   type Highlight,
+  type HostedFunctionItem,
   type StorefrontListingItem,
 } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
@@ -49,7 +51,9 @@ export default function UserProfileScreen() {
   }, [activeHighlightMediaKey]);
   const [sendProfileOpen, setSendProfileOpen] = useState(false);
   const [userListings, setUserListings] = useState<StorefrontListingItem[]>([]);
+  const [hostedFunctions, setHostedFunctions] = useState<HostedFunctionItem[]>([]);
   const [shareHighlightOpen, setShareHighlightOpen] = useState(false);
+  const [showcaseTab, setShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
 
   useEffect(() => {
     const st = location.state as { openHighlightId?: string } | null;
@@ -81,7 +85,7 @@ export default function UserProfileScreen() {
       setProfile(userProfile);
 
       // 2. Load Stats (Safe queries that don't violate RLS)
-      const [statsRes, plansRes, friendsRes, friendshipRes, highlightRows, listingRows] = await Promise.all([
+      const [statsRes, plansRes, friendsRes, friendshipRes, highlightRows, listingRows, hostedRows] = await Promise.all([
         supabase.from("group_members").select("has_paid, groups(per_person)").eq("user_id", targetUserId),
         supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", targetUserId),
         getFriends(targetUserId).catch(() => []), 
@@ -91,6 +95,7 @@ export default function UserProfileScreen() {
           .maybeSingle(),
         getHighlightsByUser(targetUserId).catch(() => []),
         getUserListings(targetUserId).catch(() => [] as StorefrontListingItem[]),
+        getUserHostedFunctions(targetUserId).catch(() => [] as HostedFunctionItem[]),
       ]);
 
       const membersData = statsRes.data || [];
@@ -105,6 +110,7 @@ export default function UserProfileScreen() {
       });
       setHighlights(highlightRows as Highlight[]);
       setUserListings(listingRows as StorefrontListingItem[]);
+      setHostedFunctions(hostedRows as HostedFunctionItem[]);
 
       // 3. Determine Friendship Status
       if (friendshipRes.data) {
@@ -117,6 +123,22 @@ export default function UserProfileScreen() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    const hasFns = hostedFunctions.length > 0;
+    const sellCount = userListings.filter((l) => l.kind === "sell").length;
+    const serviceCount = userListings.filter((l) => l.kind === "service").length;
+
+    const available: Array<"functions" | "sell" | "service"> = [];
+    if (hasFns) available.push("functions");
+    if (sellCount > 0) available.push("sell");
+    if (serviceCount > 0) available.push("service");
+
+    if (available.length === 0) return;
+    if (!available.includes(showcaseTab)) {
+      setShowcaseTab(available[0]!);
+    }
+  }, [hostedFunctions, userListings, showcaseTab]);
 
   const handleAddFriend = async () => {
     if (!user || !targetUserId) return;
@@ -256,40 +278,6 @@ export default function UserProfileScreen() {
         <p className="text-sm text-gray-400">{userHandle}</p>
       </div>
 
-      {/* Storefront */}
-      {userListings.length > 0 && (
-        <div className="mb-8">
-          <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 text-center">Storefront</p>
-          <div className="grid grid-cols-2 gap-3">
-            {userListings.map((listing) => (
-              <button
-                key={listing.id}
-                type="button"
-                onClick={() => navigate("/home", { state: { focus: { kind: "function", id: listing.id } } })}
-                className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left tap-scale"
-              >
-                <div className="aspect-[4/3] bg-gray-100 relative">
-                  {listing.image_url ? (
-                    <img src={listing.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                      <Store size={28} />
-                    </div>
-                  )}
-                  <span className="absolute top-2 left-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-black/80 text-white">
-                    {listing.kind === "sell" ? "Sell" : "Service"}
-                  </span>
-                </div>
-                <div className="p-3">
-                  <p className="font-bold text-black text-sm leading-snug line-clamp-2">{listing.title}</p>
-                  <p className="text-xs text-gray-500 mt-1 font-semibold">KSH {listing.amount_per_person.toLocaleString()}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Highlights (viewer) */}
       {highlights.length > 0 && (
         <div className="flex items-center justify-center gap-4 mb-6">
@@ -320,6 +308,106 @@ export default function UserProfileScreen() {
           ))}
         </div>
       )}
+
+      {/* Functions / Sell / Service showcase */}
+      {(() => {
+        const sellListings = userListings.filter((l) => l.kind === "sell");
+        const serviceListings = userListings.filter((l) => l.kind === "service");
+        const hasFns = hostedFunctions.length > 0;
+        const available: Array<{ id: "functions" | "sell" | "service"; label: string; count: number }> = [];
+        if (hasFns) available.push({ id: "functions", label: "Functions", count: hostedFunctions.length });
+        if (sellListings.length > 0) available.push({ id: "sell", label: "Sell", count: sellListings.length });
+        if (serviceListings.length > 0) available.push({ id: "service", label: "Service", count: serviceListings.length });
+        if (available.length === 0) return null;
+
+        return (
+          <div className="mb-8">
+            {available.length > 1 ? (
+              <div className="flex justify-center mb-4">
+                <div className="inline-flex rounded-full bg-gray-100 p-1">
+                  {available.map((t) => {
+                    const sel = t.id === showcaseTab;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setShowcaseTab(t.id)}
+                        className={[
+                          "px-4 py-2 rounded-full text-sm font-extrabold transition-colors",
+                          sel ? "bg-black text-white" : "bg-transparent text-gray-400",
+                        ].join(" ")}
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 text-center">{available[0]!.label}</p>
+            )}
+
+            {showcaseTab === "functions" ? (
+              <div className="space-y-3">
+                {hostedFunctions.map((fn) => (
+                  <button
+                    key={fn.id}
+                    type="button"
+                    onClick={() => navigate("/home", { state: { focus: { kind: "function", id: fn.id } } })}
+                    className="w-full rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left tap-scale flex gap-3 p-3"
+                  >
+                    <div className="w-20 h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
+                      {fn.image_url ? (
+                        <img src={fn.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+                          <Store size={22} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-extrabold text-black truncate">{fn.title}</p>
+                      <p className="text-sm text-gray-400 font-semibold truncate">
+                        {fn.date ? new Date(fn.date).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" }) : "Anytime"}
+                        {fn.location ? ` · ${fn.location}` : ""}
+                      </p>
+                      <p className="text-sm text-black font-extrabold mt-1">KSH {fn.amount_per_person.toLocaleString()}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {(showcaseTab === "sell" ? sellListings : serviceListings).map((listing) => (
+                  <button
+                    key={listing.id}
+                    type="button"
+                    onClick={() => navigate("/home", { state: { focus: { kind: "function", id: listing.id } } })}
+                    className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left tap-scale"
+                  >
+                    <div className="aspect-[4/3] bg-gray-100 relative">
+                      {listing.image_url ? (
+                        <img src={listing.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+                          <Store size={28} />
+                        </div>
+                      )}
+                      <span className="absolute top-2 left-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-black/80 text-white">
+                        {listing.kind === "sell" ? "Sell" : "Service"}
+                      </span>
+                    </div>
+                    <div className="p-3">
+                      <p className="font-bold text-black text-sm leading-snug line-clamp-2">{listing.title}</p>
+                      <p className="text-xs text-gray-500 mt-1 font-semibold">KSH {listing.amount_per_person.toLocaleString()}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Action Buttons */}
       <div className="px-2">
@@ -394,29 +482,28 @@ export default function UserProfileScreen() {
                 if (info.offset.y > 100 || info.velocity.y > 500) setActiveHighlight(null);
               }}
             >
-              <div className="absolute top-3 left-3 right-3 z-50 flex items-center gap-2">
-                <div className="flex flex-1 gap-2 min-w-0">
-                  {(() => {
-                    const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
-                    return Array.from({ length: total }).map((_, i) => (
-                      <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
-                        <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
-                      </div>
-                    ));
-                  })()}
-                </div>
-                {user && targetUserId && (
-                  <button
-                    type="button"
-                    onClick={() => setShareHighlightOpen(true)}
-                    className="shrink-0 w-10 h-10 rounded-xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
-                    aria-label="Share highlight"
-                    title="Share highlight"
-                  >
-                    <Send size={18} />
-                  </button>
-                )}
+              <div className="absolute top-3 left-3 right-3 z-50 flex gap-2">
+                {(() => {
+                  const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
+                  return Array.from({ length: total }).map((_, i) => (
+                    <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                      <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
+                    </div>
+                  ));
+                })()}
               </div>
+
+              {user && targetUserId && (
+                <button
+                  type="button"
+                  onClick={() => setShareHighlightOpen(true)}
+                  className="absolute bottom-4 right-4 z-50 w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
+                  aria-label="Share highlight"
+                  title="Share highlight"
+                >
+                  <Send size={18} />
+                </button>
+              )}
 
               <div className="absolute inset-0 flex items-center justify-center">
                 {(() => {

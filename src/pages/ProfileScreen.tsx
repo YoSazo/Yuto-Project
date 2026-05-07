@@ -887,30 +887,29 @@ export default function ProfileScreen() {
                 if (info.offset.y > 100 || info.velocity.y > 500) setActiveHighlight(null);
               }}
             >
-              {/* Progress bars + share */}
-              <div className="absolute top-3 left-3 right-3 z-50 flex items-center gap-2">
-                <div className="flex flex-1 gap-2 min-w-0">
-                  {(() => {
-                    const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
-                    return Array.from({ length: total }).map((_, i) => (
-                      <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
-                        <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
-                      </div>
-                    ));
-                  })()}
-                </div>
-                {user && (
-                  <button
-                    type="button"
-                    onClick={() => setShareHighlightOpen(true)}
-                    className="shrink-0 w-10 h-10 rounded-xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
-                    aria-label="Share highlight"
-                    title="Share highlight"
-                  >
-                    <Send size={18} />
-                  </button>
-                )}
+              {/* Progress bars */}
+              <div className="absolute top-3 left-3 right-3 z-50 flex gap-2">
+                {(() => {
+                  const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
+                  return Array.from({ length: total }).map((_, i) => (
+                    <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                      <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
+                    </div>
+                  ));
+                })()}
               </div>
+
+              {user && (
+                <button
+                  type="button"
+                  onClick={() => setShareHighlightOpen(true)}
+                  className="absolute bottom-4 right-4 z-50 w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
+                  aria-label="Share highlight"
+                  title="Share highlight"
+                >
+                  <Send size={18} />
+                </button>
+              )}
 
               <div className="absolute inset-0 flex items-center justify-center">
                 {(() => {
