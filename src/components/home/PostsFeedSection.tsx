@@ -89,21 +89,23 @@ export function PostsFeedSection({
                 {post.media_url && (
                   <div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
                     {post.media_type === "video" ? (
-                      <video
-                        src={post.media_url}
-                        poster={post.media_thumb_url || undefined}
-                        className="block w-full h-[220px] object-cover"
-                        muted
-                        playsInline
-                        autoPlay
-                        loop
-                        preload="metadata"
-                        onClick={(e) => {
-                          const v = e.currentTarget;
-                          if (v.paused) void v.play().catch(() => {});
-                          else v.pause();
-                        }}
-                      />
+                      <div className="w-full bg-black flex items-center justify-center">
+                        <video
+                          src={post.media_url}
+                          poster={post.media_thumb_url || undefined}
+                          className="block w-full h-auto max-h-[520px] object-contain"
+                          muted
+                          playsInline
+                          autoPlay
+                          loop
+                          preload="metadata"
+                          onClick={(e) => {
+                            const v = e.currentTarget;
+                            if (v.paused) void v.play().catch(() => {});
+                            else v.pause();
+                          }}
+                        />
+                      </div>
                     ) : (
                       <img src={post.media_url} alt="" className="w-full h-[220px] object-cover" />
                     )}
