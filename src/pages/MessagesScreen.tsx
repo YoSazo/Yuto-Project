@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MessageCircle, Plus, Users } from "lucide-react";
+import { ArrowLeft, Plus, Users } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -185,9 +185,9 @@ export default function MessagesScreen() {
   const groupRowLabels = useMemo(() => buildGroupChatPickerLabels(groups), [groups]);
 
   return (
-    <div className="flex flex-col overflow-y-auto pb-28 px-5 pt-6">
+    <div className="flex flex-col overflow-y-auto pb-28 px-4 pt-6">
       <div className="flex items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 -ml-0.5">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -197,7 +197,6 @@ export default function MessagesScreen() {
           >
             <ArrowLeft size={18} />
           </button>
-          <MessageCircle size={18} className="text-black shrink-0" />
           <span className="text-2xl font-bold text-black truncate">Messages</span>
         </div>
         <button

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, getProfile, getFriends, sendFriendRequest, getHighlightsByUser, getOrCreateDmConversation, type Highlight } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
+import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
 import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Plane } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 
@@ -28,11 +29,6 @@ export default function UserProfileScreen() {
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
   const highlightGestureRef = useRef<{ startY: number; moved: boolean } | null>(null);
   const [sendProfileOpen, setSendProfileOpen] = useState(false);
-  const isVideoUrl = (url?: string | null) => {
-    if (!url) return false;
-    return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
-  };
-
   useEffect(() => {
     // If they click their own profile, redirect to their main profile tab
     if (targetUserId === user?.id) {
@@ -228,9 +224,12 @@ export default function UserProfileScreen() {
               }}
               className="flex flex-col items-center gap-1 bg-transparent border-none p-0"
             >
-              <div className="w-16 h-16 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
+              <div className="relative w-16 h-16 shrink-0 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
                 {h.photos[0]?.url ? (
-                  <img src={h.photos[0].url} alt="Highlight" className="w-full h-full object-cover" />
+                  <HighlightStillMedia
+                    url={h.photos[0].url}
+                    className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                  />
                 ) : null}
               </div>
             </button>
@@ -316,7 +315,7 @@ export default function UserProfileScreen() {
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center">
-            {isVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
+            {isHighlightVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
               <video
                 src={activeHighlight.photos[activeHighlightIdx]?.url}
                 className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"

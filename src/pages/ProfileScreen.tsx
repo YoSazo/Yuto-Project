@@ -16,6 +16,7 @@ import {
   type Highlight,
 } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
+import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { Wallet, History, Plus, Copy, Check } from "lucide-react";
 
@@ -304,11 +305,6 @@ export default function ProfileScreen() {
       .catch(() => setHighlights([]));
   }, [user]);
 
-  const isVideoUrl = (url?: string | null) => {
-    if (!url) return false;
-    return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
-  };
-
   const handlePickHighlight = async (idx: 0 | 1, e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -589,9 +585,12 @@ export default function ProfileScreen() {
               }}
               className="bg-transparent border-none p-0"
             >
-              <div className="w-16 h-16 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
+              <div className="relative w-16 h-16 shrink-0 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
                 {h.photos[0]?.url ? (
-                  <img src={h.photos[0].url} alt="Highlight" className="w-full h-full object-cover" />
+                  <HighlightStillMedia
+                    url={h.photos[0].url}
+                    className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                  />
                 ) : null}
               </div>
             </button>
@@ -797,17 +796,10 @@ export default function ProfileScreen() {
                   className="rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden aspect-square flex items-center justify-center cursor-pointer"
                 >
                   {highlightPreviews[i as 0 | 1] ? (
-                    isVideoUrl(highlightPreviews[i as 0 | 1] as string) ? (
-                      <video
-                        src={highlightPreviews[i as 0 | 1] as string}
-                        className="w-full h-full object-cover"
-                        playsInline
-                        muted
-                        loop
-                      />
-                    ) : (
-                      <img src={highlightPreviews[i as 0 | 1] as string} alt="Preview" className="w-full h-full object-cover" />
-                    )
+                    <HighlightStillMedia
+                      url={highlightPreviews[i as 0 | 1] as string}
+                      className="h-full w-full object-cover pointer-events-none"
+                    />
                   ) : (
                     <span className="text-sm text-gray-400 font-semibold">Pick photo or video</span>
                   )}
@@ -875,7 +867,7 @@ export default function ProfileScreen() {
 
           {/* Photo */}
           <div className="absolute inset-0 flex items-center justify-center">
-            {isVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
+            {isHighlightVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
               <video
                 src={activeHighlight.photos[activeHighlightIdx]?.url}
                 className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"

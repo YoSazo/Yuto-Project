@@ -17,6 +17,7 @@ export default function CreateGroupChatScreen() {
   const { user } = useAuth();
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [groupName, setGroupName] = useState("");
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -45,7 +46,8 @@ export default function CreateGroupChatScreen() {
     if (!user || !valid) return;
     setCreating(true);
     try {
-      const chat = await createGroupChat(user.id, selectedFriends);
+      const title = groupName.trim() || "Group chat";
+      const chat = await createGroupChat(user.id, selectedFriends, title);
       navigate(`/messages/group/${chat.id}`, { replace: true });
     } catch (e) {
       console.error(e);
@@ -72,6 +74,18 @@ export default function CreateGroupChatScreen() {
       </div>
 
       <div className="mt-2 flex-1">
+        <div className="mb-8">
+          <p className="font-semibold text-sm text-gray-500 mb-3 text-center">Name your group</p>
+          <input
+            type="text"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value.slice(0, 40))}
+            placeholder="Trip to Nanyuki, roomies, study crew…"
+            maxLength={40}
+            className="w-full text-sm text-center text-gray-600 bg-gray-50 border-none outline-none rounded-full px-4 py-3 placeholder-gray-300"
+          />
+        </div>
+
         <p className="font-semibold text-sm text-gray-500 mb-3">Add people</p>
         {friends.length === 0 ? (
           <div className="text-center py-6">
