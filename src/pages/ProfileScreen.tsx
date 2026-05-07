@@ -116,6 +116,7 @@ export default function ProfileScreen() {
   const [highlightPreviews, setHighlightPreviews] = useState<[string | null, string | null]>([null, null]);
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
+  const [activeHighlightMediaReady, setActiveHighlightMediaReady] = useState(false);
   const handleOpenHistory = async () => {
     setShowHistoryModal(true);
     setLoadingHistory(true);
@@ -581,6 +582,7 @@ export default function ProfileScreen() {
                 type="button"
                 onClick={() => {
                   setActiveHighlightIdx(0);
+                  setActiveHighlightMediaReady(false);
                   setActiveHighlight(h);
                 }}
                 className="bg-transparent border-none p-0"
@@ -838,7 +840,7 @@ export default function ProfileScreen() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.08, ease: "linear" }}
+              transition={{ duration: 0.04, ease: "linear" }}
               className="fixed inset-0 z-40 bg-black"
             />
 
@@ -846,8 +848,10 @@ export default function ProfileScreen() {
               layoutId={`highlight-container-${activeHighlight.id}`}
               style={{ borderRadius: 0 }}
               transition={{
-                layout: { duration: 0.12, ease: [0.2, 0.9, 0.2, 1] },
+                layout: { duration: 0.08, ease: [0.2, 0.9, 0.2, 1] },
+                opacity: { duration: 0.04, ease: "linear" },
               }}
+              exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
               onKeyDown={(e) => {
                 if (e.key === "Escape") setActiveHighlight(null);
@@ -873,6 +877,21 @@ export default function ProfileScreen() {
               </div>
 
               <div className="absolute inset-0 flex items-center justify-center">
+                {(() => {
+                  const active = activeHighlight.photos?.[activeHighlightIdx];
+                  const ph = active?.poster_url || active?.thumb_url || active?.url;
+                  if (!ph) return null;
+                  return (
+                    <img
+                      src={ph}
+                      alt=""
+                      aria-hidden
+                      className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-60 pointer-events-none"
+                      draggable={false}
+                    />
+                  );
+                })()}
+
                 {isHighlightVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
                   <video
                     src={activeHighlight.photos[activeHighlightIdx]?.url}
@@ -881,18 +900,24 @@ export default function ProfileScreen() {
                       activeHighlight.photos[activeHighlightIdx]?.thumb_url ||
                       undefined
                     }
-                    className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                    className={`max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-150 ${
+                      activeHighlightMediaReady ? "opacity-100" : "opacity-0"
+                    }`}
                     playsInline
                     autoPlay
                     muted
                     loop
+                    onLoadedData={() => setActiveHighlightMediaReady(true)}
                   />
                 ) : (
                   <img
                     src={activeHighlight.photos[activeHighlightIdx]?.url}
                     alt="Highlight"
-                    className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                    className={`max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-150 ${
+                      activeHighlightMediaReady ? "opacity-100" : "opacity-0"
+                    }`}
                     draggable={false}
+                    onLoad={() => setActiveHighlightMediaReady(true)}
                   />
                 )}
               </div>
@@ -905,6 +930,7 @@ export default function ProfileScreen() {
                 onClick={() => {
                   if (activeHighlightIdx === 1) {
                     setActiveHighlightIdx(0);
+                    setActiveHighlightMediaReady(false);
                     return;
                   }
                   setActiveHighlight(null);
@@ -918,6 +944,7 @@ export default function ProfileScreen() {
                 onClick={() => {
                   if (activeHighlightIdx === 0) {
                     setActiveHighlightIdx(1);
+                    setActiveHighlightMediaReady(false);
                     return;
                   }
                   setActiveHighlight(null);
