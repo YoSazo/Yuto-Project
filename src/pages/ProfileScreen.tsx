@@ -840,7 +840,7 @@ export default function ProfileScreen() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.015, ease: "linear" }}
+              transition={{ duration: 0.006, ease: "linear" }}
               className="fixed inset-0 z-40 bg-black"
             />
 
@@ -848,8 +848,8 @@ export default function ProfileScreen() {
               layoutId={`highlight-container-${activeHighlight.id}`}
               style={{ borderRadius: 0 }}
               transition={{
-                layout: { duration: 0.02, ease: [0.2, 0.9, 0.2, 1] },
-                opacity: { duration: 0.015, ease: "linear" },
+                layout: { duration: 0.008, ease: [0.2, 0.9, 0.2, 1] },
+                opacity: { duration: 0.006, ease: "linear" },
               }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
@@ -880,22 +880,29 @@ export default function ProfileScreen() {
                 {(() => {
                   const active = activeHighlight.photos?.[activeHighlightIdx];
                   if (!active) return null;
-                  const ph = active.poster_url || active.thumb_url || active.url;
+                  const isVideo = isHighlightVideoUrl(active.url);
+                  const hasImagePoster = !!(active.poster_url || active.thumb_url);
+                  const placeholderImage = hasImagePoster
+                    ? (active.poster_url || active.thumb_url)
+                    : (!isVideo ? active.url : null);
 
                   return (
                     <>
-                      {ph && (
-                        <HighlightStillMedia
-                          url={ph as string}
+                      {placeholderImage && (
+                        <img
+                          src={placeholderImage as string}
+                          alt=""
+                          aria-hidden
                           className="absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                          draggable={false}
                         />
                       )}
 
-                      {isHighlightVideoUrl(active.url) ? (
+                      {isVideo ? (
                         <video
-                          src={active.url}
+                          src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
                           className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
-                            activeHighlightMediaReady ? "opacity-100" : "opacity-0"
+                            activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
                           }`}
                           playsInline
                           autoPlay
