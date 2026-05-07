@@ -10,6 +10,8 @@ export function DmPlusModal({
   onPickFunction,
   onRequestSplit,
   onSendMoney,
+  sendAvailableBalanceKes = null,
+  sendBalanceLoading = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -17,6 +19,9 @@ export function DmPlusModal({
   onPickFunction: (fn: FunctionListing, kind: "function" | "sell" | "service") => void;
   onRequestSplit: (args: { amountKes: number; memo: string; mediaFile?: File | null }) => void | Promise<void>;
   onSendMoney: (args: { amountKes: number; note: string }) => void | Promise<void>;
+  /** Same as Profile wallet Send: spendable balance; null before first load */
+  sendAvailableBalanceKes?: number | null;
+  sendBalanceLoading?: boolean;
 }) {
   const [topTab, setTopTab] = useState<"share" | "split" | "send">("share");
   const [amount, setAmount] = useState("");
@@ -65,18 +70,38 @@ export function DmPlusModal({
       setError("Enter a valid amount.");
       return;
     }
+    const rounded = Math.round(amountKes);
+    if (sendAvailableBalanceKes != null && rounded > sendAvailableBalanceKes) {
+      setError("Insufficient balance.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      await onSendMoney({ amountKes: Math.round(amountKes), note: memo.trim() });
+      await onSendMoney({ amountKes: rounded, note: memo.trim() });
       onClose();
     } catch (e) {
       console.error(e);
-      setError(e instanceof Error ? e.message : "Couldn't send. Try again.");
+      const msg =
+        typeof e === "object" &&
+        e &&
+        "message" in e &&
+        typeof (e as { message?: unknown }).message === "string"
+          ? (e as { message: string }).message
+          : e instanceof Error
+            ? e.message
+            : "Couldn't send. Try again.";
+      setError(msg);
     } finally {
       setBusy(false);
     }
   };
+
+  const sendBtnDisabled =
+    busy ||
+    !amount ||
+    sendBalanceLoading ||
+    (sendAvailableBalanceKes != null && Number(amount.replace(/,/g, "")) > sendAvailableBalanceKes);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/60 backdrop-blur-sm">
@@ -217,6 +242,13 @@ export function DmPlusModal({
                 placeholder="500"
                 className="w-full text-4xl font-black tracking-tight outline-none border-none bg-transparent"
               />
+              <p className="text-xs text-gray-500 mt-1 font-semibold">
+                {sendBalanceLoading
+                  ? "Available: …"
+                  : sendAvailableBalanceKes != null
+                    ? `Available: KSH ${sendAvailableBalanceKes.toLocaleString("en-KE")}`
+                    : "Available: —"}
+              </p>
 
               <div className="mt-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Note (optional)</p>
@@ -235,9 +267,9 @@ export function DmPlusModal({
             <button
               type="button"
               onClick={handleSend}
-              disabled={busy || !amount}
+              disabled={sendBtnDisabled}
               className={`w-full mt-4 h-12 rounded-2xl font-extrabold text-base transition-colors ${
-                busy || !amount ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-black text-white hover:bg-gray-800"
+                sendBtnDisabled ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-black text-white hover:bg-gray-800"
               }`}
             >
               {busy ? "Sending…" : `Send KSH ${Number(amount || 0).toLocaleString("en-KE")}`}

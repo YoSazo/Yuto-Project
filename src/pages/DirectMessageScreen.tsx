@@ -20,6 +20,7 @@ import {
   createWalletOffer,
   acceptWalletOffer,
   getWalletOfferById,
+  fetchYutoBalance,
   supabase,
   type DmMessage,
   type DmSharePayload,
@@ -72,6 +73,8 @@ export default function DirectMessageScreen() {
   const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
   const [walletOfferCache, setWalletOfferCache] = useState<Record<string, any | null>>({});
+  const [composerYutoBalance, setComposerYutoBalance] = useState<number | null>(null);
+  const [composerBalanceLoading, setComposerBalanceLoading] = useState(false);
 
   const parseShare = (m: DmMessage): DmSharePayload | null => {
     if (m.message_type !== "share") return null;
@@ -99,6 +102,25 @@ export default function DirectMessageScreen() {
     if (p.kind === "wallet_offer" && typeof p.offer_id === "string") return { kind: "wallet_offer", offer_id: p.offer_id };
     return null;
   };
+
+  useEffect(() => {
+    if (!showSharePicker || !user?.id) return;
+    let cancelled = false;
+    setComposerBalanceLoading(true);
+    void (async () => {
+      try {
+        const bal = await fetchYutoBalance(user.id);
+        if (!cancelled) setComposerYutoBalance(bal);
+      } catch {
+        if (!cancelled) setComposerYutoBalance(null);
+      } finally {
+        if (!cancelled) setComposerBalanceLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showSharePicker, user?.id]);
 
   useEffect(() => {
     if (!user || !conversationId) return;
@@ -616,46 +638,63 @@ export default function DirectMessageScreen() {
                         <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
                           <div className="p-5">
                             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Money</p>
-                            <p className="mt-1 font-extrabold text-black text-lg truncate">{(walletOfferCache as any)[listedShare.offer_id]?.note || "Yuto send"}</p>
+                            <p className="mt-1 font-extrabold text-black text-lg truncate">
+                              {(walletOfferCache as any)[listedShare.offer_id]?.note || "Yuto send"}
+                            </p>
                             <p className="text-sm text-gray-500 mt-1">
                               Amount:{" "}
                               <span className="font-bold text-black">
                                 KSH {Number((walletOfferCache as any)[listedShare.offer_id]?.amount_kes || 0).toLocaleString("en-KE")}
                               </span>
                             </p>
-                            <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                            <div className="mt-4">
                               {(() => {
                                 const offer = (walletOfferCache as any)[listedShare.offer_id] as any;
                                 const pending = offer?.status === "pending";
                                 const accepted = offer?.status === "accepted";
-                                const canAccept =
-                                  !!user &&
-                                  pending &&
-                                  offer &&
-                                  String(offer.sender_id) !== String(user.id) &&
-                                  (!offer.recipient_user_id || String(offer.recipient_user_id) === String(user.id));
-                                if (accepted) {
+                                const isSender = !!user && offer && String(offer.sender_id) === String(user.id);
+                                const tallBtn = "w-full min-h-[4.5rem] py-5 rounded-2xl text-lg font-extrabold transition-colors";
+                                if (!offer) {
+                                  return (
+                                    <div className={`${tallBtn} bg-gray-100 text-gray-400 flex items-center justify-center`}>Loading…</div>
+                                  );
+                                }
+                                if (isSender) {
+                                  if (accepted) {
+                                    return (
+                                      <button type="button" disabled className={`${tallBtn} bg-green-500 text-white opacity-90 cursor-not-allowed`}>
+                                        Accepted
+                                      </button>
+                                    );
+                                  }
                                   return (
                                     <button
                                       type="button"
                                       disabled
-                                      className="flex-1 h-11 rounded-2xl bg-green-500 text-white font-extrabold opacity-90 cursor-not-allowed"
+                                      className={`${tallBtn} bg-amber-50 text-amber-900 border border-amber-200 cursor-default`}
                                     >
+                                      Pending
+                                    </button>
+                                  );
+                                }
+                                if (accepted) {
+                                  return (
+                                    <button type="button" disabled className={`${tallBtn} bg-green-500 text-white opacity-90 cursor-not-allowed`}>
                                       Accepted
                                     </button>
                                   );
                                 }
                                 if (!pending) {
                                   return (
-                                    <button
-                                      type="button"
-                                      disabled
-                                      className="flex-1 h-11 rounded-2xl bg-gray-200 text-gray-500 font-extrabold cursor-not-allowed"
-                                    >
+                                    <button type="button" disabled className={`${tallBtn} bg-gray-200 text-gray-500 cursor-not-allowed`}>
                                       Unavailable
                                     </button>
                                   );
                                 }
+                                const canAccept =
+                                  !!user &&
+                                  (!offer.recipient_user_id ||
+                                    String(offer.recipient_user_id) === String(user.id));
                                 return (
                                   <button
                                     type="button"
@@ -671,7 +710,7 @@ export default function DirectMessageScreen() {
                                       }
                                     }}
                                     disabled={!canAccept}
-                                    className={`flex-1 h-11 rounded-2xl font-extrabold transition-colors whitespace-nowrap ${
+                                    className={`${tallBtn} whitespace-nowrap ${
                                       canAccept ? "bg-black hover:bg-gray-800 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                     }`}
                                   >
@@ -939,7 +978,14 @@ export default function DirectMessageScreen() {
             recipientUserId: otherUserId,
           });
           await sendDmShareMessage(conversationId, user.id, { kind: "wallet_offer", offer_id: offerId } as any);
+          try {
+            setComposerYutoBalance(await fetchYutoBalance(user.id));
+          } catch {
+            /* ignore */
+          }
         }}
+        sendAvailableBalanceKes={composerYutoBalance}
+        sendBalanceLoading={composerBalanceLoading}
       />
 
       {previewShare && (

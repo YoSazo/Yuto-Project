@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
@@ -24,6 +24,7 @@ import {
   createWalletOffer,
   acceptWalletOffer,
   getWalletOfferById,
+  fetchYutoBalance,
   supabase,
   type DmSharePayload,
   type GroupChatMessage,
@@ -106,6 +107,8 @@ export default function GroupChatScreen() {
   const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
   const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
+  const [composerYutoBalance, setComposerYutoBalance] = useState<number | null>(null);
+  const [composerBalanceLoading, setComposerBalanceLoading] = useState(false);
   const [walletOfferCache, setWalletOfferCache] = useState<Record<string, any | null>>({});
 
   useEffect(() => {
@@ -139,6 +142,25 @@ export default function GroupChatScreen() {
       cancelled = true;
     };
   }, [groupId, user]);
+
+  useEffect(() => {
+    if (!showSharePicker || !user?.id) return;
+    let cancelled = false;
+    setComposerBalanceLoading(true);
+    void (async () => {
+      try {
+        const bal = await fetchYutoBalance(user.id);
+        if (!cancelled) setComposerYutoBalance(bal);
+      } catch {
+        if (!cancelled) setComposerYutoBalance(null);
+      } finally {
+        if (!cancelled) setComposerBalanceLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showSharePicker, user?.id]);
 
   useEffect(() => {
     if (!groupId) return;
@@ -560,7 +582,68 @@ export default function GroupChatScreen() {
       const offer = walletOfferCache[share.offer_id] as any;
       const pending = offer?.status === "pending";
       const accepted = offer?.status === "accepted";
-      const canAccept = !!user && pending && offer && String(offer.sender_id) !== String(user.id);
+      const isSender = !!user && offer && String(offer.sender_id) === String(user.id);
+      const tallBtn = "w-full min-h-[4.5rem] py-5 rounded-2xl text-lg font-extrabold transition-colors";
+
+      let action: ReactNode;
+      if (!offer) {
+        action = <div className={`${tallBtn} bg-gray-100 text-gray-400 flex items-center justify-center`}>Loading…</div>;
+      } else if (isSender) {
+        if (accepted) {
+          action = (
+            <button type="button" disabled className={`${tallBtn} bg-green-500 text-white opacity-90 cursor-not-allowed`}>
+              Accepted
+            </button>
+          );
+        } else {
+          action = (
+            <button
+              type="button"
+              disabled
+              className={`${tallBtn} bg-amber-50 text-amber-900 border border-amber-200 cursor-default`}
+            >
+              Pending
+            </button>
+          );
+        }
+      } else if (accepted) {
+        action = (
+          <button type="button" disabled className={`${tallBtn} bg-green-500 text-white opacity-90 cursor-not-allowed`}>
+            Accepted
+          </button>
+        );
+      } else if (!pending) {
+        action = (
+          <button type="button" disabled className={`${tallBtn} bg-gray-200 text-gray-500 cursor-not-allowed`}>
+            Unavailable
+          </button>
+        );
+      } else {
+        const canAccept = !!user && !isSender;
+        action = (
+          <button
+            type="button"
+            onClick={async () => {
+              if (!user) return;
+              try {
+                await acceptWalletOffer(share.offer_id);
+                const fresh = await getWalletOfferById(share.offer_id);
+                setWalletOfferCache((prev) => ({ ...prev, [share.offer_id]: fresh }));
+              } catch (e) {
+                console.error(e);
+                alert(e instanceof Error ? e.message : "Couldn't accept.");
+              }
+            }}
+            disabled={!canAccept}
+            className={`${tallBtn} whitespace-nowrap ${
+              canAccept ? "bg-black hover:bg-gray-800 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            Accept
+          </button>
+        );
+      }
+
       return (
         <div className="w-full">
           <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
@@ -570,38 +653,7 @@ export default function GroupChatScreen() {
               <p className="text-sm text-gray-500 mt-1">
                 Amount: <span className="font-bold text-black">KSH {Number(offer?.amount_kes || 0).toLocaleString("en-KE")}</span>
               </p>
-              <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                {accepted ? (
-                  <button type="button" disabled className="flex-1 h-11 rounded-2xl bg-green-500 text-white font-extrabold opacity-90 cursor-not-allowed">
-                    Claimed
-                  </button>
-                ) : pending ? (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!user) return;
-                      try {
-                        await acceptWalletOffer(share.offer_id);
-                        const fresh = await getWalletOfferById(share.offer_id);
-                        setWalletOfferCache((prev) => ({ ...prev, [share.offer_id]: fresh }));
-                      } catch (e) {
-                        console.error(e);
-                        alert(e instanceof Error ? e.message : "Couldn't claim.");
-                      }
-                    }}
-                    disabled={!canAccept}
-                    className={`flex-1 h-11 rounded-2xl font-extrabold transition-colors whitespace-nowrap ${
-                      canAccept ? "bg-black hover:bg-gray-800 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    }`}
-                  >
-                    Claim
-                  </button>
-                ) : (
-                  <button type="button" disabled className="flex-1 h-11 rounded-2xl bg-gray-200 text-gray-500 font-extrabold cursor-not-allowed">
-                    Unavailable
-                  </button>
-                )}
-              </div>
+              <div className="mt-4">{action}</div>
             </div>
           </div>
         </div>
@@ -973,7 +1025,14 @@ export default function GroupChatScreen() {
           if (!user || !groupId) throw new Error("Missing group chat.");
           const offerId = await createWalletOffer({ amountKes, note: note || null, groupChatId: groupId });
           await sendGroupChatShareMessage(groupId, user.id, { kind: "wallet_offer", offer_id: offerId } as any);
+          try {
+            setComposerYutoBalance(await fetchYutoBalance(user.id));
+          } catch {
+            /* ignore */
+          }
         }}
+        sendAvailableBalanceKes={composerYutoBalance}
+        sendBalanceLoading={composerBalanceLoading}
       />
 
       {groupPay && user && (
