@@ -179,7 +179,7 @@ export function PostsFeedSection({
                   </div>
                 ) : post.media_url ? (
                   <div className="mt-3 -ml-12 w-[calc(100%+3rem)]">
-                    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
+                    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
                     {(() => {
                       const mediaType = (post as any).media_type as string | undefined;
                       const url = String(post.media_url);
@@ -187,23 +187,11 @@ export function PostsFeedSection({
                         mediaType === "video" || /\.(mp4|mov|webm|m4v)(\?.*)?$/i.test(url);
                       if (looksVideo) {
                         return (
-                          <div className="relative w-full bg-gray-50 flex items-center justify-center overflow-hidden">
-                            {/* blurred fill background to avoid black bars */}
-                            <video
-                              src={url}
-                              className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-35"
-                              muted
-                              playsInline
-                              autoPlay
-                              loop
-                              preload="metadata"
-                              controls={false}
-                              aria-hidden
-                            />
+                          <div className="relative w-full bg-transparent flex items-center justify-center overflow-hidden">
                             <video
                               src={url}
                               poster={(post as any).media_thumb_url || undefined}
-                              className="block w-full h-auto max-h-[520px] object-contain"
+                              className="block w-full h-auto max-h-[70vh] object-contain"
                               muted={!legacyUnmuted[post.id]}
                               playsInline
                               autoPlay
@@ -241,17 +229,7 @@ export function PostsFeedSection({
                           </div>
                         );
                       }
-                      return (
-                        <div className="relative w-full bg-gray-50 overflow-hidden">
-                          <img
-                            src={url}
-                            alt=""
-                            aria-hidden
-                            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-35"
-                          />
-                          <img src={url} alt="" className="w-full h-[520px] object-contain block relative" />
-                        </div>
-                      );
+                      return <img src={url} alt="" className="w-full h-auto max-h-[70vh] object-contain block" />;
                     })()}
                     </div>
                   </div>

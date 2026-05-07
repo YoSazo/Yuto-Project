@@ -28,7 +28,7 @@ export function PostMediaCarousel({ media }: { media: MediaItem[] }) {
     <div className="mt-3">
       <div
         ref={scrollerRef}
-        className="relative w-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth rounded-2xl border border-gray-100 bg-gray-50"
+        className="relative w-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth rounded-2xl border border-gray-100 bg-white"
         style={{ WebkitOverflowScrolling: "touch" as any }}
         onScroll={(e) => {
           const el = e.currentTarget;
@@ -40,23 +40,11 @@ export function PostMediaCarousel({ media }: { media: MediaItem[] }) {
         {items.map((m) => (
           <div key={m.id} className="snap-center shrink-0 w-full">
             {m.media_type === "video" ? (
-              <div className="relative w-full bg-gray-50 flex items-center justify-center overflow-hidden">
-                {/* blurred fill background to avoid black bars */}
-                <video
-                  src={m.media_url}
-                  className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-35"
-                  muted
-                  playsInline
-                  autoPlay
-                  loop
-                  preload="metadata"
-                  controls={false}
-                  aria-hidden
-                />
+              <div className="relative w-full bg-transparent flex items-center justify-center overflow-hidden">
                 <video
                   src={m.media_url}
                   poster={m.media_thumb_url || undefined}
-                  className="block w-full h-auto max-h-[520px] object-contain"
+                  className="block w-full h-auto max-h-[70vh] object-contain"
                   muted={!unmuted[m.id]}
                   playsInline
                   autoPlay
@@ -93,16 +81,7 @@ export function PostMediaCarousel({ media }: { media: MediaItem[] }) {
                 </button>
               </div>
             ) : (
-              <div className="relative w-full bg-gray-50 overflow-hidden">
-                <img
-                  src={m.media_url}
-                  alt=""
-                  aria-hidden
-                  className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-35"
-                  draggable={false}
-                />
-                <img src={m.media_url} alt="" className="w-full h-[520px] object-contain block relative" draggable={false} />
-              </div>
+              <img src={m.media_url} alt="" className="w-full h-auto max-h-[70vh] object-contain block" draggable={false} />
             )}
           </div>
         ))}
