@@ -597,11 +597,7 @@ export default function GroupChatScreen() {
           );
         } else {
           action = (
-            <button
-              type="button"
-              disabled
-              className={`${tallBtn} bg-amber-50 text-amber-900 border border-amber-200 cursor-default`}
-            >
+            <button type="button" disabled className={`${tallBtn} bg-amber-50 text-amber-900 border border-amber-200 cursor-default`}>
               Pending
             </button>
           );
@@ -619,7 +615,9 @@ export default function GroupChatScreen() {
           </button>
         );
       } else {
-        const canAccept = !!user && !isSender;
+        const canAccept =
+          !!user &&
+          (!offer.recipient_user_id || String(offer.recipient_user_id) === String(user.id));
         action = (
           <button
             type="button"
@@ -644,14 +642,18 @@ export default function GroupChatScreen() {
         );
       }
 
+      const noteDisplay = offer?.note || "Yuto send";
+      const amountDisplay = Number(offer?.amount_kes || 0).toLocaleString("en-KE");
+
       return (
-        <div className="w-full">
+        <div className="max-w-[99%] w-[99%] md:w-[760px]">
           <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
             <div className="p-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Money</p>
-              <p className="mt-1 font-extrabold text-black text-lg truncate">{offer?.note || "Yuto send"}</p>
+              <p className="mt-1 font-extrabold text-black text-lg truncate">{noteDisplay}</p>
               <p className="text-sm text-gray-500 mt-1">
-                Amount: <span className="font-bold text-black">KSH {Number(offer?.amount_kes || 0).toLocaleString("en-KE")}</span>
+                Amount:{" "}
+                <span className="font-bold text-black">KSH {amountDisplay}</span>
               </p>
               <div className="mt-4">{action}</div>
             </div>
@@ -896,7 +898,7 @@ export default function GroupChatScreen() {
               return (
                 <div
                   key={m.id}
-                  className={`flex gap-2.5 items-start ${isShareRow ? "max-w-full" : "max-w-[85%]"} ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
+                  className={`flex gap-2.5 items-start ${isShareRow ? "w-full" : "max-w-[85%]"} ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
                 >
                   <UserAvatar name={avatarName} avatarUrl={avatarUrl} size="sm" className="ring-2 ring-white shrink-0" />
                   <div className={`min-w-0 flex flex-col gap-1 flex-1 ${mine ? "items-end" : "items-start"}`}>
