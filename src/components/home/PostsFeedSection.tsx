@@ -99,6 +99,16 @@ export function PostsFeedSection({
                           autoPlay
                           loop
                           preload="metadata"
+                          controls={false}
+                          controlsList="nodownload noplaybackrate noremoteplayback"
+                          disablePictureInPicture
+                          onContextMenu={(e) => e.preventDefault()}
+                          onVolumeChange={(e) => {
+                            // Keep it Twitter-style: always muted in-feed.
+                            const v = e.currentTarget;
+                            if (!v.muted) v.muted = true;
+                            if (v.volume !== 0) v.volume = 0;
+                          }}
                           onClick={(e) => {
                             const v = e.currentTarget;
                             if (v.paused) void v.play().catch(() => {});
