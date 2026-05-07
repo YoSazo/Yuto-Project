@@ -23,7 +23,7 @@ import {
 } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
-import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Send, Store } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Send, Store, Volume2, VolumeX } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import type { FunctionListing } from "../lib/types";
@@ -71,6 +71,7 @@ export default function UserProfileScreen() {
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
   const [highlightReplyText, setHighlightReplyText] = useState("");
   const [highlightReplySending, setHighlightReplySending] = useState(false);
+  const [highlightViewerMuted, setHighlightViewerMuted] = useState(true);
 
   useEffect(() => {
     const st = location.state as { openHighlightId?: string } | null;
@@ -80,6 +81,7 @@ export default function UserProfileScreen() {
     if (found) {
       setActiveHighlightIdx(0);
       setActiveHighlightMediaReady(false);
+      setHighlightViewerMuted(true);
       setActiveHighlight(found);
     }
   }, [location.state, highlights]);
@@ -786,18 +788,33 @@ export default function UserProfileScreen() {
                       )}
 
                       {isVideo ? (
-                        <video
-                          src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
-                          key={`video-${activeHighlightMediaKey}`}
-                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none transition-opacity duration-200 ease-in-out ${
-                            activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
-                          }`}
-                          playsInline
-                          autoPlay
-                          muted
-                          loop
-                          onLoadedData={() => setActiveHighlightMediaReady(true)}
-                        />
+                        <>
+                          <video
+                            src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
+                            key={`video-${activeHighlightMediaKey}`}
+                            className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none transition-opacity duration-200 ease-in-out ${
+                              activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
+                            }`}
+                            playsInline
+                            autoPlay
+                            muted={highlightViewerMuted}
+                            loop
+                            onLoadedData={() => setActiveHighlightMediaReady(true)}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setHighlightViewerMuted((m) => !m);
+                            }}
+                            className="absolute top-12 right-3 z-50 w-10 h-10 rounded-2xl bg-black/60 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm"
+                            aria-label={highlightViewerMuted ? "Unmute video" : "Mute video"}
+                            title={highlightViewerMuted ? "Unmute" : "Mute"}
+                          >
+                            {highlightViewerMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                          </button>
+                        </>
                       ) : (
                         <img
                           src={active.url}
@@ -823,6 +840,7 @@ export default function UserProfileScreen() {
                   if (activeHighlightIdx === 1) {
                     setActiveHighlightIdx(0);
                     setActiveHighlightMediaReady(false);
+                    setHighlightViewerMuted(true);
                     return;
                   }
                   setActiveHighlight(null);
@@ -837,6 +855,7 @@ export default function UserProfileScreen() {
                   if (activeHighlightIdx === 0) {
                     setActiveHighlightIdx(1);
                     setActiveHighlightMediaReady(false);
+                    setHighlightViewerMuted(true);
                     return;
                   }
                   setActiveHighlight(null);
