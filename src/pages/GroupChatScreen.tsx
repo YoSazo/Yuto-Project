@@ -10,6 +10,9 @@ import {
   joinPlan,
   leavePlan,
   markGroupChatRead,
+  getOrCreateDmConversation,
+  sendDmMessage,
+  sendDmShareMessage,
   sendGroupChatMessage,
   sendGroupChatShareMessage,
   setGroupChatTitle,
@@ -256,6 +259,24 @@ export default function GroupChatScreen() {
         .eq("id", eventFunction.id)
         .single();
       setShareCache((prev) => ({ ...prev, [`fn:${eventFunction.id}`]: data as FunctionListing }));
+
+      const isSell = eventFunction.location === "__SELL__";
+      const isService = eventFunction.location === "__SERVICE__";
+      if (isSell || isService) {
+        try {
+          const convo = await getOrCreateDmConversation(user.id, eventFunction.host.id);
+          const verb = isSell ? "bought" : "booked";
+          await sendDmMessage(convo.id, user.id, `Hey! I just ${verb} “${eventFunction.title}”.`);
+          await sendDmShareMessage(convo.id, user.id, {
+            kind: "listing",
+            function_id: eventFunction.id,
+            listing_kind: isSell ? "sell" : "service",
+          });
+          navigate(`/messages/${convo.id}`, { state: { otherUserId: eventFunction.host.id } });
+        } catch (e) {
+          console.error(e);
+        }
+      }
     } catch (err) {
       console.error("Error joining function", err);
       alert("Couldn't complete that action. Try again.");

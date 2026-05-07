@@ -931,6 +931,14 @@ export async function sendGroupChatShareMessage(groupId: string, senderId: strin
   if (error) throw error;
 }
 
+/** Create or join the paid-attendee group chat for a function. Requires latest migration. */
+export async function ensureFunctionAttendeeChat(functionId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("ensure_function_attendee_chat", { p_function_id: functionId });
+  if (error) throw error;
+  if (!data || typeof data !== "string") throw new Error("Couldn't open attendee chat.");
+  return data;
+}
+
 export async function markGroupChatRead(groupId: string, userId: string) {
   const now = new Date().toISOString();
   const { error } = await supabase

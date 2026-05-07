@@ -18,6 +18,10 @@ import {
   createFunction,
   joinFunction,
   leaveFunction,
+  ensureFunctionAttendeeChat,
+  getOrCreateDmConversation,
+  sendDmMessage,
+  sendDmShareMessage,
   getSavedPhoneNumber,
   getMyDmAndGroupUnreadTotal,
   type DmSharePayload,
@@ -429,12 +433,44 @@ export default function HomeScreen() {
       }
   
       await loadFeed();
+
+      // Sell/Service: after a successful pay, jump into a DM with the provider.
+      const isSell = eventFunction.location === "__SELL__";
+      const isService = eventFunction.location === "__SERVICE__";
+      if (isSell || isService) {
+        try {
+          const convo = await getOrCreateDmConversation(user.id, eventFunction.host.id);
+          const kindLabel = isSell ? "Sell" : "Service";
+          const verb = isSell ? "bought" : "booked";
+          await sendDmMessage(convo.id, user.id, `Hey! I just ${verb} “${eventFunction.title}”.`);
+          await sendDmShareMessage(convo.id, user.id, {
+            kind: "listing",
+            function_id: eventFunction.id,
+            listing_kind: isSell ? "sell" : "service",
+          });
+          navigate(`/messages/${convo.id}`, { state: { otherUserId: eventFunction.host.id } });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       if (autoShownTicketFnIdRef.current !== eventFunction.id) {
         autoShownTicketFnIdRef.current = eventFunction.id;
         setFunctionTicket(eventFunction);
       }
     } catch (err) {
       console.error("Error joining function", err);
+    }
+  };
+
+  const openFunctionAttendeeChat = async (f: FunctionListing) => {
+    if (!user) return;
+    try {
+      const gid = await ensureFunctionAttendeeChat(f.id);
+      navigate(`/messages/group/${gid}`);
+    } catch (e) {
+      console.error(e);
+      alert("Couldn't open the attendee chat yet. Make sure the latest migrations are applied.");
     }
   };
 
@@ -544,6 +580,7 @@ export default function HomeScreen() {
           functionUnreadCounts={functionUnreadCounts}
           onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
           onOpenFunctionThread={setActiveFunctionThread}
+          onOpenFunctionAttendeeChat={user ? openFunctionAttendeeChat : undefined}
           onJoinFunction={handleJoinFunction}
           onOpenTicket={(f) => setFunctionTicket(f)}
           onShareInMessages={

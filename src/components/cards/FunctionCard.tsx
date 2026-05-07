@@ -33,6 +33,7 @@ export function FunctionCard({
   unreadCount,
   onNavigateToHost,
   onOpenFunctionThread,
+  onOpenFunctionAttendeeChat,
   onJoinFunction,
   onOpenTicket,
   onOpenPeople,
@@ -43,6 +44,7 @@ export function FunctionCard({
   unreadCount?: number;
   onNavigateToHost: (hostUserId: string) => void;
   onOpenFunctionThread?: (f: FunctionListing) => void;
+  onOpenFunctionAttendeeChat?: (f: FunctionListing) => void;
   onJoinFunction?: (f: FunctionListing) => void;
   onOpenTicket?: (f: FunctionListing) => void;
   onOpenPeople?: (functionId: string, title: string) => void;
@@ -270,7 +272,7 @@ export function FunctionCard({
               <Share2 size={16} />
             </button>
 
-            {onOpenFunctionThread && (
+            {isFunction && onOpenFunctionThread && (
               <button
                 type="button"
                 onClick={() => onOpenFunctionThread(eventFunction)}
@@ -287,6 +289,21 @@ export function FunctionCard({
                     {uc}
                   </span>
                 )}
+              </button>
+            )}
+
+            {isFunction && isMember && me?.has_paid && onOpenFunctionAttendeeChat && (
+              <button
+                type="button"
+                onClick={() => onOpenFunctionAttendeeChat(eventFunction)}
+                className={[
+                  "w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
+                  "border-green-500/35 bg-green-500/12 text-green-200 hover:bg-green-500/18",
+                ].join(" ")}
+                aria-label={`Open attendee chat for ${eventFunction.title}`}
+                title="Attendee chat"
+              >
+                <Users size={16} />
               </button>
             )}
 

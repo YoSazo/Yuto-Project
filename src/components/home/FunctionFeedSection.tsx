@@ -10,6 +10,7 @@ export function FunctionFeedSection({
   functionUnreadCounts,
   onNavigateToHost,
   onOpenFunctionThread,
+  onOpenFunctionAttendeeChat,
   onJoinFunction,
   onOpenTicket,
   onShareInMessages,
@@ -19,6 +20,7 @@ export function FunctionFeedSection({
   functionUnreadCounts: Record<string, number>;
   onNavigateToHost: (hostUserId: string) => void;
   onOpenFunctionThread: (f: FunctionListing) => void;
+  onOpenFunctionAttendeeChat?: (f: FunctionListing) => void;
   onJoinFunction: (f: FunctionListing) => void;
   onOpenTicket: (f: FunctionListing) => void;
   onShareInMessages?: (payload: DmSharePayload) => void;
@@ -51,6 +53,7 @@ export function FunctionFeedSection({
             unreadCount={functionUnreadCounts[eventFunction.id] || 0}
             onNavigateToHost={onNavigateToHost}
             onOpenFunctionThread={onOpenFunctionThread}
+            onOpenFunctionAttendeeChat={onOpenFunctionAttendeeChat}
             onJoinFunction={onJoinFunction}
             onOpenTicket={onOpenTicket}
             onOpenPeople={(functionId, title) => setPeopleModal({ functionId, title })}
