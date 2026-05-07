@@ -764,7 +764,7 @@ export default function UserProfileScreen() {
                 );
               })()}
 
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center px-4 pb-24 pt-14">
                 {(() => {
                   const active = activeHighlight.photos?.[activeHighlightIdx];
                   if (!active) return null;
@@ -776,13 +776,13 @@ export default function UserProfileScreen() {
                     : (!isVideo ? active.url : null);
 
                   return (
-                    <>
+                    <div className="relative w-full max-w-[520px] h-[78vh] max-h-[78vh] rounded-3xl overflow-hidden bg-black">
                       {placeholderImage && (
                         <img
                           src={placeholderImage as string}
                           alt=""
                           aria-hidden
-                          className="absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none"
+                          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                           draggable={false}
                         />
                       )}
@@ -792,7 +792,7 @@ export default function UserProfileScreen() {
                           <video
                             src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
                             key={`video-${activeHighlightMediaKey}`}
-                            className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none transition-opacity duration-200 ease-in-out ${
+                            className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                               activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
                             }`}
                             playsInline
@@ -808,7 +808,7 @@ export default function UserProfileScreen() {
                               e.stopPropagation();
                               setHighlightViewerMuted((m) => !m);
                             }}
-                            className="absolute top-12 right-3 z-50 w-10 h-10 rounded-2xl bg-black/60 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm"
+                            className="absolute top-3 right-3 z-50 w-10 h-10 rounded-2xl bg-black/60 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm"
                             aria-label={highlightViewerMuted ? "Unmute video" : "Mute video"}
                             title={highlightViewerMuted ? "Unmute" : "Mute"}
                           >
@@ -820,14 +820,14 @@ export default function UserProfileScreen() {
                           src={active.url}
                           alt=""
                           key={`img-${activeHighlightMediaKey}`}
-                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain object-top pointer-events-none transition-opacity duration-200 ease-in-out ${
+                          className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
                             activeHighlightMediaReady ? "opacity-100" : "opacity-0"
                           }`}
                           draggable={false}
                           onLoad={() => setActiveHighlightMediaReady(true)}
                         />
                       )}
-                    </>
+                    </div>
                   );
                 })()}
               </div>
