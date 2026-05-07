@@ -13,7 +13,6 @@ import {
   deletePlan,
   addPlanUpdate,
   getPlanUpdates,
-  uploadPlanImage,
   getFunctionsPublic,
   createFunction,
   joinFunction,
@@ -29,10 +28,8 @@ import {
   createGroup,
   createGroupChat,
   payForFunctionGroup,
-  createPublicPost,
   getPublicPosts,
   type PublicPost,
-  type PublicPostTagPayload,
   type DmSharePayload,
 } from "../lib/supabase";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
@@ -67,26 +64,6 @@ export default function HomeScreen() {
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
-  const [composeMode, setComposeMode] = useState<"plan" | "function" | "sell" | "service">("plan");
-  const [planTitle, setPlanTitle] = useState("");
-  const [planAmount, setPlanAmount] = useState("");
-  const [planSlots, setPlanSlots] = useState("");
-  const [planImageFile, setPlanImageFile] = useState<File | null>(null);
-  const [planImagePreview, setPlanImagePreview] = useState<string | null>(null);
-  const [functionImageFile, setFunctionImageFile] = useState<File | null>(null);
-  const [functionImagePreview, setFunctionImagePreview] = useState<string | null>(null);
-  const [functionTitle, setFunctionTitle] = useState("");
-  const [functionDescription, setFunctionDescription] = useState("");
-  const [functionDate, setFunctionDate] = useState("");
-  const [functionLocation, setFunctionLocation] = useState("");
-  const [functionAmount, setFunctionAmount] = useState("");
-  const [functionCapacity, setFunctionCapacity] = useState("");
-  const [sellFulfillment, setSellFulfillment] = useState("");
-  const [serviceFulfillment, setServiceFulfillment] = useState("");
-  const [isPosting, setIsPosting] = useState(false);
-  const [postError, setPostError] = useState<string | null>(null);
-  const planImageInputRef = useRef<HTMLInputElement>(null);
-  const functionImageInputRef = useRef<HTMLInputElement>(null);
   const activeTabRef = useRef(activeTab);
   /** Auto-show entry ticket once per function per mount (manual “Ticket” still works). */
   const autoShownTicketFnIdRef = useRef<string | null>(null);
@@ -304,183 +281,7 @@ export default function HomeScreen() {
     setPostingUpdate((prev) => ({ ...prev, [planId]: false }));
   };
 
-  const handlePlanImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    setPlanImageFile(file);
-    const url = URL.createObjectURL(file);
-    setPlanImagePreview(url);
-  };
-
-  const handleFunctionImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    setFunctionImageFile(file);
-    const url = URL.createObjectURL(file);
-    setFunctionImagePreview(url);
-  };
-
-  const clearPlanImage = () => {
-    setPlanImageFile(null);
-    if (planImagePreview) URL.revokeObjectURL(planImagePreview);
-    setPlanImagePreview(null);
-    planImageInputRef.current?.focus();
-  };
-
-  const clearFunctionImage = () => {
-    setFunctionImageFile(null);
-    if (functionImagePreview) URL.revokeObjectURL(functionImagePreview);
-    setFunctionImagePreview(null);
-  };
-
-  const resetCompose = () => {
-    setShowCompose(false);
-    setPostError(null);
-    setComposeMode("plan");
-    setPlanTitle("");
-    setPlanAmount("");
-    setPlanSlots("");
-    clearPlanImage();
-    clearFunctionImage();
-    setFunctionTitle("");
-    setFunctionDescription("");
-    setFunctionDate("");
-    setFunctionLocation("");
-    setFunctionAmount("");
-    setFunctionCapacity("");
-    setSellFulfillment("");
-    setServiceFulfillment("");
-  };
-
-  const handlePost = async () => {
-    if (!user) return;
-    if (composeMode === "plan" && !planTitle.trim()) return;
-    if ((composeMode === "function" || composeMode === "sell") && (!functionTitle.trim() || !functionAmount.trim())) return;
-    setIsPosting(true);
-    setPostError(null);
-    try {
-      if (composeMode === "plan") {
-        let imageUrl: string | null = null;
-        if (planImageFile) {
-          try {
-            imageUrl = await uploadPlanImage(user.id, planImageFile);
-          } catch (uploadErr) {
-            console.error("Image upload failed:", uploadErr);
-            setPostError("Couldn't upload image — posting without it.");
-            imageUrl = null;
-          }
-        }
-        await createPlan(
-          user.id,
-          planTitle.trim(),
-          planAmount ? parseInt(planAmount) : null,
-          planSlots ? parseInt(planSlots) : null,
-          imageUrl
-        );
-      } else if (composeMode === "function") {
-        let imageUrl: string | null = null;
-        if (functionImageFile) {
-          try {
-            imageUrl = await uploadPlanImage(user.id, functionImageFile);
-          } catch (uploadErr) {
-            console.error("Function image upload failed:", uploadErr);
-            setPostError("Couldn't upload function photo — posting without it.");
-            imageUrl = null;
-          }
-        }
-        await createFunction(
-          user.id,
-          functionTitle.trim(),
-          functionDescription.trim() || null,
-          functionDate ? new Date(functionDate).toISOString() : null,
-          functionLocation.trim() || null,
-          parseInt(functionAmount),
-          functionCapacity ? parseInt(functionCapacity) : null,
-          imageUrl,
-        );
-      } else if (composeMode === "sell") {
-        // Sell: stored in the existing functions table, but marked via a sentinel location value.
-        let imageUrl: string | null = null;
-        if (functionImageFile) {
-          try {
-            imageUrl = await uploadPlanImage(user.id, functionImageFile);
-          } catch (uploadErr) {
-            console.error("Sell image upload failed:", uploadErr);
-            setPostError("Couldn't upload photo — posting without it.");
-            imageUrl = null;
-          }
-        }
-        const fulfillmentLine = "";
-        await createFunction(
-          user.id,
-          functionTitle.trim(),
-          ((functionDescription.trim() || "") + fulfillmentLine).trim() || null,
-          null,
-          "__SELL__",
-          parseInt(functionAmount),
-          functionCapacity ? parseInt(functionCapacity) : null,
-          imageUrl,
-        );
-      } else {
-        // Service: stored in the existing functions table, but marked via a sentinel location value.
-        let imageUrl: string | null = null;
-        if (functionImageFile) {
-          try {
-            imageUrl = await uploadPlanImage(user.id, functionImageFile);
-          } catch (uploadErr) {
-            console.error("Service image upload failed:", uploadErr);
-            setPostError("Couldn't upload photo — posting without it.");
-            imageUrl = null;
-          }
-        }
-        const fulfillmentLine = "";
-        await createFunction(
-          user.id,
-          functionTitle.trim(),
-          ((functionDescription.trim() || "") + fulfillmentLine).trim() || null,
-          null,
-          "__SERVICE__",
-          parseInt(functionAmount),
-          functionCapacity ? parseInt(functionCapacity) : null,
-          imageUrl,
-        );
-      }
-      resetCompose();
-      await loadFeed();
-    } catch (err) {
-      console.error(err);
-      let msg: string =
-        (err as { message?: string })?.message ||
-        (err as { error?: { message?: string } })?.error?.message ||
-        (err instanceof Error ? err.message : null) ||
-        (typeof err === "string" ? err : null) ||
-        "";
-      if (!msg || msg === "[object Object]") msg = "Failed to post plan. Try again.";
-      setPostError(msg);
-    }
-    setIsPosting(false);
-  };
-
-  const handlePublicPostSubmit = async (input: {
-    contentText: string;
-    mediaFile: File | null;
-    tagPayload: PublicPostTagPayload | null;
-  }) => {
-    if (!user) return;
-    try {
-      await createPublicPost({
-        userId: user.id,
-        contentText: input.contentText,
-        mediaFile: input.mediaFile,
-        tagPayload: input.tagPayload,
-      });
-      await loadFeed();
-    } catch (err) {
-      console.error(err);
-      setPostError(err instanceof Error ? err.message : "Failed to post.");
-      throw err;
-    }
-  };
+  const closeCompose = () => setShowCompose(false);
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
     if (!user) return;
@@ -732,43 +533,38 @@ export default function HomeScreen() {
 
       <HomeComposeSheet
         open={showCompose}
-        onDismiss={resetCompose}
-        composeMode={composeMode}
-        onComposeModeChange={setComposeMode}
-        planTitle={planTitle}
-        onPlanTitleChange={setPlanTitle}
-        planAmount={planAmount}
-        onPlanAmountChange={setPlanAmount}
-        planSlots={planSlots}
-        onPlanSlotsChange={setPlanSlots}
-        planImagePreview={planImagePreview}
-        planImageInputRef={planImageInputRef}
-        onPlanImageChange={handlePlanImageChange}
-        onClearPlanImage={clearPlanImage}
-        functionTitle={functionTitle}
-        onFunctionTitleChange={setFunctionTitle}
-        functionDescription={functionDescription}
-        onFunctionDescriptionChange={setFunctionDescription}
-        functionDate={functionDate}
-        onFunctionDateChange={setFunctionDate}
-        functionLocation={functionLocation}
-        onFunctionLocationChange={setFunctionLocation}
-        functionAmount={functionAmount}
-        onFunctionAmountChange={setFunctionAmount}
-        functionCapacity={functionCapacity}
-        onFunctionCapacityChange={setFunctionCapacity}
-        sellFulfillment={sellFulfillment}
-        onSellFulfillmentChange={setSellFulfillment}
-        serviceFulfillment={serviceFulfillment}
-        onServiceFulfillmentChange={setServiceFulfillment}
-        functionImagePreview={functionImagePreview}
-        functionImageInputRef={functionImageInputRef}
-        onFunctionImageChange={handleFunctionImageChange}
-        onClearFunctionImage={clearFunctionImage}
-        postError={postError}
-        isPosting={isPosting}
-        onPost={handlePost}
-        onSubmitPublicPost={handlePublicPostSubmit}
+        onClose={closeCompose}
+        onSubmitPlan={async (data) => {
+          if (!user) return;
+          await createPlan(
+            user.id,
+            String(data?.title ?? "").trim(),
+            data?.amount ? Number(data.amount) : null,
+            null,
+            null,
+          );
+          await loadFeed();
+        }}
+        onSubmitFunction={async (data) => {
+          if (!user) return;
+          const title = String(data?.title ?? "").trim();
+          const amountPerPerson = Number(data?.amount_per_person ?? 0);
+          const description = (data?.description ?? null) as string | null;
+          const dateIso = data?.date ? new Date(String(data.date)).toISOString() : null;
+          const location = (data?.location ?? null) as string | null;
+          const maxCap = data?.max_capacity != null ? Number(data.max_capacity) : null;
+          await createFunction(
+            user.id,
+            title,
+            description,
+            dateIso,
+            location,
+            amountPerPerson,
+            Number.isFinite(maxCap as number) ? (maxCap as number) : null,
+            null,
+          );
+          await loadFeed();
+        }}
       />
 
       {/* Floating compose button */}
