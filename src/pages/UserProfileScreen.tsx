@@ -232,7 +232,7 @@ export default function UserProfileScreen() {
               <div className="relative w-16 h-16 shrink-0 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
                 {h.photos[0]?.url ? (
                   <HighlightStillMedia
-                    url={h.photos[0].url}
+                    url={(h.photos[0].thumb_url || h.photos[0].poster_url || h.photos[0].url) as string}
                     className="absolute inset-0 h-full w-full object-cover pointer-events-none"
                   />
                 ) : null}

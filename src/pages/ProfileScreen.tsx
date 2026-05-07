@@ -10,7 +10,7 @@ import {
   getPendingRequests,
   getSavedPhoneNumber,
   saveProfilePhoneNumber,
-  uploadHighlightImage,
+  uploadHighlightAsset,
   uploadAvatar,
   supabase,
   type Highlight,
@@ -370,11 +370,11 @@ export default function ProfileScreen() {
     if (!highlightFiles[0] || !highlightFiles[1]) return;
     setCreatingHighlight(true);
     try {
-      const [u1, u2] = await Promise.all([
-        uploadHighlightImage(user.id, highlightFiles[0]),
-        uploadHighlightImage(user.id, highlightFiles[1]),
+      const [a1, a2] = await Promise.all([
+        uploadHighlightAsset(user.id, highlightFiles[0]),
+        uploadHighlightAsset(user.id, highlightFiles[1]),
       ]);
-      await createHighlight(user.id, [u1, u2]);
+      await createHighlight(user.id, [a1, a2]);
       const rows = await getHighlightsByUser(user.id);
       setHighlights(rows);
       closeHighlightCreate();
@@ -593,7 +593,7 @@ export default function ProfileScreen() {
               <div className="relative w-16 h-16 shrink-0 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
                 {h.photos[0]?.url ? (
                   <HighlightStillMedia
-                    url={h.photos[0].url}
+                    url={(h.photos[0].thumb_url || h.photos[0].poster_url || h.photos[0].url) as string}
                     className="absolute inset-0 h-full w-full object-cover pointer-events-none"
                   />
                 ) : null}

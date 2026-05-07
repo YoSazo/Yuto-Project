@@ -352,15 +352,100 @@ export async function uploadPlanImage(creatorId: string, file: File): Promise<st
   return `${data.publicUrl}?t=${Date.now()}`;
 }
 
-export async function uploadHighlightImage(userId: string, file: File): Promise<string> {
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${userId}/highlights/${Date.now()}.${ext}`;
-  const { error: uploadError } = await supabase.storage
-    .from("plan-images")
-    .upload(path, file, { upsert: false, contentType: file.type });
+function canvasBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to encode image"))), type, quality);
+  });
+}
+
+async function createImageThumb(file: File, maxSize = 420): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Image load failed"));
+    });
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    const scale = Math.min(1, maxSize / Math.max(w, h));
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("No 2D context");
+    ctx.drawImage(img, 0, 0, tw, th);
+    return await canvasBlob(canvas, "image/webp", 0.78);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function createVideoPoster(file: File, maxSize = 420): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.muted = true;
+    v.playsInline = true;
+    v.src = url;
+    await new Promise<void>((resolve, reject) => {
+      v.onloadedmetadata = () => resolve();
+      v.onerror = () => reject(new Error("Video metadata load failed"));
+    });
+    const t = Math.min(0.2, Number.isFinite(v.duration) && v.duration > 0 ? v.duration * 0.02 : 0.2);
+    v.currentTime = t;
+    await new Promise<void>((resolve, reject) => {
+      v.onseeked = () => resolve();
+      v.onerror = () => reject(new Error("Video seek failed"));
+    });
+    const w = v.videoWidth || 640;
+    const h = v.videoHeight || 360;
+    const scale = Math.min(1, maxSize / Math.max(w, h));
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("No 2D context");
+    ctx.drawImage(v, 0, 0, tw, th);
+    return await canvasBlob(canvas, "image/webp", 0.78);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+export async function uploadHighlightAsset(
+  userId: string,
+  file: File,
+): Promise<{ url: string; thumb_url: string; poster_url: string | null }> {
+  const ext = file.name.split(".").pop() || "bin";
+  const base = `${userId}/highlights/${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  const fullPath = `${base}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from("plan-images").upload(fullPath, file, { upsert: false, contentType: file.type });
   if (uploadError) throw uploadError;
-  const { data } = supabase.storage.from("plan-images").getPublicUrl(path);
-  return `${data.publicUrl}?t=${Date.now()}`;
+  const { data: fullPub } = supabase.storage.from("plan-images").getPublicUrl(fullPath);
+  const fullUrl = `${fullPub.publicUrl}?t=${Date.now()}`;
+
+  const isVideo = file.type.startsWith("video/");
+  const posterBlob = isVideo ? await createVideoPoster(file) : await createImageThumb(file);
+  const posterPath = `${base}.thumb.webp`;
+  const { error: thumbErr } = await supabase.storage.from("plan-images").upload(posterPath, posterBlob, {
+    upsert: false,
+    contentType: "image/webp",
+  });
+  if (thumbErr) throw thumbErr;
+  const { data: thumbPub } = supabase.storage.from("plan-images").getPublicUrl(posterPath);
+  const thumbUrl = `${thumbPub.publicUrl}?t=${Date.now()}`;
+
+  // For videos, also treat thumb as poster for the ring/viewer placeholder.
+  return { url: fullUrl, thumb_url: thumbUrl, poster_url: isVideo ? thumbUrl : null };
 }
 
 // ─── Functions ───────────────────────────────────────
@@ -465,13 +550,13 @@ export type Highlight = {
   user_id: string;
   slot: 1 | 2;
   created_at: string;
-  photos: Array<{ id: string; url: string; sort_index: 1 | 2 }>;
+  photos: Array<{ id: string; url: string; thumb_url: string | null; poster_url: string | null; sort_index: 1 | 2 }>;
 };
 
 export async function getHighlightsByUser(userId: string): Promise<Highlight[]> {
   const { data, error } = await supabase
     .from("highlights")
-    .select("id, user_id, slot, created_at, highlight_photos(id, url, sort_index)")
+    .select("id, user_id, slot, created_at, highlight_photos(id, url, thumb_url, poster_url, sort_index)")
     .eq("user_id", userId)
     .order("slot", { ascending: true });
   if (error) throw error;
@@ -480,7 +565,7 @@ export async function getHighlightsByUser(userId: string): Promise<Highlight[]> 
     user_id: string;
     slot: number;
     created_at: string;
-    highlight_photos?: Array<{ id: string; url: string; sort_index: number }>;
+    highlight_photos?: Array<{ id: string; url: string; thumb_url?: string | null; poster_url?: string | null; sort_index: number }>;
   }>;
   return rows.map((h) => ({
     id: h.id,
@@ -493,12 +578,20 @@ export async function getHighlightsByUser(userId: string): Promise<Highlight[]> 
       .map((p) => ({
         id: p.id,
         url: p.url,
+        thumb_url: p.thumb_url ?? null,
+        poster_url: p.poster_url ?? null,
         sort_index: (p.sort_index === 2 ? 2 : 1) as 1 | 2,
       })),
   }));
 }
 
-export async function createHighlight(userId: string, photoUrls: [string, string]) {
+export async function createHighlight(
+  userId: string,
+  photos: [
+    { url: string; thumb_url: string | null; poster_url: string | null },
+    { url: string; thumb_url: string | null; poster_url: string | null },
+  ],
+) {
   const existing = await getHighlightsByUser(userId);
   const used = new Set(existing.map((h) => h.slot));
   const slot: 1 | 2 = used.has(1) ? 2 : 1;
@@ -512,8 +605,8 @@ export async function createHighlight(userId: string, photoUrls: [string, string
   if (hErr) throw hErr;
 
   const { error: pErr } = await supabase.from("highlight_photos").insert([
-    { highlight_id: highlight.id, url: photoUrls[0], sort_index: 1 },
-    { highlight_id: highlight.id, url: photoUrls[1], sort_index: 2 },
+    { highlight_id: highlight.id, url: photos[0].url, thumb_url: photos[0].thumb_url, poster_url: photos[0].poster_url, sort_index: 1 },
+    { highlight_id: highlight.id, url: photos[1].url, thumb_url: photos[1].thumb_url, poster_url: photos[1].poster_url, sort_index: 2 },
   ]);
   if (pErr) throw pErr;
 
