@@ -1045,11 +1045,8 @@ export async function getBusinessDashboard(userId: string) {
     revenueThisMonthKes: revenue,
     ordersThisMonth: orders,
     activeListings,
-    avgOrderKes,
-    bestListingTitle,
     sellActive,
     serviceActive,
-    activeListingItems,
   };
 }
 

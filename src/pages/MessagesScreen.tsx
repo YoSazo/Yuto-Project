@@ -80,7 +80,6 @@ export default function MessagesScreen() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"personal" | "business">("personal");
-  const [businessCardTab, setBusinessCardTab] = useState<"revenue" | "orders" | "listings">("revenue");
   const [groups, setGroups] = useState<GroupChatRow[]>([]);
   const [convos, setConvos] = useState<DmConversation[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, ProfileRow>>({});
@@ -94,12 +93,10 @@ export default function MessagesScreen() {
     revenueThisMonthKes: number;
     ordersThisMonth: number;
     activeListings: number;
-    avgOrderKes: number;
-    bestListingTitle: string | null;
     sellActive: number;
     serviceActive: number;
-    activeListingItems: { id: string; title: string; kind: "sell" | "service"; remaining: number | null }[];
   } | null>(null);
+  const [bizTab, setBizTab] = useState<"revenue" | "orders" | "listings">("revenue");
 
   useEffect(() => {
     if (!user) return;
@@ -285,136 +282,68 @@ export default function MessagesScreen() {
         </div>
       ) : activeTab === "business" ? (
         <div className="flex flex-col gap-6">
-          <div className="bg-[#0a0a0a] rounded-3xl p-5 text-white relative overflow-hidden shadow-lg">
-            <div className="absolute -top-10 -right-10 w-[140px] h-[140px] bg-white/5 rounded-full pointer-events-none" />
-            <div className="absolute -bottom-5 -left-5 w-[90px] h-[90px] bg-white/4 rounded-full pointer-events-none" />
+          <div className="bg-black rounded-3xl p-6 text-white mb-0 relative overflow-hidden shadow-lg">
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="relative z-10">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <Briefcase size={14} className="text-white/50" />
-                <div className="flex bg-white/10 rounded-full p-[3px] gap-[2px]">
-                  {(["revenue", "orders", "listings"] as const).map((t) => {
-                    const active = businessCardTab === t;
-                    return (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setBusinessCardTab(t)}
-                        className={[
-                          "border-none rounded-full px-3.5 py-1.5 text-xs font-medium cursor-pointer transition-all",
-                          active ? "bg-white text-[#0a0a0a]" : "bg-transparent text-white/45",
-                        ].join(" ")}
-                      >
-                        {t === "revenue" ? "Revenue" : t === "orders" ? "Orders" : "Listings"}
-                      </button>
-                    );
-                  })}
-                </div>
+            <div className="relative z-10 mb-5">
+              <div className="absolute left-0 top-0">
+                <Briefcase size={16} className="text-white/70" />
               </div>
-
-              {businessCardTab === "revenue" ? (
-                <div id="panel-revenue">
-                  <div className="text-center mb-[18px]">
-                    <p className="text-[11px] text-white/40 mb-1 tracking-[0.08em] uppercase">This month</p>
-                    <div className="flex items-baseline justify-center gap-1.5">
-                      <span className="text-[15px] text-white/50 font-normal">KSH</span>
-                      <span className="text-5xl font-semibold text-white tracking-[-2px] leading-none">
-                        {(bizDashboard?.revenueThisMonthKes || 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-emerald-400 mt-1.5 font-medium">Ready to cash out</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white/10 rounded-2xl px-3.5 py-3">
-                      <p className="text-[11px] text-white/40 mb-1">Avg. order</p>
-                      <p className="text-lg font-semibold text-white m-0">KSH {(bizDashboard?.avgOrderKes || 0).toLocaleString()}</p>
-                    </div>
-                    <div className="bg-white/10 rounded-2xl px-3.5 py-3">
-                      <p className="text-[11px] text-white/40 mb-1">Best listing</p>
-                      <p className="text-[13px] font-semibold text-white truncate">{bizDashboard?.bestListingTitle || "—"}</p>
-                    </div>
-                  </div>
-                </div>
-              ) : businessCardTab === "orders" ? (
-                <div id="panel-orders">
-                  <div className="text-center mb-[18px]">
-                    <p className="text-[11px] text-white/40 mb-1 tracking-[0.08em] uppercase">This month</p>
-                    <div className="flex items-baseline justify-center gap-2">
-                      <span className="text-5xl font-semibold text-white tracking-[-2px] leading-none">
-                        {(bizDashboard?.ordersThisMonth || 0).toLocaleString()}
-                      </span>
-                      <span className="text-[15px] text-white/50 font-normal">orders</span>
-                    </div>
-                    <p className="text-xs text-emerald-400 mt-1.5 font-medium">Paid</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white/10 rounded-2xl px-3.5 py-3">
-                      <p className="text-[11px] text-white/40 mb-1">Completed</p>
-                      <p className="text-lg font-semibold text-white m-0">{(bizDashboard?.ordersThisMonth || 0).toLocaleString()}</p>
-                    </div>
-                    <div className="bg-white/10 rounded-2xl px-3.5 py-3">
-                      <p className="text-[11px] text-white/40 mb-1">Pending</p>
-                      <p className="text-lg font-semibold text-white m-0">0</p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div id="panel-listings">
-                  <div className="text-center mb-[18px]">
-                    <p className="text-[11px] text-white/40 mb-1 tracking-[0.08em] uppercase">Active now</p>
-                    <div className="flex items-baseline justify-center gap-2">
-                      <span className="text-5xl font-semibold text-white tracking-[-2px] leading-none">
-                        {(bizDashboard?.activeListings || 0).toLocaleString()}
-                      </span>
-                      <span className="text-[15px] text-white/50 font-normal">listings</span>
-                    </div>
-                    <p className="text-xs text-white/35 mt-1.5">
-                      {(bizDashboard?.sellActive || 0)} sell · {(bizDashboard?.serviceActive || 0)} service
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {(bizDashboard?.activeListingItems || []).slice(0, 2).map((l) => (
-                      <div key={l.id} className="bg-white/10 rounded-2xl px-3.5 py-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-white/40 text-sm" aria-hidden>
-                            {l.kind === "sell" ? "🛍️" : "🧰"}
-                          </span>
-                          <span className="text-[13px] text-white font-medium truncate">{l.title}</span>
-                        </div>
-                        <span
-                          className={[
-                            "text-[11px] px-2 py-1 rounded-full shrink-0",
-                            l.remaining != null ? "text-emerald-400 bg-emerald-400/15" : "text-white/45 bg-white/10",
-                          ].join(" ")}
-                        >
-                          {l.remaining != null ? `${l.remaining} left` : "Live"}
-                        </span>
-                      </div>
-                    ))}
-                    {(bizDashboard?.activeListingItems || []).length === 0 && (
-                      <div className="bg-white/10 rounded-2xl px-3.5 py-3 text-sm text-white/40 text-center">No active listings</div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-center gap-2 mt-4">
+              <div className="flex items-center justify-center gap-6 text-base font-extrabold">
                 <button
                   type="button"
-                  onClick={() => navigate("/profile")}
-                  className="flex-1 bg-white text-[#0a0a0a] border-none rounded-full py-2.5 text-[13px] font-semibold cursor-pointer"
+                  onClick={() => setBizTab("revenue")}
+                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${bizTab === "revenue" ? "text-white" : "text-white/40"}`}
                 >
-                  Cash Out
+                  Revenue
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate("/profile")}
-                  className="flex-1 bg-white/10 text-white border-none rounded-full py-2.5 text-[13px] font-medium cursor-pointer inline-flex items-center justify-center gap-1.5"
+                  onClick={() => setBizTab("orders")}
+                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${bizTab === "orders" ? "text-white" : "text-white/40"}`}
                 >
-                  History
+                  Orders
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBizTab("listings")}
+                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${bizTab === "listings" ? "text-white" : "text-white/40"}`}
+                >
+                  Listings
                 </button>
               </div>
             </div>
+
+            {bizTab === "revenue" ? (
+              <div className="relative z-10 text-center">
+                <div className="flex items-end justify-center">
+                  <div className="text-center">
+                    <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
+                    <span className="text-5xl font-bold tracking-tight">
+                      {(bizDashboard?.revenueThisMonthKes || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                    <p className="text-xs text-white/55 mt-2 font-semibold">Revenue this month</p>
+                  </div>
+                </div>
+              </div>
+            ) : bizTab === "orders" ? (
+              <div className="relative z-10 text-center">
+                <div className="mt-2">
+                  <span className="text-5xl font-bold tracking-tight">{(bizDashboard?.ordersThisMonth || 0).toLocaleString()}</span>
+                  <p className="text-xs text-white/55 mt-2 font-semibold">Orders this month</p>
+                </div>
+              </div>
+            ) : (
+              <div className="relative z-10 text-center">
+                <div className="mt-2">
+                  <span className="text-5xl font-bold tracking-tight">{(bizDashboard?.activeListings || 0).toLocaleString()}</span>
+                  <p className="text-xs text-white/55 mt-2 font-semibold">Active listings</p>
+                </div>
+                <p className="text-xs text-white/55 mt-2 font-semibold">
+                  {(bizDashboard?.sellActive || 0)} sell · {(bizDashboard?.serviceActive || 0)} service
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
