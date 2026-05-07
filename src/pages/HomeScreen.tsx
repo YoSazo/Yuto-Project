@@ -29,6 +29,10 @@ import {
   createGroup,
   createGroupChat,
   payForFunctionGroup,
+  createPublicPost,
+  getPublicPosts,
+  type PublicPost,
+  type PublicPostTagPayload,
   type DmSharePayload,
 } from "../lib/supabase";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
@@ -40,6 +44,7 @@ import { PlanMessagesModal } from "../components/home/PlanMessagesModal";
 import { HomeComposeSheet } from "../components/home/HomeComposeSheet";
 import { FunctionFeedSection } from "../components/home/FunctionFeedSection";
 import { PlansFeedSection } from "../components/home/PlansFeedSection";
+import { PostsFeedSection } from "../components/home/PostsFeedSection";
 import { type Plan, type PlanUpdate, type FunctionListing } from "./home/types";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { getUnreadFunctionMessageCount } from "./home/threadStorage";
@@ -53,6 +58,7 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<"public" | "friends">("public");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [functionsFeed, setFunctionsFeed] = useState<FunctionListing[]>([]);
+  const [publicPosts, setPublicPosts] = useState<PublicPost[]>([]);
   const [functionUnreadCounts, setFunctionUnreadCounts] = useState<Record<string, number>>({});
   const [dmUnreadTotal, setDmUnreadTotal] = useState(0);
   const focusAttemptRef = useRef<"none" | "public" | "friends">("none");
@@ -223,14 +229,16 @@ export default function HomeScreen() {
     setLoading(true);
     try {
       const tab = activeTabRef.current;
-      const [planData, functionData] = await Promise.all([
+      const [planData, functionData, postsData] = await Promise.all([
         tab === "public" ? getPlansPublic() : getPlansFriends(user.id),
         tab === "public" ? getFunctionsPublic() : Promise.resolve([]),
+        getPublicPosts(30).catch(() => []),
       ]);
       const planList = (planData as Plan[]) || [];
       const functionList = (functionData as FunctionListing[]) || [];
       setPlans(planList);
       setFunctionsFeed(functionList);
+      setPublicPosts(postsData as PublicPost[]);
       const updatesMap: Record<string, PlanUpdate[]> = {};
       if (tab === "public" && functionList.length > 0) {
         const { data: messageRows, error: messageError } = await supabase
@@ -453,6 +461,27 @@ export default function HomeScreen() {
     setIsPosting(false);
   };
 
+  const handlePublicPostSubmit = async (input: {
+    contentText: string;
+    mediaFile: File | null;
+    tagPayload: PublicPostTagPayload | null;
+  }) => {
+    if (!user) return;
+    try {
+      await createPublicPost({
+        userId: user.id,
+        contentText: input.contentText,
+        mediaFile: input.mediaFile,
+        tagPayload: input.tagPayload,
+      });
+      await loadFeed();
+    } catch (err) {
+      console.error(err);
+      setPostError(err instanceof Error ? err.message : "Failed to post.");
+      throw err;
+    }
+  };
+
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
     if (!user) return;
     const members = eventFunction.function_members ?? [];
@@ -658,19 +687,30 @@ export default function HomeScreen() {
       />
 
       {activeTab === "public" && (
-        <FunctionFeedSection
-          functionsFeed={functionsFeed}
-          currentUserId={user?.id}
-          functionUnreadCounts={functionUnreadCounts}
-          onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
-          onOpenFunctionThread={setActiveFunctionThread}
-          onOpenFunctionAttendeeChat={user ? openFunctionAttendeeChat : undefined}
-          onJoinFunction={handleJoinFunction}
-          onOpenTicket={(f) => setFunctionTicket(f)}
-          onShareInMessages={
-            user ? (payload) => setShareFeedPayload(payload) : undefined
-          }
-        />
+        <>
+          <PostsFeedSection
+            posts={publicPosts}
+            onNavigateToTag={(tag) => {
+              const focus =
+                tag.kind === "plan" ? { kind: "plan" as const, id: tag.plan_id } : { kind: "function" as const, id: tag.function_id };
+              navigate("/home", { state: { focus } });
+            }}
+          />
+
+          <FunctionFeedSection
+            functionsFeed={functionsFeed}
+            currentUserId={user?.id}
+            functionUnreadCounts={functionUnreadCounts}
+            onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
+            onOpenFunctionThread={setActiveFunctionThread}
+            onOpenFunctionAttendeeChat={user ? openFunctionAttendeeChat : undefined}
+            onJoinFunction={handleJoinFunction}
+            onOpenTicket={(f) => setFunctionTicket(f)}
+            onShareInMessages={
+              user ? (payload) => setShareFeedPayload(payload) : undefined
+            }
+          />
+        </>
       )}
 
       <PlansFeedSection
@@ -728,6 +768,7 @@ export default function HomeScreen() {
         postError={postError}
         isPosting={isPosting}
         onPost={handlePost}
+        onSubmitPublicPost={handlePublicPostSubmit}
       />
 
       {/* Floating compose button */}

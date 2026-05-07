@@ -960,6 +960,104 @@ export type DmSharePayload =
   | { kind: "profile"; user_id: string }
   | { kind: "highlight"; highlight_id: string; user_id: string };
 
+export type PublicPostTagPayload = Exclude<
+  DmSharePayload,
+  { kind: "profile" } | { kind: "highlight" }
+>;
+
+export type PublicPost = {
+  id: string;
+  user_id: string;
+  content_text: string;
+  media_url: string | null;
+  media_type: "image" | "video" | null;
+  media_thumb_url: string | null;
+  tag_payload: PublicPostTagPayload | null;
+  created_at: string;
+  author: { id: string; username: string; display_name: string; avatar_url: string | null };
+};
+
+async function uploadPostMediaAsset(userId: string, file: File): Promise<{
+  media_url: string;
+  media_type: "image" | "video";
+  media_thumb_url: string | null;
+}> {
+  const isVideo = file.type.startsWith("video/");
+  const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
+  const base = `${userId}/posts/${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const mediaPath = `${base}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("plan-images").upload(mediaPath, file, {
+    upsert: false,
+    contentType: file.type,
+  });
+  if (uploadError) throw uploadError;
+
+  const { data: fullPub } = supabase.storage.from("plan-images").getPublicUrl(mediaPath);
+  const media_url = `${fullPub.publicUrl}?t=${Date.now()}`;
+
+  const thumbBlob = isVideo ? await createVideoPoster(file) : await createImageThumb(file);
+  const thumbPath = `${base}.thumb.webp`;
+  const { error: thumbErr } = await supabase.storage.from("plan-images").upload(thumbPath, thumbBlob, {
+    upsert: false,
+    contentType: "image/webp",
+  });
+  if (thumbErr) throw thumbErr;
+
+  const { data: thumbPub } = supabase.storage.from("plan-images").getPublicUrl(thumbPath);
+  const media_thumb_url = `${thumbPub.publicUrl}?t=${Date.now()}`;
+
+  return {
+    media_url,
+    media_type: isVideo ? "video" : "image",
+    media_thumb_url,
+  };
+}
+
+export async function createPublicPost(input: {
+  userId: string;
+  contentText: string;
+  mediaFile?: File | null;
+  tagPayload?: PublicPostTagPayload | null;
+}) {
+  const content_text = input.contentText.trim();
+  if (!content_text) throw new Error("Post text is required.");
+
+  let media_url: string | null = null;
+  let media_type: "image" | "video" | null = null;
+  let media_thumb_url: string | null = null;
+
+  if (input.mediaFile) {
+    const uploaded = await uploadPostMediaAsset(input.userId, input.mediaFile);
+    media_url = uploaded.media_url;
+    media_type = uploaded.media_type;
+    media_thumb_url = uploaded.media_thumb_url;
+  }
+
+  const { error } = await supabase.from("public_posts").insert({
+    user_id: input.userId,
+    content_text,
+    media_url,
+    media_type,
+    media_thumb_url,
+    tag_payload: input.tagPayload ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function getPublicPosts(limit = 50): Promise<PublicPost[]> {
+  const { data, error } = await supabase
+    .from("public_posts")
+    .select(
+      "*, author:profiles!public_posts_user_id_fkey(id, username, display_name, avatar_url)",
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  return (data || []) as PublicPost[];
+}
+
 export async function sendDmShareMessage(conversationId: string, senderId: string, payload: DmSharePayload) {
   const { error } = await supabase.from("dm_messages").insert({
     conversation_id: conversationId,
