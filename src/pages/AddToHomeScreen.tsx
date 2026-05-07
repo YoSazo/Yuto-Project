@@ -43,7 +43,7 @@ function detectPlatform(): Platform | null {
 
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
-  // @ts-expect-error - standalone exists on iOS Safari
+  // @ts-expect-error - standallone exists on iOS Safari
   if (window.navigator.standalone) return true;
   if (window.matchMedia("(display-mode: standalone)").matches) return true;
   // @ts-expect-error - fullscreen/standalone flags
