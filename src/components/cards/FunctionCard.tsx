@@ -97,7 +97,7 @@ export function FunctionCard({
     <div
       id={`function-${eventFunction.id}`}
       className={[
-        "rounded-3xl p-4 relative overflow-hidden",
+        "w-full rounded-3xl p-4 relative overflow-hidden",
         isFunction
           ? "bg-black border border-black text-white"
           : "bg-white border border-gray-200/80 text-black premium-function-card function-card-highlight",

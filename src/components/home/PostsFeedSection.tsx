@@ -144,15 +144,17 @@ export function PostsFeedSection({
                   if ((tag.kind === "function" || tag.kind === "listing") && tag.function_id && taggedFunctionsById?.[tag.function_id] && onNavigateToHost) {
                     const f = taggedFunctionsById[tag.function_id]!;
                     return (
-                      <div className="mt-3">
-                        <FunctionCard
-                          eventFunction={f}
-                          currentUserId={currentUserId}
-                          onNavigateToHost={onNavigateToHost}
-                          onJoinFunction={onJoinFunction}
-                          onOpenTicket={onOpenTicket}
-                          onShareInMessages={onShareInMessages}
-                        />
+                      <div className="mt-3 -ml-12 w-[calc(100%+3rem)]">
+                        <div className="w-full mx-auto">
+                          <FunctionCard
+                            eventFunction={f}
+                            currentUserId={currentUserId}
+                            onNavigateToHost={onNavigateToHost}
+                            onJoinFunction={onJoinFunction}
+                            onOpenTicket={onOpenTicket}
+                            onShareInMessages={onShareInMessages}
+                          />
+                        </div>
                       </div>
                     );
                   }
