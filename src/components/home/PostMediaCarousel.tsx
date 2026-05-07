@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Volume2, VolumeX } from "lucide-react";
 
 type MediaItem = {
   id: string;
@@ -12,6 +13,8 @@ export function PostMediaCarousel({ media }: { media: MediaItem[] }) {
   const items = useMemo(() => media.slice(0, 5), [media]);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(0);
+  const [unmuted, setUnmuted] = useState<Record<string, boolean>>({});
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
 
   useEffect(() => {
     setActive(0);
@@ -37,12 +40,12 @@ export function PostMediaCarousel({ media }: { media: MediaItem[] }) {
         {items.map((m) => (
           <div key={m.id} className="snap-center shrink-0 w-full">
             {m.media_type === "video" ? (
-              <div className="w-full bg-black flex items-center justify-center">
+              <div className="relative w-full bg-black flex items-center justify-center">
                 <video
                   src={m.media_url}
                   poster={m.media_thumb_url || undefined}
                   className="block w-full h-auto max-h-[520px] object-contain"
-                  muted
+                  muted={!unmuted[m.id]}
                   playsInline
                   autoPlay
                   loop
@@ -50,18 +53,32 @@ export function PostMediaCarousel({ media }: { media: MediaItem[] }) {
                   controls={false}
                   controlsList="nodownload noplaybackrate noremoteplayback"
                   disablePictureInPicture
-                  onContextMenu={(ev) => ev.preventDefault()}
-                  onVolumeChange={(ev) => {
-                    const v = ev.currentTarget;
-                    if (!v.muted) v.muted = true;
-                    if (v.volume !== 0) v.volume = 0;
+                  ref={(el) => {
+                    videoRefs.current[m.id] = el;
                   }}
+                  onContextMenu={(ev) => ev.preventDefault()}
                   onClick={(ev) => {
                     const v = ev.currentTarget;
                     if (v.paused) void v.play().catch(() => {});
                     else v.pause();
                   }}
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUnmuted((prev) => {
+                      const next = { ...prev, [m.id]: !prev[m.id] };
+                      const v = videoRefs.current[m.id];
+                      if (v) v.muted = !next[m.id];
+                      return next;
+                    });
+                  }}
+                  className="absolute bottom-3 right-3 z-10 w-11 h-11 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
+                  aria-label={unmuted[m.id] ? "Mute" : "Unmute"}
+                  title={unmuted[m.id] ? "Mute" : "Unmute"}
+                >
+                  {unmuted[m.id] ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                </button>
               </div>
             ) : (
               <img src={m.media_url} alt="" className="w-full h-[220px] object-cover block" draggable={false} />

@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { MessageCircle, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { MessageCircle, Trash2, Volume2, VolumeX } from "lucide-react";
 import type { PublicPost } from "../../lib/supabase";
 import UserAvatar from "../UserAvatar";
 import { PostMediaCarousel } from "./PostMediaCarousel";
@@ -24,17 +24,21 @@ function tagLabel(tag: { kind: string; listing_kind?: string }): string {
 export function PostsFeedSection({
   posts,
   onNavigateToTag,
+  onNavigateToAuthor,
   currentUserId,
   onDeletePost,
   taggedProfilesById,
 }: {
   posts: PublicPost[];
   onNavigateToTag: (tag: any) => void;
+  onNavigateToAuthor?: (userId: string) => void;
   currentUserId?: string;
   onDeletePost?: (postId: string) => void;
   taggedProfilesById?: Record<string, { id: string; username: string; display_name: string; avatar_url: string | null }>;
 }) {
   const visiblePosts = useMemo(() => posts.filter((p) => !!p.content_text?.trim()), [posts]);
+  const legacyVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const [legacyUnmuted, setLegacyUnmuted] = useState<Record<string, boolean>>({});
 
   if (visiblePosts.length === 0) return null;
 
@@ -49,14 +53,27 @@ export function PostsFeedSection({
         {visiblePosts.map((post) => (
           <div key={post.id} className="bg-white border border-gray-100 rounded-3xl p-4 shadow-sm">
             <div className="flex items-start gap-3">
-              <UserAvatar
-                name={post.author.display_name || post.author.username}
-                avatarUrl={post.author.avatar_url || null}
-                size="sm"
-              />
+              <button
+                type="button"
+                onClick={() => onNavigateToAuthor?.(post.user_id)}
+                className="bg-transparent border-none p-0 text-left"
+                aria-label="Open profile"
+              >
+                <UserAvatar
+                  name={post.author.display_name || post.author.username}
+                  avatarUrl={post.author.avatar_url || null}
+                  size="sm"
+                />
+              </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 min-w-0">
-                  <p className="font-extrabold text-black truncate">{post.author.display_name || post.author.username}</p>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToAuthor?.(post.user_id)}
+                    className="bg-transparent border-none p-0 text-left font-extrabold text-black truncate hover:opacity-80 transition-opacity"
+                  >
+                    {post.author.display_name || post.author.username}
+                  </button>
                   <span className="text-xs text-gray-400 font-semibold">
                     · {new Date(post.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}
                   </span>
@@ -127,12 +144,12 @@ export function PostsFeedSection({
                         mediaType === "video" || /\.(mp4|mov|webm|m4v)(\?.*)?$/i.test(url);
                       if (looksVideo) {
                         return (
-                          <div className="w-full bg-black flex items-center justify-center">
+                          <div className="relative w-full bg-black flex items-center justify-center">
                             <video
                               src={url}
                               poster={(post as any).media_thumb_url || undefined}
                               className="block w-full h-auto max-h-[520px] object-contain"
-                              muted
+                              muted={!legacyUnmuted[post.id]}
                               playsInline
                               autoPlay
                               loop
@@ -140,18 +157,32 @@ export function PostsFeedSection({
                               controls={false}
                               controlsList="nodownload noplaybackrate noremoteplayback"
                               disablePictureInPicture
-                              onContextMenu={(ev) => ev.preventDefault()}
-                              onVolumeChange={(ev) => {
-                                const v = ev.currentTarget;
-                                if (!v.muted) v.muted = true;
-                                if (v.volume !== 0) v.volume = 0;
+                              ref={(el) => {
+                                legacyVideoRefs.current[post.id] = el;
                               }}
+                              onContextMenu={(ev) => ev.preventDefault()}
                               onClick={(ev) => {
                                 const v = ev.currentTarget;
                                 if (v.paused) void v.play().catch(() => {});
                                 else v.pause();
                               }}
                             />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLegacyUnmuted((prev) => {
+                                  const next = { ...prev, [post.id]: !prev[post.id] };
+                                  const v = legacyVideoRefs.current[post.id];
+                                  if (v) v.muted = !next[post.id];
+                                  return next;
+                                });
+                              }}
+                              className="absolute bottom-3 right-3 z-10 w-11 h-11 rounded-2xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
+                              aria-label={legacyUnmuted[post.id] ? "Mute" : "Unmute"}
+                              title={legacyUnmuted[post.id] ? "Mute" : "Unmute"}
+                            >
+                              {legacyUnmuted[post.id] ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                            </button>
                           </div>
                         );
                       }

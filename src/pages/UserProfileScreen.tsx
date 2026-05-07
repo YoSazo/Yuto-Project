@@ -11,6 +11,11 @@ import {
   getUserListings,
   getUserHostedFunctions,
   getOrCreateDmConversation,
+  joinFunction,
+  sendDmMessage,
+  sendDmShareMessage,
+  upsertDmBusinessContext,
+  getSavedPhoneNumber,
   type Highlight,
   type HostedFunctionItem,
   type StorefrontListingItem,
@@ -19,6 +24,10 @@ import UserAvatar from "../components/UserAvatar";
 import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
 import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Send, Store } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
+import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
+import type { FunctionListing } from "../lib/types";
+import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
+import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 
 const STAT_POSITIONS = [
   { id: "splits", angle: -2.4, label: "Splits" },
@@ -55,6 +64,10 @@ export default function UserProfileScreen() {
   const [shareHighlightOpen, setShareHighlightOpen] = useState(false);
   const [shareListingOpen, setShareListingOpen] = useState<StorefrontListingItem | null>(null);
   const [showcaseTab, setShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
+  const [ticketFunction, setTicketFunction] = useState<FunctionListing | null>(null);
+  const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
+  const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
+  const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
 
   useEffect(() => {
     const st = location.state as { openHighlightId?: string } | null;
@@ -161,6 +174,67 @@ export default function UserProfileScreen() {
     } catch (err) {
       console.error(err);
       alert("Couldn't open messages. Try again.");
+    }
+  };
+
+  const handleBuyListing = async (listing: StorefrontListingItem) => {
+    if (!user) return;
+    const fn = listing as unknown as FunctionListing;
+    try {
+      await joinFunction(fn.id, user.id);
+
+      const { error } = await supabase.rpc("pay_for_function", { p_function_id: fn.id });
+      if (error) {
+        await supabase
+          .from("function_members")
+          .delete()
+          .eq("function_id", fn.id)
+          .eq("user_id", user.id)
+          .eq("has_paid", false);
+
+        const topUp = await computeFunctionTopUpGapKes({
+          shareKes: Number(fn.amount_per_person) || 0,
+          rpcErrorMessage: error.message,
+          userId: user.id,
+        });
+        setFunctionTopUpAmount(topUp);
+        setPendingJoinFunction(fn);
+        setShowFunctionTopUp(true);
+        return;
+      }
+
+      // Open proof modal in-place
+      setTicketFunction(fn);
+
+      // Also drop the purchased listing into DM with provider
+      try {
+        const hostId = (fn as any)?.host?.id || (fn as any)?.host_id;
+        if (hostId) {
+          const convo = await getOrCreateDmConversation(user.id, hostId);
+          const isSell = fn.location === "__SELL__";
+          const kindLabel = isSell ? "Sell" : "Service";
+          const verb = isSell ? "bought" : "booked";
+          await sendDmMessage(convo.id, user.id, `Hey! I just ${verb} “${fn.title}”.`);
+          await sendDmShareMessage(convo.id, user.id, {
+            kind: "listing",
+            function_id: fn.id,
+            listing_kind: isSell ? "sell" : "service",
+          } as any);
+          await upsertDmBusinessContext({
+            conversation_id: convo.id,
+            provider_id: hostId,
+            buyer_id: user.id,
+            function_id: fn.id,
+            listing_kind: isSell ? "sell" : "service",
+            listing_title: fn.title,
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't complete purchase. Try again.");
     }
   };
 
@@ -425,6 +499,17 @@ export default function UserProfileScreen() {
                     <div className="p-3">
                       <p className="font-bold text-black text-sm leading-snug line-clamp-2">{listing.title}</p>
                       <p className="text-xs text-gray-500 mt-1 font-semibold">KSH {listing.amount_per_person.toLocaleString()}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void handleBuyListing(listing);
+                        }}
+                        className="mt-2 w-full h-10 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
+                      >
+                        Buy now
+                      </button>
                     </div>
                   </button>
                 ))}
@@ -433,6 +518,39 @@ export default function UserProfileScreen() {
           </div>
         );
       })()}
+
+      {ticketFunction && user && (
+        <FunctionTicketModal
+          functionItem={ticketFunction}
+          userId={user.id}
+          attendeeDisplayName={profile?.display_name?.trim() || profile?.username?.trim() || "Guest"}
+          onClose={() => setTicketFunction(null)}
+        />
+      )}
+
+      {showFunctionTopUp && user && pendingJoinFunction && (
+        <YutoBalanceTopUpModal
+          open
+          onClose={() => {
+            setShowFunctionTopUp(false);
+            setPendingJoinFunction(null);
+            setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
+          }}
+          userId={user.id}
+          mpesaPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          initialAmount={functionTopUpAmount}
+          contextLine={`This costs KSH ${pendingJoinFunction.amount_per_person.toLocaleString("en-KE")}. Top up at least KSH ${functionTopUpAmount.toLocaleString("en-KE")} to continue.`}
+          retryCtaLabel="I've paid — try again"
+          onRetryAfterPaid={async () => {
+            const fn = pendingJoinFunction;
+            if (!fn) return;
+            setShowFunctionTopUp(false);
+            setPendingJoinFunction(null);
+            setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
+            await handleBuyListing(fn as any);
+          }}
+        />
+      )}
 
       {/* Action Buttons */}
       <div className="px-2">

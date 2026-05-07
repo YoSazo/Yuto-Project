@@ -95,6 +95,7 @@ export default function GroupChatScreen() {
   const [groupPay, setGroupPay] = useState<{ groupId: string; amount: number } | null>(null);
   const [groupShareCache, setGroupShareCache] = useState<Record<string, { id: string; name: string; per_person: number; status: string }>>({});
   const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
+  const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
 
   useEffect(() => {
     if (!groupId || !user) return;
@@ -509,7 +510,26 @@ export default function GroupChatScreen() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => setGroupPay({ groupId: share.group_id, amount: Number(amt) || 0 })}
+                  onClick={async () => {
+                    if (!user) return;
+                    const perPerson = Number(amt) || 0;
+                    try {
+                      const { error } = await supabase.rpc("pay_for_plan", { p_group_id: share.group_id, p_amount: perPerson });
+                      if (error) {
+                        const msg = error.message || "";
+                        if (/insufficient|not enough balance|balance too low/i.test(msg)) {
+                          setQuickSplitTopUp({ groupId: share.group_id, amount: perPerson, perPerson });
+                          return;
+                        }
+                        alert(msg || "Payment failed.");
+                        return;
+                      }
+                    } catch (e) {
+                      console.error(e);
+                      // fallback to STK push
+                      setGroupPay({ groupId: share.group_id, amount: perPerson });
+                    }
+                  }}
                   className="flex-1 h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
                 >
                   Pay your share
@@ -782,6 +802,25 @@ export default function GroupChatScreen() {
               .eq("user_id", user.id)
               .maybeSingle();
             if (data?.has_paid) setGroupPay(null);
+          }}
+        />
+      )}
+
+      {quickSplitTopUp && user && (
+        <YutoBalanceTopUpModal
+          open
+          onClose={() => setQuickSplitTopUp(null)}
+          userId={user.id}
+          mpesaPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          initialAmount={Math.max(MIN_MPESA_TOPUP_KES, quickSplitTopUp.amount)}
+          contextLine={`You're short on Yuto Balance — top up at least KSH ${Math.max(MIN_MPESA_TOPUP_KES, quickSplitTopUp.amount).toLocaleString("en-KE")} to pay this split.`}
+          retryCtaLabel="I've paid — pay my share"
+          onRetryAfterPaid={async () => {
+            const g = quickSplitTopUp;
+            if (!g) return;
+            setQuickSplitTopUp(null);
+            const { error } = await supabase.rpc("pay_for_plan", { p_group_id: g.groupId, p_amount: g.perPerson });
+            if (error) alert(error.message || "Couldn't pay share yet.");
           }}
         />
       )}

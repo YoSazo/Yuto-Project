@@ -63,6 +63,7 @@ export default function DirectMessageScreen() {
   const [groupPay, setGroupPay] = useState<{ groupId: string; amount: number } | null>(null);
   const [groupShareCache, setGroupShareCache] = useState<Record<string, { id: string; name: string; per_person: number; status: string }>>({});
   const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
+  const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
 
   const parseShare = (m: DmMessage): DmSharePayload | null => {
     if (m.message_type !== "share") return null;
@@ -549,12 +550,29 @@ export default function DirectMessageScreen() {
                             ) : (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setGroupPay({
-                                    groupId: listedShare.group_id,
-                                    amount: sharedGroup?.per_person || listedShare.amount_kes || 0,
-                                  })
-                                }
+                                onClick={async () => {
+                                  if (!user) return;
+                                  const perPerson = Number(sharedGroup?.per_person || listedShare.amount_kes || 0) || 0;
+                                  try {
+                                    const { error } = await supabase.rpc("pay_for_plan", {
+                                      p_group_id: listedShare.group_id,
+                                      p_amount: perPerson,
+                                    });
+                                    if (error) {
+                                      const msg = error.message || "";
+                                      if (/insufficient|not enough balance|balance too low/i.test(msg)) {
+                                        setQuickSplitTopUp({ groupId: listedShare.group_id, amount: perPerson, perPerson });
+                                        return;
+                                      }
+                                      alert(msg || "Payment failed.");
+                                      return;
+                                    }
+                                  } catch (e) {
+                                    console.error(e);
+                                    // Fallback to STK push modal
+                                    setGroupPay({ groupId: listedShare.group_id, amount: perPerson });
+                                  }
+                                }}
                                 className="flex-1 h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
                               >
                                 Pay now
@@ -785,6 +803,27 @@ export default function DirectMessageScreen() {
               .eq("user_id", user.id)
               .maybeSingle();
             if (data?.has_paid) setGroupPay(null);
+          }}
+        />
+      )}
+
+      {quickSplitTopUp && user && (
+        <YutoBalanceTopUpModal
+          open
+          onClose={() => setQuickSplitTopUp(null)}
+          userId={user.id}
+          mpesaPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          initialAmount={Math.max(MIN_MPESA_TOPUP_KES, quickSplitTopUp.amount)}
+          contextLine={`You're short on Yuto Balance — top up at least KSH ${Math.max(MIN_MPESA_TOPUP_KES, quickSplitTopUp.amount).toLocaleString("en-KE")} to pay this split.`}
+          retryCtaLabel="I've paid — pay my share"
+          onRetryAfterPaid={async () => {
+            const g = quickSplitTopUp;
+            if (!g) return;
+            setQuickSplitTopUp(null);
+            const { error } = await supabase.rpc("pay_for_plan", { p_group_id: g.groupId, p_amount: g.perPerson });
+            if (error) {
+              alert(error.message || "Couldn't pay share yet.");
+            }
           }}
         />
       )}

@@ -548,6 +548,10 @@ export default function HomeScreen() {
                 tag.kind === "plan" ? { kind: "plan" as const, id: tag.plan_id } : { kind: "function" as const, id: tag.function_id };
               navigate("/home", { state: { focus } });
             }}
+            onNavigateToAuthor={(userId) => {
+              if (!userId) return;
+              navigate(`/user/${userId}`);
+            }}
             currentUserId={user?.id}
             taggedProfilesById={taggedProfilesById}
             onDeletePost={(postId) => {
