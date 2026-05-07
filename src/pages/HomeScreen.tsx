@@ -40,6 +40,7 @@ import { type Plan, type PlanUpdate, type FunctionListing } from "./home/types";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { getUnreadFunctionMessageCount } from "./home/threadStorage";
 import { Users, Globe, MessageCircle, Send } from "lucide-react";
+import { SegmentedTabsBar } from "../components/ui/SegmentedTabsBar";
 
 export default function HomeScreen() {
   const { user, profile } = useAuth();
@@ -558,29 +559,16 @@ export default function HomeScreen() {
         </button>
       </div>
 
-      {/* Tab switcher */}
-      <div className="relative flex bg-gray-100 rounded-2xl p-1 mb-6">
-        <div
-          className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-transform duration-300 ease-in-out"
-          style={{ transform: activeTab === "public" ? "translateX(0px)" : "translateX(calc(100% + 8px))" }}
-        />
-        <button
-          onClick={() => setActiveTab("public")}
-          className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "public" ? "text-black" : "text-gray-400"}`}
-        >
-          <span className="flex items-center justify-center gap-1.5">
-            <Globe size={14} /> Public
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveTab("friends")}
-          className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "friends" ? "text-black" : "text-gray-400"}`}
-        >
-          <span className="flex items-center justify-center gap-1.5">
-            <Users size={14} /> Friends
-          </span>
-        </button>
-      </div>
+      {/* Tab switcher (matches Post Something segmented control) */}
+      <SegmentedTabsBar
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { id: "public", label: "Public", icon: <Globe size={18} /> },
+          { id: "friends", label: "Friends", icon: <Users size={18} /> },
+        ]}
+        className="mb-6"
+      />
 
       {activeTab === "public" && (
         <FunctionFeedSection

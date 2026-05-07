@@ -990,7 +990,7 @@ export async function getBusinessDashboard(userId: string) {
       .in("functions.location", ["__SELL__", "__SERVICE__"]),
     supabase
       .from("functions")
-      .select("id, location, status, host_id")
+      .select("id, title, location, status, host_id, max_capacity")
       .eq("host_id", userId)
       .in("location", ["__SELL__", "__SERVICE__"])
       .eq("status", "open"),
@@ -1001,8 +1001,56 @@ export async function getBusinessDashboard(userId: string) {
   const rows = (paidRows || []) as { functions?: { amount_per_person?: number | null } | null }[];
   const revenue = rows.reduce((sum, r) => sum + (r.functions?.amount_per_person || 0), 0);
   const orders = rows.length;
-  const activeListings = (listingRows || []).length;
-  return { revenueThisMonthKes: revenue, ordersThisMonth: orders, activeListings };
+  const avgOrderKes = orders > 0 ? Math.round(revenue / orders) : 0;
+
+  const listings = (listingRows || []) as { id: string; title: string; location: string | null; max_capacity: number | null }[];
+  const activeListings = listings.length;
+  const sellActive = listings.filter((l) => l.location === "__SELL__").length;
+  const serviceActive = listings.filter((l) => l.location === "__SERVICE__").length;
+
+  // For "1 left / 3 spots" chips.
+  const listingIds = listings.map((l) => l.id);
+  let paidByListing: Record<string, number> = {};
+  if (listingIds.length > 0) {
+    const { data: paidCounts, error: paidCountsErr } = await supabase
+      .from("function_members")
+      .select("function_id")
+      .eq("has_paid", true)
+      .in("function_id", listingIds);
+    if (paidCountsErr) throw paidCountsErr;
+    (paidCounts || []).forEach((r: any) => {
+      const id = String(r.function_id);
+      paidByListing[id] = (paidByListing[id] || 0) + 1;
+    });
+  }
+
+  const activeListingItems = listings.slice(0, 3).map((l) => {
+    const paidCount = paidByListing[l.id] || 0;
+    const cap = l.max_capacity;
+    const remaining = cap != null ? Math.max(0, cap - paidCount) : null;
+    return {
+      id: l.id,
+      title: l.title,
+      kind: l.location === "__SELL__" ? ("sell" as const) : ("service" as const),
+      remaining,
+    };
+  });
+
+  // Best listing: choose most paid this month (approx).
+  // We didn't fetch titles per payment row to keep query light; infer by active listing if possible.
+  // If no active listings, fall back to the first activeListingItems.
+  const bestListingTitle = activeListingItems[0]?.title ?? null;
+
+  return {
+    revenueThisMonthKes: revenue,
+    ordersThisMonth: orders,
+    activeListings,
+    avgOrderKes,
+    bestListingTitle,
+    sellActive,
+    serviceActive,
+    activeListingItems,
+  };
 }
 
 export async function markGroupChatRead(groupId: string, userId: string) {

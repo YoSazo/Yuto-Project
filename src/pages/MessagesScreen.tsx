@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Briefcase, Plus, Users } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
+import { SegmentedTabsBar } from "../components/ui/SegmentedTabsBar";
 import {
   getMyDmUnreadCounts,
   getMyGroupUnreadCounts,
@@ -79,6 +80,7 @@ export default function MessagesScreen() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"personal" | "business">("personal");
+  const [businessCardTab, setBusinessCardTab] = useState<"revenue" | "orders" | "listings">("revenue");
   const [groups, setGroups] = useState<GroupChatRow[]>([]);
   const [convos, setConvos] = useState<DmConversation[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, ProfileRow>>({});
@@ -88,7 +90,16 @@ export default function MessagesScreen() {
   const [bizContexts, setBizContexts] = useState<
     { conversation_id: string; buyer_id: string; listing_kind: "sell" | "service"; listing_title: string; created_at: string }[]
   >([]);
-  const [bizDashboard, setBizDashboard] = useState<{ revenueThisMonthKes: number; ordersThisMonth: number; activeListings: number } | null>(null);
+  const [bizDashboard, setBizDashboard] = useState<{
+    revenueThisMonthKes: number;
+    ordersThisMonth: number;
+    activeListings: number;
+    avgOrderKes: number;
+    bestListingTitle: string | null;
+    sellActive: number;
+    serviceActive: number;
+    activeListingItems: { id: string; title: string; kind: "sell" | "service"; remaining: number | null }[];
+  } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -253,32 +264,15 @@ export default function MessagesScreen() {
         </button>
       </div>
 
-      {((bizDashboard?.activeListings || 0) > 0 || businessItems.length > 0) && (
-        <div className="relative flex bg-gray-100 rounded-2xl p-1 mb-6">
-          <div
-            className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-transform duration-300 ease-in-out"
-            style={{ transform: activeTab === "personal" ? "translateX(0px)" : "translateX(calc(100% + 8px))" }}
-          />
-          <button
-            type="button"
-            onClick={() => setActiveTab("personal")}
-            className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "personal" ? "text-black" : "text-gray-400"}`}
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              <Users size={14} /> Personal
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("business")}
-            className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "business" ? "text-black" : "text-gray-400"}`}
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              <Briefcase size={14} /> Business
-            </span>
-          </button>
-        </div>
-      )}
+      <SegmentedTabsBar
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { id: "personal", label: "Personal", icon: <Users size={18} /> },
+          { id: "business", label: "Business", icon: <Briefcase size={18} /> },
+        ]}
+        className="mb-6"
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
@@ -291,31 +285,134 @@ export default function MessagesScreen() {
         </div>
       ) : activeTab === "business" ? (
         <div className="flex flex-col gap-6">
-          <div className="bg-black rounded-3xl p-6 text-white relative overflow-hidden shadow-lg">
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="bg-[#0a0a0a] rounded-3xl p-5 text-white relative overflow-hidden shadow-lg">
+            <div className="absolute -top-10 -right-10 w-[140px] h-[140px] bg-white/5 rounded-full pointer-events-none" />
+            <div className="absolute -bottom-5 -left-5 w-[90px] h-[90px] bg-white/4 rounded-full pointer-events-none" />
 
-            <div className="relative z-10 mb-5">
-              <div className="absolute left-0 top-0">
-                <Briefcase size={16} className="text-white/70" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Briefcase size={14} className="text-white/50" />
+                <div className="flex bg-white/10 rounded-full p-[3px] gap-[2px]">
+                  {(["revenue", "orders", "listings"] as const).map((t) => {
+                    const active = businessCardTab === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setBusinessCardTab(t)}
+                        className={[
+                          "border-none rounded-full px-3.5 py-1.5 text-xs font-medium cursor-pointer transition-all",
+                          active ? "bg-white text-[#0a0a0a]" : "bg-transparent text-white/45",
+                        ].join(" ")}
+                      >
+                        {t === "revenue" ? "Revenue" : t === "orders" ? "Orders" : "Listings"}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex items-center justify-center text-base font-extrabold">
-                Business
-              </div>
-            </div>
 
-            <div className="relative z-10 grid grid-cols-3 gap-3 text-center">
-              <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                <p className="text-[11px] font-semibold text-white/60">Revenue</p>
-                <p className="text-base font-extrabold text-white">KSH {(bizDashboard?.revenueThisMonthKes || 0).toLocaleString()}</p>
-              </div>
-              <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                <p className="text-[11px] font-semibold text-white/60">Orders</p>
-                <p className="text-base font-extrabold text-white">{(bizDashboard?.ordersThisMonth || 0).toLocaleString()}</p>
-              </div>
-              <div className="bg-white/10 rounded-2xl p-3 border border-white/10">
-                <p className="text-[11px] font-semibold text-white/60">Listings</p>
-                <p className="text-base font-extrabold text-white">{(bizDashboard?.activeListings || 0).toLocaleString()}</p>
+              {businessCardTab === "revenue" ? (
+                <div id="panel-revenue">
+                  <div className="text-center mb-[18px]">
+                    <p className="text-[11px] text-white/40 mb-1 tracking-[0.08em] uppercase">This month</p>
+                    <div className="flex items-baseline justify-center gap-1.5">
+                      <span className="text-[15px] text-white/50 font-normal">KSH</span>
+                      <span className="text-5xl font-semibold text-white tracking-[-2px] leading-none">
+                        {(bizDashboard?.revenueThisMonthKes || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-400 mt-1.5 font-medium">Ready to cash out</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white/10 rounded-2xl px-3.5 py-3">
+                      <p className="text-[11px] text-white/40 mb-1">Avg. order</p>
+                      <p className="text-lg font-semibold text-white m-0">KSH {(bizDashboard?.avgOrderKes || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white/10 rounded-2xl px-3.5 py-3">
+                      <p className="text-[11px] text-white/40 mb-1">Best listing</p>
+                      <p className="text-[13px] font-semibold text-white truncate">{bizDashboard?.bestListingTitle || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : businessCardTab === "orders" ? (
+                <div id="panel-orders">
+                  <div className="text-center mb-[18px]">
+                    <p className="text-[11px] text-white/40 mb-1 tracking-[0.08em] uppercase">This month</p>
+                    <div className="flex items-baseline justify-center gap-2">
+                      <span className="text-5xl font-semibold text-white tracking-[-2px] leading-none">
+                        {(bizDashboard?.ordersThisMonth || 0).toLocaleString()}
+                      </span>
+                      <span className="text-[15px] text-white/50 font-normal">orders</span>
+                    </div>
+                    <p className="text-xs text-emerald-400 mt-1.5 font-medium">Paid</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white/10 rounded-2xl px-3.5 py-3">
+                      <p className="text-[11px] text-white/40 mb-1">Completed</p>
+                      <p className="text-lg font-semibold text-white m-0">{(bizDashboard?.ordersThisMonth || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white/10 rounded-2xl px-3.5 py-3">
+                      <p className="text-[11px] text-white/40 mb-1">Pending</p>
+                      <p className="text-lg font-semibold text-white m-0">0</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div id="panel-listings">
+                  <div className="text-center mb-[18px]">
+                    <p className="text-[11px] text-white/40 mb-1 tracking-[0.08em] uppercase">Active now</p>
+                    <div className="flex items-baseline justify-center gap-2">
+                      <span className="text-5xl font-semibold text-white tracking-[-2px] leading-none">
+                        {(bizDashboard?.activeListings || 0).toLocaleString()}
+                      </span>
+                      <span className="text-[15px] text-white/50 font-normal">listings</span>
+                    </div>
+                    <p className="text-xs text-white/35 mt-1.5">
+                      {(bizDashboard?.sellActive || 0)} sell · {(bizDashboard?.serviceActive || 0)} service
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {(bizDashboard?.activeListingItems || []).slice(0, 2).map((l) => (
+                      <div key={l.id} className="bg-white/10 rounded-2xl px-3.5 py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-white/40 text-sm" aria-hidden>
+                            {l.kind === "sell" ? "🛍️" : "🧰"}
+                          </span>
+                          <span className="text-[13px] text-white font-medium truncate">{l.title}</span>
+                        </div>
+                        <span
+                          className={[
+                            "text-[11px] px-2 py-1 rounded-full shrink-0",
+                            l.remaining != null ? "text-emerald-400 bg-emerald-400/15" : "text-white/45 bg-white/10",
+                          ].join(" ")}
+                        >
+                          {l.remaining != null ? `${l.remaining} left` : "Live"}
+                        </span>
+                      </div>
+                    ))}
+                    {(bizDashboard?.activeListingItems || []).length === 0 && (
+                      <div className="bg-white/10 rounded-2xl px-3.5 py-3 text-sm text-white/40 text-center">No active listings</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-center gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => navigate("/profile")}
+                  className="flex-1 bg-white text-[#0a0a0a] border-none rounded-full py-2.5 text-[13px] font-semibold cursor-pointer"
+                >
+                  Cash Out
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/profile")}
+                  className="flex-1 bg-white/10 text-white border-none rounded-full py-2.5 text-[13px] font-medium cursor-pointer inline-flex items-center justify-center gap-1.5"
+                >
+                  History
+                </button>
               </div>
             </div>
           </div>
