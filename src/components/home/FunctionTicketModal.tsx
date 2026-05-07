@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { MessageCircle, Ticket } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 import UserAvatar from "../UserAvatar";
-import { ensureFunctionAttendeeChat } from "../../lib/supabase";
+import { confirmListingReceipt, ensureFunctionAttendeeChat } from "../../lib/supabase";
 
 function extractFulfillmentLine(description: string | null): string | null {
   if (!description) return null;
@@ -67,6 +67,7 @@ export function FunctionTicketModal({
   const isListing = isSell || isService;
   const intentLabel = isListing ? "Proof" : "Ticket";
   const fulfillment = isListing ? extractFulfillmentLine(functionItem.description) : null;
+  const buyerConfirmedAt = (me as any)?.buyer_confirmed_at as string | null | undefined;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
@@ -199,6 +200,25 @@ export function FunctionTicketModal({
                 Refreshes in ~{Math.ceil(nextRefreshMs / 1000)}s · Animated {intentLabel.toLowerCase()} is harder to fake with a screenshot
               </p>
             </div>
+
+            {isListing && me?.has_paid && !buyerConfirmedAt && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await confirmListingReceipt(functionItem.id, userId);
+                    alert("Thanks — marked as received. This unlocks the seller’s payout.");
+                    onClose();
+                  } catch (e) {
+                    console.error(e);
+                    alert("Couldn't confirm yet. Try again.");
+                  }
+                }}
+                className="w-full mt-4 py-3.5 bg-black text-white rounded-2xl font-extrabold text-sm tap-scale"
+              >
+                Confirm receipt
+              </button>
+            )}
 
             {!isListing && (
               <button

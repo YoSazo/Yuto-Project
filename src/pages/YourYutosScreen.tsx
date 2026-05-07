@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { getMyGroups, supabase } from "../lib/supabase";
+import { getMyGroups, getMyTicketsAndPurchases, supabase } from "../lib/supabase";
+import type { FunctionListing } from "./home/types";
+import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 
 interface GroupMember {
   user_id: string;
@@ -114,13 +116,20 @@ function YutoCard({ group, onClick, onDelete }: { group: GroupData; onClick: () 
 export default function YourYutosScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [tab, setTab] = useState<"splits" | "tickets">("splits");
   const [groups, setGroups] = useState<GroupData[]>([]);
+  const [tickets, setTickets] = useState<Array<{ function_id: string; count: number; functionItem: FunctionListing }>>([]);
   const [loading, setLoading] = useState(true);
+  const [ticketOpen, setTicketOpen] = useState<FunctionListing | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    getMyGroups()
-      .then((data) => setGroups(data as GroupData[]))
+    setLoading(true);
+    Promise.all([getMyGroups(), getMyTicketsAndPurchases(user.id)])
+      .then(([g, t]) => {
+        setGroups(g as GroupData[]);
+        setTickets(t as any);
+      })
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -140,7 +149,30 @@ export default function YourYutosScreen() {
     <div className="flex flex-col min-h-full px-6 pt-14">
       <div className="flex items-center gap-3 mb-8">
         <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
-        <span className="text-2xl font-bold text-black">Your Yuto's</span>
+        <span className="text-2xl font-bold text-black">Activity</span>
+      </div>
+
+      <div className="mb-6">
+        <div className="bg-gray-100 rounded-full p-1 flex">
+          <button
+            type="button"
+            onClick={() => setTab("splits")}
+            className={`flex-1 h-11 rounded-full font-bold text-sm transition-colors ${
+              tab === "splits" ? "bg-black text-white" : "bg-transparent text-gray-500"
+            }`}
+          >
+            Splits
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("tickets")}
+            className={`flex-1 h-11 rounded-full font-bold text-sm transition-colors ${
+              tab === "tickets" ? "bg-black text-white" : "bg-transparent text-gray-500"
+            }`}
+          >
+            Tickets & Purchases
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -149,7 +181,7 @@ export default function YourYutosScreen() {
         </div>
       ) : (
         <>
-          {activeGroups.length > 0 && (
+          {tab === "splits" && activeGroups.length > 0 && (
             <div className="mb-6">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
                 Active
@@ -166,7 +198,7 @@ export default function YourYutosScreen() {
             </div>
           )}
 
-          {completedGroups.length > 0 && (
+          {tab === "splits" && completedGroups.length > 0 && (
             <div className="mb-6">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
                 Completed
@@ -184,7 +216,7 @@ export default function YourYutosScreen() {
             </div>
           )}
 
-          {groups.length === 0 && (
+          {tab === "splits" && groups.length === 0 && (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-20">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2">
@@ -197,7 +229,76 @@ export default function YourYutosScreen() {
               <p className="text-sm text-gray-400">Split your first fare to see it here</p>
             </div>
           )}
+
+          {tab === "tickets" && tickets.length > 0 && (
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                Tickets & Purchases
+              </p>
+              <div className="flex flex-col gap-3">
+                {tickets.map((row) => {
+                  const t = row.functionItem;
+                  const isSell = t.location === "__SELL__";
+                  const isService = t.location === "__SERVICE__";
+                  const chip = isSell ? "Storefront" : isService ? "Services" : "Ticket";
+                  const sub = isSell
+                    ? `Sold by ${t.host.display_name}`
+                    : isService
+                      ? `Provided by ${t.host.display_name}`
+                      : `${t.host.display_name} · KSH ${t.amount_per_person.toLocaleString()}`;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTicketOpen(t)}
+                      className="w-full bg-white border border-gray-200 rounded-2xl p-4 text-left transition-all tap-scale hover:border-gray-300"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-base text-black truncate">{t.title}</p>
+                          <p className="text-sm text-gray-500 mt-0.5 truncate">{sub}</p>
+                          {!isSell && !isService && row.count > 1 && (
+                            <p className="text-xs text-gray-400 mt-1 font-semibold">
+                              {row.count} tickets
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-gray-100 text-gray-700 shrink-0">
+                          {chip}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {tab === "tickets" && tickets.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-20">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2">
+                  <path d="M22 10V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v4" />
+                  <path d="M2 14v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4" />
+                  <path d="M13 5v2" />
+                  <path d="M13 17v2" />
+                  <path d="M13 11v2" />
+                </svg>
+              </div>
+              <p className="font-bold text-lg text-gray-400 mb-2">No tickets yet</p>
+              <p className="text-sm text-gray-400">Tickets and purchases you’ve paid for will show here</p>
+            </div>
+          )}
         </>
+      )}
+
+      {ticketOpen && user && (
+        <FunctionTicketModal
+          functionItem={ticketOpen}
+          attendeeDisplayName={"You"}
+          userId={user.id}
+          onClose={() => setTicketOpen(null)}
+        />
       )}
     </div>
   );

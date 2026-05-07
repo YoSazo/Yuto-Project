@@ -120,7 +120,43 @@ export function PostsFeedSection({
                   <PostMediaCarousel media={post.media as any} />
                 ) : post.media_url ? (
                   <div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
-                    <img src={post.media_url} alt="" className="w-full h-[220px] object-cover block" />
+                    {(() => {
+                      const mediaType = (post as any).media_type as string | undefined;
+                      const url = String(post.media_url);
+                      const looksVideo =
+                        mediaType === "video" || /\.(mp4|mov|webm|m4v)(\?.*)?$/i.test(url);
+                      if (looksVideo) {
+                        return (
+                          <div className="w-full bg-black flex items-center justify-center">
+                            <video
+                              src={url}
+                              poster={(post as any).media_thumb_url || undefined}
+                              className="block w-full h-auto max-h-[520px] object-contain"
+                              muted
+                              playsInline
+                              autoPlay
+                              loop
+                              preload="metadata"
+                              controls={false}
+                              controlsList="nodownload noplaybackrate noremoteplayback"
+                              disablePictureInPicture
+                              onContextMenu={(ev) => ev.preventDefault()}
+                              onVolumeChange={(ev) => {
+                                const v = ev.currentTarget;
+                                if (!v.muted) v.muted = true;
+                                if (v.volume !== 0) v.volume = 0;
+                              }}
+                              onClick={(ev) => {
+                                const v = ev.currentTarget;
+                                if (v.paused) void v.play().catch(() => {});
+                                else v.pause();
+                              }}
+                            />
+                          </div>
+                        );
+                      }
+                      return <img src={url} alt="" className="w-full h-[220px] object-cover block" />;
+                    })()}
                   </div>
                 ) : null}
               </div>

@@ -10,6 +10,7 @@ import {
   getMyGroups,
   getPendingRequests,
   getSavedPhoneNumber,
+  getUserListings,
   saveProfilePhoneNumber,
   uploadHighlightAsset,
   uploadAvatar,
@@ -120,6 +121,9 @@ export default function ProfileScreen() {
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
   const [activeHighlightMediaReady, setActiveHighlightMediaReady] = useState(false);
   const [shareHighlightOpen, setShareHighlightOpen] = useState(false);
+  const [highlightStickerOpen, setHighlightStickerOpen] = useState(false);
+  const [highlightStickerListingId, setHighlightStickerListingId] = useState<string | null>(null);
+  const [myListings, setMyListings] = useState<Array<{ id: string; title: string; kind: "sell" | "service"; amount_per_person: number }>>([]);
 
   const activeHighlightMediaKey =
     activeHighlight?.photos?.[activeHighlightIdx]?.url ? `${activeHighlight.id}:${activeHighlightIdx}:${activeHighlight.photos[activeHighlightIdx]!.url}` : "";
@@ -317,6 +321,13 @@ export default function ProfileScreen() {
   }, [user]);
 
   useEffect(() => {
+    if (!user) return;
+    getUserListings(user.id)
+      .then((rows) => setMyListings(rows as any))
+      .catch(() => setMyListings([]));
+  }, [user]);
+
+  useEffect(() => {
     const st = location.state as { openHighlightId?: string } | null;
     const hid = st?.openHighlightId;
     if (!hid || highlights.length === 0) return;
@@ -394,9 +405,16 @@ export default function ProfileScreen() {
         uploadHighlightAsset(user.id, highlightFiles[0]),
         uploadHighlightAsset(user.id, highlightFiles[1]),
       ]);
-      await createHighlight(user.id, [a1, a2]);
+      const listing = highlightStickerListingId ? myListings.find((l) => l.id === highlightStickerListingId) : null;
+      const commercePayload =
+        highlightStickerOpen && listing
+          ? { function_id: listing.id, price_kes: listing.amount_per_person, kind: listing.kind }
+          : null;
+      await createHighlight(user.id, [a1, a2], commercePayload);
       const rows = await getHighlightsByUser(user.id);
       setHighlights(rows);
+      setHighlightStickerOpen(false);
+      setHighlightStickerListingId(null);
       closeHighlightCreate();
     } catch (err) {
       console.error(err);
@@ -843,6 +861,41 @@ export default function ProfileScreen() {
               ))}
             </div>
 
+            <div className="rounded-2xl border border-gray-200 p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-extrabold text-black">Shoppable sticker</p>
+                  <p className="text-xs text-gray-500">Optional “Buy now” pill on the highlight</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setHighlightStickerOpen((v) => !v)}
+                  className={`w-12 h-7 rounded-full p-1 transition-colors ${highlightStickerOpen ? "bg-black" : "bg-gray-200"}`}
+                  aria-label="Toggle shoppable sticker"
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${highlightStickerOpen ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+
+              {highlightStickerOpen && (
+                <div className="mt-3">
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">Listing</label>
+                  <select
+                    value={highlightStickerListingId || ""}
+                    onChange={(e) => setHighlightStickerListingId(e.target.value || null)}
+                    className="w-full h-12 rounded-2xl border border-gray-200 px-4 text-sm font-semibold outline-none focus:border-black transition-colors bg-white"
+                  >
+                    <option value="">Pick a listing…</option>
+                    {myListings.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.title} · KSH {Number(l.amount_per_person || 0).toLocaleString("en-KE")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={() => void handleCreateHighlight()}
@@ -910,6 +963,24 @@ export default function ProfileScreen() {
                   <Send size={18} />
                 </button>
               )}
+
+              {(() => {
+                const payload = (activeHighlight as any)?.commerce_payload as any;
+                const fnId = payload?.function_id;
+                const price = payload?.price_kes;
+                if (!fnId) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/home", { state: { focus: { kind: "function", id: String(fnId) } } })}
+                    className="absolute bottom-4 left-4 z-50 px-4 h-12 rounded-2xl bg-white/15 text-white flex items-center gap-2 hover:bg-white/25 border-none font-extrabold"
+                    aria-label="Buy now"
+                    title="Buy now"
+                  >
+                    Buy now{price ? ` · KSH ${Number(price).toLocaleString("en-KE")}` : ""}
+                  </button>
+                );
+              })()}
 
               <div className="absolute inset-0 flex items-center justify-center">
                 {(() => {

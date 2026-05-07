@@ -21,7 +21,7 @@ import {
   type DmSharePayload,
   type Highlight,
 } from "../lib/supabase";
-import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
+import { DmPlusModal } from "../components/dm/DmPlusModal";
 import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
 import { DmSharedHighlightCard } from "../components/dm/DmSharedHighlightCard";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
@@ -31,6 +31,7 @@ import { FunctionCard } from "../components/cards/FunctionCard";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
+import { GroupChargeModal } from "../components/wallet/GroupChargeModal";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -59,6 +60,9 @@ export default function DirectMessageScreen() {
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
+  const [groupPay, setGroupPay] = useState<{ groupId: string; amount: number } | null>(null);
+  const [groupShareCache, setGroupShareCache] = useState<Record<string, { id: string; name: string; per_person: number; status: string }>>({});
+  const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
 
   const parseShare = (m: DmMessage): DmSharePayload | null => {
     if (m.message_type !== "share") return null;
@@ -68,6 +72,9 @@ export default function DirectMessageScreen() {
     if (p.kind === "function" && typeof p.function_id === "string") return { kind: "function", function_id: p.function_id };
     if (p.kind === "listing" && typeof p.function_id === "string" && (p.listing_kind === "sell" || p.listing_kind === "service")) {
       return { kind: "listing", function_id: p.function_id, listing_kind: p.listing_kind };
+    }
+    if (p.kind === "group" && typeof p.group_id === "string") {
+      return { kind: "group", group_id: p.group_id, amount_kes: typeof p.amount_kes === "number" ? p.amount_kes : undefined, memo: typeof p.memo === "string" ? p.memo : undefined };
     }
     if (p.kind === "profile" && typeof p.user_id === "string") return { kind: "profile", user_id: p.user_id };
     if (p.kind === "highlight" && typeof p.highlight_id === "string" && typeof p.user_id === "string") {
@@ -162,6 +169,29 @@ export default function DirectMessageScreen() {
     }
   };
 
+  const requestSplitInDm = async (args: { amountKes: number; memo: string }) => {
+    if (!user || !conversationId) return;
+    if (!otherUserId) throw new Error("Missing recipient. Open this DM from the inbox.");
+    const { createGroup } = await import("../lib/supabase");
+    const group = await createGroup(
+      args.memo?.trim() ? args.memo.trim() : "Payment request",
+      args.amountKes,
+      args.amountKes,
+      user.id,
+      [user.id, otherUserId],
+      "single",
+    );
+    // mark requester as already paid (they already covered the cost)
+    await supabase
+      .from("group_members")
+      .update({ has_paid: true, paid_at: new Date().toISOString(), has_joined: true, joined_at: new Date().toISOString() })
+      .eq("group_id", group.id)
+      .eq("user_id", user.id);
+    setGroupShareCache((prev) => ({ ...prev, [group.id]: { id: group.id, name: group.name, per_person: group.per_person, status: group.status } }));
+    await sendDmShareMessage(conversationId, user.id, { kind: "group", group_id: group.id, amount_kes: args.amountKes, memo: args.memo });
+    await sendDmMessage(conversationId, user.id, `Requested KSH ${args.amountKes.toLocaleString("en-KE")}${args.memo ? ` for ${args.memo}` : ""}.`);
+  };
+
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
     if (!user) return;
     const members = eventFunction.function_members ?? [];
@@ -200,7 +230,7 @@ export default function DirectMessageScreen() {
       const { data } = await supabase
         .from("functions")
         .select(
-          "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))",
+          "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))",
         )
         .eq("id", eventFunction.id)
         .single();
@@ -248,6 +278,7 @@ export default function DirectMessageScreen() {
 
     const missing = shares.filter((s) => {
       if (s.payload.kind === "highlight") return false;
+      if (s.payload.kind === "group") return !groupShareCache[s.payload.group_id];
       if (s.payload.kind === "plan") return !shareCache[`plan:${s.payload.plan_id}`];
       if (s.payload.kind === "function" || s.payload.kind === "listing") return !shareCache[`fn:${s.payload.function_id}`];
       return false;
@@ -257,6 +288,9 @@ export default function DirectMessageScreen() {
     let cancelled = false;
     (async () => {
       try {
+        const groupIds = missing
+          .filter((m) => m.payload.kind === "group")
+          .map((m) => (m.payload as Extract<DmSharePayload, { kind: "group" }>).group_id);
         const planIds = missing.filter((m) => m.payload.kind === "plan").map((m) => (m.payload as { plan_id: string }).plan_id);
         const fnIds = missing
           .filter((m) => m.payload.kind === "function" || m.payload.kind === "listing")
@@ -279,16 +313,34 @@ export default function DirectMessageScreen() {
             : await supabase
                 .from("functions")
                 .select(
-                  "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))",
+                  "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))",
                 )
                 .in("id", fnIds);
         if (fnErr) throw fnErr;
+
+        const { data: groupRows, error: groupErr } =
+          groupIds.length === 0
+            ? { data: [] as Record<string, unknown>[], error: null }
+            : await supabase.from("groups").select("id, name, per_person, status").in("id", groupIds);
+        if (groupErr) throw groupErr;
 
         if (cancelled) return;
         setShareCache((prev) => {
           const next = { ...prev };
           (planRows || []).forEach((p) => (next[`plan:${(p as any).id}`] = p as any));
           (fnRows || []).forEach((f) => (next[`fn:${(f as any).id}`] = f as any));
+          return next;
+        });
+        setGroupShareCache((prev) => {
+          const next = { ...prev };
+          (groupRows || []).forEach((g: any) => {
+            next[String(g.id)] = {
+              id: String(g.id),
+              name: String(g.name || "Split"),
+              per_person: Number(g.per_person || 0),
+              status: String(g.status || "active"),
+            };
+          });
           return next;
         });
       } catch (e) {
@@ -299,7 +351,58 @@ export default function DirectMessageScreen() {
     return () => {
       cancelled = true;
     };
-  }, [messages, shareCache, conversationId]);
+  }, [messages, shareCache, groupShareCache, conversationId]);
+
+  // Live paid-state for quick split cards (flip Pay Now -> Paid).
+  useEffect(() => {
+    if (!user) return;
+    const groupIds = Array.from(
+      new Set(
+        messages
+          .map((m) => parseShare(m))
+          .filter((p): p is Extract<DmSharePayload, { kind: "group" }> => p?.kind === "group")
+          .map((p) => p.group_id),
+      ),
+    );
+    if (groupIds.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("group_members")
+          .select("group_id, has_paid")
+          .eq("user_id", user.id)
+          .in("group_id", groupIds);
+        if (cancelled) return;
+        const next: Record<string, boolean> = {};
+        (data || []).forEach((r: any) => {
+          next[String(r.group_id)] = !!r.has_paid;
+        });
+        setGroupPaidById((prev) => ({ ...prev, ...next }));
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+
+    const channel = supabase
+      .channel(`dm-quick-split-paid-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "group_members", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as any;
+          const gid = String(row.group_id || "");
+          if (!gid || !groupIds.includes(gid)) return;
+          setGroupPaidById((prev) => ({ ...prev, [gid]: !!row.has_paid }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [messages, user]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -375,12 +478,14 @@ export default function DirectMessageScreen() {
               const shareKey =
                 listedShare?.kind === "plan"
                   ? `plan:${listedShare.plan_id}`
-                  : listedShare
+                  : listedShare && (listedShare as any).function_id
                     ? `fn:${listedShare.function_id}`
                     : null;
               const sharedItem = shareKey ? shareCache[shareKey] : null;
               const hlKey = hlShare ? `hl:${hlShare.highlight_id}` : null;
               const hlPack = hlKey ? highlightShareCache[hlKey] : null;
+              const sharedGroup = listedShare?.kind === "group" ? groupShareCache[listedShare.group_id] : null;
+              const groupPaid = listedShare?.kind === "group" ? !!groupPaidById[listedShare.group_id] : false;
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   {profileShare ? (
@@ -413,7 +518,51 @@ export default function DirectMessageScreen() {
                     </div>
                   ) : listedShare ? (
                     <div className="max-w-[95%] w-[95%] md:w-[420px]">
-                      {sharedItem ? (
+                      {listedShare.kind === "group" ? (
+                        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
+                          <p className="mt-1 font-extrabold text-black text-lg truncate">
+                            {sharedGroup?.name || listedShare.memo || "Payment request"}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Amount:{" "}
+                            <span className="font-bold text-black">
+                              KSH {(sharedGroup?.per_person || listedShare.amount_kes || 0).toLocaleString("en-KE")}
+                            </span>
+                          </p>
+                          <div className="mt-4 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/yuto/${listedShare.group_id}`)}
+                              className="flex-1 h-11 rounded-2xl bg-gray-100 hover:bg-gray-200 text-black font-bold transition-colors"
+                            >
+                              View split
+                            </button>
+                            {groupPaid ? (
+                              <button
+                                type="button"
+                                disabled
+                                className="flex-1 h-11 rounded-2xl bg-green-500 text-white font-extrabold opacity-90 cursor-not-allowed"
+                              >
+                                Paid
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setGroupPay({
+                                    groupId: listedShare.group_id,
+                                    amount: sharedGroup?.per_person || listedShare.amount_kes || 0,
+                                  })
+                                }
+                                className="flex-1 h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
+                              >
+                                Pay now
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : sharedItem ? (
                         listedShare.kind === "plan" ? (
                           <PlanCard
                             plan={sharedItem as Plan}
@@ -469,7 +618,8 @@ export default function DirectMessageScreen() {
                           Loading…
                         </div>
                       )}
-                      <div className="mt-2 flex justify-end">
+                      {listedShare.kind !== "group" && (
+                        <div className="mt-2 flex justify-end">
                         <button
                           type="button"
                           onClick={() =>
@@ -488,6 +638,7 @@ export default function DirectMessageScreen() {
                           View on Home
                         </button>
                       </div>
+                      )}
                     </div>
                   ) : (
                     <div
@@ -539,7 +690,7 @@ export default function DirectMessageScreen() {
         </div>
       </div>
 
-      <DmSharePickerModal
+      <DmPlusModal
         open={showSharePicker}
         onClose={() => setShowSharePicker(false)}
         onPickPlan={(p: Plan) => {
@@ -563,6 +714,7 @@ export default function DirectMessageScreen() {
             { title: fn.title, subtitle: fn.host.display_name, kindLabel: kind === "sell" ? "Sell" : "Service" },
           );
         }}
+        onRequestSplit={(args) => requestSplitInDm(args)}
       />
 
       {previewShare && (
@@ -614,6 +766,25 @@ export default function DirectMessageScreen() {
             setPendingJoinFunction(null);
             setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
             await handleJoinFunction(fn);
+          }}
+        />
+      )}
+
+      {groupPay && user && (
+        <GroupChargeModal
+          amount={groupPay.amount}
+          groupId={groupPay.groupId}
+          userId={user.id}
+          defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          onClose={() => setGroupPay(null)}
+          onRefreshStatus={async () => {
+            const { data } = await supabase
+              .from("group_members")
+              .select("has_paid")
+              .eq("group_id", groupPay.groupId)
+              .eq("user_id", user.id)
+              .maybeSingle();
+            if (data?.has_paid) setGroupPay(null);
           }}
         />
       )}

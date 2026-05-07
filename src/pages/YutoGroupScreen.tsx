@@ -13,6 +13,7 @@ import {
   ensureWalletGroupChat,
 } from "../lib/supabase";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
+import { useAppResume } from "../hooks/useAppResume";
 
 interface Member {
   user_id: string;
@@ -614,6 +615,12 @@ export default function YutoGroupScreen() {
     const t = setTimeout(refetchPaymentStatus, 30000);
     return () => clearTimeout(t);
   }, [showPayModal, groupId, user]);
+
+  // iOS/PWA can drop realtime while backgrounded during STK push.
+  useAppResume(() => {
+    void reloadGroupSnapshot();
+    void refetchPaymentStatus();
+  });
 
   useEffect(() => {
     if (youPaid && showBalanceTopUpModal) setShowBalanceTopUpModal(false);

@@ -8,11 +8,13 @@ export function DmSharePickerModal({
   onClose,
   onPickPlan,
   onPickFunction,
+  embedded = false,
 }: {
   open: boolean;
   onClose: () => void;
   onPickPlan: (plan: Plan) => void;
   onPickFunction: (fn: FunctionListing, kind: "function" | "sell" | "service") => void;
+  embedded?: boolean;
 }) {
   const [tab, setTab] = useState<ComposeMode>("plan");
   const [loading, setLoading] = useState(false);
@@ -34,7 +36,7 @@ export function DmSharePickerModal({
         const { supabase } = await import("../../lib/supabase");
         const [pRes, fRes] = await Promise.all([
           supabase.from("plans").select("*, creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url), plan_members(id, user_id, profiles(id, username, display_name, avatar_url))").order("created_at", { ascending: false }).limit(25),
-          supabase.from("functions").select("*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))").eq("is_public", true).order("created_at", { ascending: false }).limit(25),
+          supabase.from("functions").select("*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))").eq("is_public", true).order("created_at", { ascending: false }).limit(25),
         ]);
         if (pRes.error) throw pRes.error;
         if (fRes.error) throw fRes.error;
@@ -63,6 +65,56 @@ export function DmSharePickerModal({
 
   if (!open) return null;
 
+  const body = (
+    <>
+      <ComposeModeTabsBar composeMode={tab} onComposeModeChange={setTab} className="mb-4" />
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : tab === "plan" ? (
+        <div className={`overflow-y-auto -mx-1 px-1 ${embedded ? "max-h-[48vh]" : "max-h-[55vh]"}`}>
+          {shownPlans.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onPickPlan(p)}
+              className="w-full flex items-center gap-3 py-3 px-2 rounded-2xl hover:bg-gray-50 transition-colors text-left bg-transparent border-none"
+            >
+              <UserAvatar name={p.creator.display_name} avatarUrl={p.creator.avatar_url} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-black truncate">{p.title}</p>
+                <p className="text-sm text-gray-400 truncate">{p.creator.display_name}</p>
+              </div>
+            </button>
+          ))}
+          {shownPlans.length === 0 && <div className="py-10 text-center text-gray-400 font-semibold">No plans found</div>}
+        </div>
+      ) : (
+        <div className={`overflow-y-auto -mx-1 px-1 ${embedded ? "max-h-[48vh]" : "max-h-[55vh]"}`}>
+          {shownFunctions.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => onPickFunction(f, tab === "function" ? "function" : tab)}
+              className="w-full flex items-center gap-3 py-3 px-2 rounded-2xl hover:bg-gray-50 transition-colors text-left bg-transparent border-none"
+            >
+              <UserAvatar name={f.host.display_name} avatarUrl={f.host.avatar_url} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-black truncate">{f.title}</p>
+                <p className="text-sm text-gray-400 truncate">{f.host.display_name}</p>
+              </div>
+            </button>
+          ))}
+          {shownFunctions.length === 0 && <div className="py-10 text-center text-gray-400 font-semibold">Nothing found</div>}
+        </div>
+      )}
+    </>
+  );
+
+  if (embedded) return <>{body}</>;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/60 backdrop-blur-sm">
       <button type="button" className="absolute inset-0 z-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={onClose} />
@@ -74,50 +126,7 @@ export function DmSharePickerModal({
             ✕
           </button>
         </div>
-
-        <ComposeModeTabsBar composeMode={tab} onComposeModeChange={setTab} className="mb-4" />
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : tab === "plan" ? (
-          <div className="max-h-[55vh] overflow-y-auto -mx-1 px-1">
-            {shownPlans.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => onPickPlan(p)}
-                className="w-full flex items-center gap-3 py-3 px-2 rounded-2xl hover:bg-gray-50 transition-colors text-left bg-transparent border-none"
-              >
-                <UserAvatar name={p.creator.display_name} avatarUrl={p.creator.avatar_url} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-black truncate">{p.title}</p>
-                  <p className="text-sm text-gray-400 truncate">{p.creator.display_name}</p>
-                </div>
-              </button>
-            ))}
-            {shownPlans.length === 0 && <div className="py-10 text-center text-gray-400 font-semibold">No plans found</div>}
-          </div>
-        ) : (
-          <div className="max-h-[55vh] overflow-y-auto -mx-1 px-1">
-            {shownFunctions.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => onPickFunction(f, tab === "function" ? "function" : tab)}
-                className="w-full flex items-center gap-3 py-3 px-2 rounded-2xl hover:bg-gray-50 transition-colors text-left bg-transparent border-none"
-              >
-                <UserAvatar name={f.host.display_name} avatarUrl={f.host.avatar_url} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-black truncate">{f.title}</p>
-                  <p className="text-sm text-gray-400 truncate">{f.host.display_name}</p>
-                </div>
-              </button>
-            ))}
-            {shownFunctions.length === 0 && <div className="py-10 text-center text-gray-400 font-semibold">Nothing found</div>}
-          </div>
-        )}
+        {body}
       </div>
     </div>
   );

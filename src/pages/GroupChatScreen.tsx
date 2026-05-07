@@ -5,6 +5,7 @@ import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import {
   getGroupChatMessages,
+  getGroupMemberIds,
   getSavedPhoneNumber,
   joinFunction,
   joinPlan,
@@ -25,7 +26,7 @@ import {
   type GroupChatRow,
   type Highlight,
 } from "../lib/supabase";
-import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
+import { DmPlusModal } from "../components/dm/DmPlusModal";
 import type { Plan, FunctionListing } from "./home/types";
 import { PlanCard } from "../components/cards/PlanCard";
 import { FunctionCard } from "../components/cards/FunctionCard";
@@ -35,6 +36,7 @@ import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
 import { DmSharedHighlightCard } from "../components/dm/DmSharedHighlightCard";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
+import { GroupChargeModal } from "../components/wallet/GroupChargeModal";
 
 function parseShare(m: GroupChatMessage): DmSharePayload | null {
   if ((m.message_type ?? "text") !== "share") return null;
@@ -49,6 +51,14 @@ function parseShare(m: GroupChatMessage): DmSharePayload | null {
     (p.listing_kind === "sell" || p.listing_kind === "service")
   ) {
     return { kind: "listing", function_id: p.function_id, listing_kind: p.listing_kind };
+  }
+  if (p.kind === "group" && typeof (p as any).group_id === "string") {
+    return {
+      kind: "group",
+      group_id: String((p as any).group_id),
+      amount_kes: typeof (p as any).amount_kes === "number" ? (p as any).amount_kes : undefined,
+      memo: typeof (p as any).memo === "string" ? (p as any).memo : undefined,
+    } as any;
   }
   if (p.kind === "profile" && typeof p.user_id === "string") return { kind: "profile", user_id: p.user_id };
   if (p.kind === "highlight" && typeof p.highlight_id === "string" && typeof p.user_id === "string") {
@@ -82,6 +92,9 @@ export default function GroupChatScreen() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameDraft, setRenameDraft] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
+  const [groupPay, setGroupPay] = useState<{ groupId: string; amount: number } | null>(null);
+  const [groupShareCache, setGroupShareCache] = useState<Record<string, { id: string; name: string; per_person: number; status: string }>>({});
+  const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!groupId || !user) return;
@@ -162,6 +175,7 @@ export default function GroupChatScreen() {
 
     const missing = shares.filter((s) => {
       if (s.payload.kind === "highlight") return false;
+      if (s.payload.kind === "group") return !groupShareCache[(s.payload as any).group_id];
       if (s.payload.kind === "plan") return !shareCache[`plan:${s.payload.plan_id}`];
       if (s.payload.kind === "function" || s.payload.kind === "listing") return !shareCache[`fn:${(s.payload as { function_id: string }).function_id}`];
       return false;
@@ -171,6 +185,10 @@ export default function GroupChatScreen() {
     let cancelled = false;
     (async () => {
       try {
+        const groupIds = missing
+          .filter((m) => m.payload.kind === "group")
+          .map((m) => ((m.payload as any).group_id as string))
+          .filter(Boolean);
         const planIds = missing.filter((m) => m.payload.kind === "plan").map((m) => (m.payload as { plan_id: string }).plan_id);
         const fnIds = missing
           .filter((m) => m.payload.kind === "function" || m.payload.kind === "listing")
@@ -192,20 +210,37 @@ export default function GroupChatScreen() {
             : supabase
                 .from("functions")
                 .select(
-                  "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))",
+                  "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))",
                 )
                 .in("id", fnIds);
 
-        const [{ data: planRows, error: planErr }, { data: fnRows, error: fnErr }] = await Promise.all([planPromise, fnPromise]);
+        const groupPromise =
+          groupIds.length === 0
+            ? Promise.resolve({ data: [] as Record<string, unknown>[], error: null })
+            : supabase.from("groups").select("id, name, per_person, status").in("id", groupIds);
+
+        const [
+          { data: planRows, error: planErr },
+          { data: fnRows, error: fnErr },
+          { data: groupRows, error: groupErr },
+        ] = await Promise.all([planPromise, fnPromise, groupPromise]);
 
         if (planErr) throw planErr;
         if (fnErr) throw fnErr;
+        if (groupErr) throw groupErr;
 
         if (cancelled) return;
         setShareCache((prev) => {
           const next = { ...prev };
           (planRows || []).forEach((p) => (next[`plan:${(p as { id: string }).id}`] = p as Plan));
           (fnRows || []).forEach((f) => (next[`fn:${(f as { id: string }).id}`] = f as FunctionListing));
+          return next;
+        });
+        setGroupShareCache((prev) => {
+          const next = { ...prev };
+          (groupRows || []).forEach((g: any) => {
+            next[String(g.id)] = { id: String(g.id), name: String(g.name || "Split"), per_person: Number(g.per_person || 0), status: String(g.status || "active") };
+          });
           return next;
         });
       } catch (e) {
@@ -216,7 +251,7 @@ export default function GroupChatScreen() {
     return () => {
       cancelled = true;
     };
-  }, [messages, shareCache, groupId]);
+  }, [messages, shareCache, groupShareCache, groupId]);
 
   useEffect(() => {
     if (!groupId) return;
@@ -254,6 +289,58 @@ export default function GroupChatScreen() {
     };
   }, [messages, highlightShareCache, groupId]);
 
+  // Live paid-state for quick split cards (flip Pay -> Paid) for the current user.
+  useEffect(() => {
+    if (!user) return;
+    const groupIds = Array.from(
+      new Set(
+        messages
+          .map((m) => parseShare(m))
+          .filter((p): p is any => p?.kind === "group")
+          .map((p: any) => String(p.group_id || "")),
+      ),
+    ).filter(Boolean);
+    if (groupIds.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("group_members")
+          .select("group_id, has_paid")
+          .eq("user_id", user.id)
+          .in("group_id", groupIds);
+        if (cancelled) return;
+        const next: Record<string, boolean> = {};
+        (data || []).forEach((r: any) => {
+          next[String(r.group_id)] = !!r.has_paid;
+        });
+        setGroupPaidById((prev) => ({ ...prev, ...next }));
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+
+    const channel = supabase
+      .channel(`groupchat-quick-split-paid-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "group_members", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as any;
+          const gid = String(row.group_id || "");
+          if (!gid || !groupIds.includes(gid)) return;
+          setGroupPaidById((prev) => ({ ...prev, [gid]: !!row.has_paid }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [messages, user]);
+
   const title = useMemo(() => meta?.title?.trim() || "Group chat", [meta]);
 
   const sendShare = async (payload: DmSharePayload, preview: { title: string; subtitle: string; kindLabel: string }) => {
@@ -266,6 +353,32 @@ export default function GroupChatScreen() {
       console.error(e);
       alert("Couldn't send. Try again.");
     }
+  };
+
+  const requestSplitInGroupChat = async (args: { amountKes: number; memo: string }) => {
+    if (!user || !groupId) return;
+    const memberIds = (await getGroupMemberIds(groupId)).filter(Boolean);
+    const unique = Array.from(new Set(memberIds));
+    if (unique.length < 2) throw new Error("Need at least 2 members.");
+    const perPerson = Math.ceil(args.amountKes / unique.length);
+    const { createGroup } = await import("../lib/supabase");
+    const group = await createGroup(
+      args.memo?.trim() ? args.memo.trim() : "Group split",
+      args.amountKes,
+      perPerson,
+      user.id,
+      unique,
+      "single",
+    );
+    // requester already paid the full amount; others owe shares
+    await supabase
+      .from("group_members")
+      .update({ has_paid: true, paid_at: new Date().toISOString(), has_joined: true, joined_at: new Date().toISOString() })
+      .eq("group_id", group.id)
+      .eq("user_id", user.id);
+    setGroupShareCache((prev) => ({ ...prev, [group.id]: { id: group.id, name: group.name, per_person: group.per_person, status: group.status } }));
+    await sendGroupChatShareMessage(groupId, user.id, { kind: "group", group_id: group.id, amount_kes: perPerson, memo: args.memo } as any);
+    await sendGroupChatMessage(groupId, user.id, `Split created: KSH ${perPerson.toLocaleString("en-KE")} each${args.memo ? ` for ${args.memo}` : ""}.`);
   };
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
@@ -306,7 +419,7 @@ export default function GroupChatScreen() {
       const { data } = await supabase
         .from("functions")
         .select(
-          "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))",
+          "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))",
         )
         .eq("id", eventFunction.id)
         .single();
@@ -364,6 +477,49 @@ export default function GroupChatScreen() {
     shareKey: string,
     mine: boolean,
   ) => {
+    if (share.kind === "group") {
+      const g = groupShareCache[share.group_id];
+      const amt = g?.per_person || (share as any).amount_kes || 0;
+      const title = g?.name || (share as any).memo || "Split request";
+      const paid = !!groupPaidById[share.group_id];
+      return (
+        <div className="w-full max-w-[min(100vw-4rem,28rem)]">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
+            <p className="mt-1 font-extrabold text-black text-lg truncate">{title}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Amount: <span className="font-bold text-black">KSH {Number(amt).toLocaleString("en-KE")}</span>
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(`/yuto/${share.group_id}`)}
+                className="flex-1 h-11 rounded-2xl bg-gray-100 hover:bg-gray-200 text-black font-bold transition-colors"
+              >
+                View split
+              </button>
+              {paid ? (
+                <button
+                  type="button"
+                  disabled
+                  className="flex-1 h-11 rounded-2xl bg-green-500 text-white font-extrabold opacity-90 cursor-not-allowed"
+                >
+                  Paid
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setGroupPay({ groupId: share.group_id, amount: Number(amt) || 0 })}
+                  className="flex-1 h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
+                >
+                  Pay your share
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
     const sharedItem = shareCache[shareKey];
     const focusKind = share.kind === "plan" ? "plan" : "function";
     const focusId = share.kind === "plan" ? share.plan_id : share.function_id;
@@ -584,7 +740,7 @@ export default function GroupChatScreen() {
         </div>
       </div>
 
-      <DmSharePickerModal
+      <DmPlusModal
         open={showSharePicker}
         onClose={() => setShowSharePicker(false)}
         onPickPlan={(p: Plan) => {
@@ -608,7 +764,27 @@ export default function GroupChatScreen() {
             { title: fn.title, subtitle: fn.host.display_name, kindLabel: kind === "sell" ? "Sell" : "Service" },
           );
         }}
+        onRequestSplit={(args) => requestSplitInGroupChat(args)}
       />
+
+      {groupPay && user && (
+        <GroupChargeModal
+          amount={groupPay.amount}
+          groupId={groupPay.groupId}
+          userId={user.id}
+          defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
+          onClose={() => setGroupPay(null)}
+          onRefreshStatus={async () => {
+            const { data } = await supabase
+              .from("group_members")
+              .select("has_paid")
+              .eq("group_id", groupPay.groupId)
+              .eq("user_id", user.id)
+              .maybeSingle();
+            if (data?.has_paid) setGroupPay(null);
+          }}
+        />
+      )}
 
       {previewShare && (
         <div className="fixed inset-x-0 bottom-[calc(100px+env(safe-area-inset-bottom))] z-50 flex justify-center px-5 pointer-events-none">

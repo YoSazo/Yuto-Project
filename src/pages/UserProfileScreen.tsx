@@ -530,6 +530,24 @@ export default function UserProfileScreen() {
                 </button>
               )}
 
+              {(() => {
+                const payload = (activeHighlight as any)?.commerce_payload as any;
+                const fnId = payload?.function_id;
+                const price = payload?.price_kes;
+                if (!fnId) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/home", { state: { focus: { kind: "function", id: String(fnId) } } })}
+                    className="absolute bottom-4 left-4 z-50 px-4 h-12 rounded-2xl bg-white/15 text-white flex items-center gap-2 hover:bg-white/25 border-none font-extrabold"
+                    aria-label="Buy now"
+                    title="Buy now"
+                  >
+                    Buy now{price ? ` · KSH ${Number(price).toLocaleString("en-KE")}` : ""}
+                  </button>
+                );
+              })()}
+
               <div className="absolute inset-0 flex items-center justify-center">
                 {(() => {
                   const active = activeHighlight.photos?.[activeHighlightIdx];

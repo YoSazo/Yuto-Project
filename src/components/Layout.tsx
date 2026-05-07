@@ -3,6 +3,7 @@ import { Outlet, useLocation, Navigate } from "react-router-dom";
 import GlassNavBar from "./GlassNavBar";
 import { useAuth } from "../contexts/AuthContext";
 import { getPendingRequests } from "../lib/supabase";
+import { useAppResume } from "../hooks/useAppResume";
 
 type NavTab = "split" | "home" | "activity" | "profile";
 
@@ -30,6 +31,11 @@ export default function Layout() {
     const interval = setInterval(fetchPending, 15000);
     return () => clearInterval(interval);
   }, [user, location.pathname]);
+
+  // When the PWA comes back foregrounded (e.g. after STK PIN), wake up the app.
+  useAppResume(() => {
+    window.dispatchEvent(new Event("yuto:resume"));
+  });
 
   if (loading) {
     return (

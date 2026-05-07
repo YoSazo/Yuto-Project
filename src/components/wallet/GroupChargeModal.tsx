@@ -1,24 +1,21 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { saveProfilePhoneNumber } from "../../lib/supabase";
-import { useAppResume } from "../../hooks/useAppResume";
 
-export function FunctionPayModal({
+export function GroupChargeModal({
   amount,
-  functionId,
+  groupId,
   userId,
   defaultPhoneNumber,
   onClose,
   onRefreshStatus,
-  isTopUp = false,
   embedded = false,
 }: {
   amount: number;
-  functionId: string;
+  groupId: string;
   userId: string;
   defaultPhoneNumber?: string | null;
   onClose: () => void;
   onRefreshStatus?: () => void | Promise<void>;
-  isTopUp?: boolean;
   embedded?: boolean;
 }) {
   const [phone, setPhone] = useState(defaultPhoneNumber || "254");
@@ -26,15 +23,8 @@ export function FunctionPayModal({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (defaultPhoneNumber) {
-      setPhone(defaultPhoneNumber);
-    }
+    if (defaultPhoneNumber) setPhone(defaultPhoneNumber);
   }, [defaultPhoneNumber]);
-
-  // When app returns from STK PIN, re-check status.
-  useAppResume(() => {
-    if (onRefreshStatus) void onRefreshStatus();
-  });
 
   const handlePay = async () => {
     if (phone.length < 12) {
@@ -47,11 +37,7 @@ export function FunctionPayModal({
       const res = await fetch("/api/charge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          isTopUp
-            ? { phone_number: phone, amount, user_id: userId, is_topup: true }
-            : { phone_number: phone, amount, function_id: functionId, user_id: userId },
-        ),
+        body: JSON.stringify({ phone_number: phone, amount, group_id: groupId, user_id: userId }),
       });
       const data = await res.json();
       if (data.success) {
@@ -67,14 +53,11 @@ export function FunctionPayModal({
     }
   };
 
-  const title = isTopUp ? "Top up balance" : "Pay to join";
-  const primaryCta = isTopUp ? "Top up" : "Pay";
-
   const modalBody =
     step === "input" || step === "error" ? (
       <>
         <div className="flex justify-between items-center mb-5">
-          <h2 className="font-bold text-xl text-black">{title}</h2>
+          <h2 className="font-bold text-xl text-black">Pay now</h2>
           <button
             type="button"
             onClick={onClose}
@@ -109,7 +92,7 @@ export function FunctionPayModal({
             phone.length >= 12 ? "bg-black text-white hover:bg-gray-800" : "bg-gray-200 text-gray-400 cursor-not-allowed"
           }`}
         >
-          {primaryCta} KSH {amount.toLocaleString()}
+          Pay KSH {amount.toLocaleString()}
         </button>
         {step === "error" && onRefreshStatus && (
           <button
@@ -157,3 +140,4 @@ export function FunctionPayModal({
     </div>
   );
 }
+

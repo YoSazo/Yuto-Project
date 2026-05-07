@@ -286,6 +286,56 @@ export async function getMyGroups() {
   return data || [];
 }
 
+export async function getMyTicketsAndPurchases(userId: string) {
+  const { data, error } = await supabase
+    .from("function_members")
+    .select(
+      `
+      id,
+      function_id,
+      user_id,
+      has_paid,
+      joined_at,
+      paid_at,
+      functions!inner(
+        *,
+        host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url),
+        function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))
+      )
+    `,
+    )
+    .eq("user_id", userId)
+    .eq("has_paid", true)
+    .order("paid_at", { ascending: false });
+  if (error) throw error;
+
+  const rows = (data || []) as any[];
+  const byFunctionId: Record<string, { count: number; functionItem: any }> = {};
+  rows.forEach((r) => {
+    const f = r.functions;
+    const fid = String(r.function_id || f?.id || "");
+    if (!fid || !f) return;
+    if (!byFunctionId[fid]) byFunctionId[fid] = { count: 0, functionItem: f };
+    byFunctionId[fid]!.count += 1;
+  });
+
+  return Object.entries(byFunctionId).map(([functionId, v]) => ({
+    function_id: functionId,
+    count: v.count,
+    functionItem: v.functionItem,
+  }));
+}
+
+export async function confirmListingReceipt(functionId: string, userId: string) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("function_members")
+    .update({ buyer_confirmed_at: now })
+    .eq("function_id", functionId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
 export async function getGroup(groupId: string) {
   const { data, error } = await supabase
     .from("groups")
@@ -453,7 +503,7 @@ export async function uploadHighlightAsset(
 const FUNCTIONS_SELECT = `
   *,
   host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url),
-  function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))
+  function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))
 `;
 
 export async function getFunctionsPublic() {
@@ -581,6 +631,7 @@ export type Highlight = {
   slot: 1 | 2;
   created_at: string;
   photos: Array<{ id: string; url: string; thumb_url: string | null; poster_url: string | null; sort_index: 1 | 2 }>;
+  commerce_payload?: any | null;
 };
 
 type HighlightDbRow = {
@@ -588,6 +639,7 @@ type HighlightDbRow = {
   user_id: string;
   slot: number;
   created_at: string;
+  commerce_payload?: any | null;
   highlight_photos?: Array<{ id: string; url: string; thumb_url?: string | null; poster_url?: string | null; sort_index: number }>;
 };
 
@@ -597,6 +649,7 @@ function mapHighlightRow(h: HighlightDbRow): Highlight {
     user_id: h.user_id,
     slot: (h.slot === 2 ? 2 : 1) as 1 | 2,
     created_at: h.created_at,
+    commerce_payload: (h as any).commerce_payload ?? null,
     photos: (h.highlight_photos || [])
       .slice()
       .sort((a, b) => (a.sort_index ?? 1) - (b.sort_index ?? 1))
@@ -613,7 +666,7 @@ function mapHighlightRow(h: HighlightDbRow): Highlight {
 export async function getHighlightsByUser(userId: string): Promise<Highlight[]> {
   const { data, error } = await supabase
     .from("highlights")
-    .select("id, user_id, slot, created_at, highlight_photos(id, url, thumb_url, poster_url, sort_index)")
+    .select("id, user_id, slot, created_at, commerce_payload, highlight_photos(id, url, thumb_url, poster_url, sort_index)")
     .eq("user_id", userId)
     .order("slot", { ascending: true });
   if (error) throw error;
@@ -624,7 +677,7 @@ export async function getHighlightsByUser(userId: string): Promise<Highlight[]> 
 export async function getHighlightById(highlightId: string): Promise<Highlight | null> {
   const { data, error } = await supabase
     .from("highlights")
-    .select("id, user_id, slot, created_at, highlight_photos(id, url, thumb_url, poster_url, sort_index)")
+    .select("id, user_id, slot, created_at, commerce_payload, highlight_photos(id, url, thumb_url, poster_url, sort_index)")
     .eq("id", highlightId)
     .maybeSingle();
   if (error) throw error;
@@ -638,6 +691,7 @@ export async function createHighlight(
     { url: string; thumb_url: string | null; poster_url: string | null },
     { url: string; thumb_url: string | null; poster_url: string | null },
   ],
+  commercePayload?: any | null,
 ) {
   const existing = await getHighlightsByUser(userId);
   const used = new Set(existing.map((h) => h.slot));
@@ -646,7 +700,7 @@ export async function createHighlight(
 
   const { data: highlight, error: hErr } = await supabase
     .from("highlights")
-    .insert({ user_id: userId, slot })
+    .insert({ user_id: userId, slot, commerce_payload: commercePayload ?? null })
     .select("id, user_id, slot, created_at")
     .single();
   if (hErr) throw hErr;
@@ -797,6 +851,36 @@ export async function yutoItPlan(planId: string, creatorId: string, title: strin
   const group = await createGroup(title, amount, Math.ceil(amount / memberIds.length), creatorId, memberIds);
   // Mark plan as completed
   await supabase.from("plans").update({ status: "completed", yuto_group_id: group.id }).eq("id", planId);
+
+  // Notify + DM members (best-effort)
+  await Promise.all(
+    memberIds
+      .filter((uid) => uid && uid !== creatorId)
+      .map(async (uid) => {
+        try {
+          await fetch("/api/notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: uid,
+              title: "Plan locked in 🎉",
+              body: `"${title}" is locked in. Pay your share now.`,
+            }),
+          });
+        } catch {
+          // ignore
+        }
+
+        try {
+          const convo = await getOrCreateDmConversation(creatorId, uid);
+          await sendDmMessage(convo.id, creatorId, `The plan "${title}" is locked in! Pay your share here.`);
+          await sendDmShareMessage(convo.id, creatorId, { kind: "group", group_id: group.id } as any);
+        } catch {
+          // ignore
+        }
+      }),
+  );
+
   return group;
 }
 
@@ -957,6 +1041,7 @@ export type DmSharePayload =
   | { kind: "plan"; plan_id: string }
   | { kind: "function"; function_id: string }
   | { kind: "listing"; function_id: string; listing_kind: "sell" | "service" }
+  | { kind: "group"; group_id: string; amount_kes?: number; memo?: string }
   | { kind: "profile"; user_id: string }
   | { kind: "highlight"; highlight_id: string; user_id: string };
 
