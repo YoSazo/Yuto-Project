@@ -254,7 +254,7 @@ export default function MessagesScreen() {
       </div>
 
       {((bizDashboard?.activeListings || 0) > 0 || businessItems.length > 0) && (
-        <div className="relative flex bg-gray-100 rounded-2xl p-1 mb-6 mx-auto w-full max-w-[360px]">
+        <div className="relative flex bg-gray-100 rounded-2xl p-1 mb-6">
           <div
             className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-transform duration-300 ease-in-out"
             style={{ transform: activeTab === "personal" ? "translateX(0px)" : "translateX(calc(100% + 8px))" }}
