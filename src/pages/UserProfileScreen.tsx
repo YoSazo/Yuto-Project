@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, getProfile, getFriends, sendFriendRequest, getHighlightsByUser, getOrCreateDmConversation, type Highlight } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
@@ -27,10 +28,7 @@ export default function UserProfileScreen() {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
-  const [activeHighlightPos, setActiveHighlightPos] = useState(0);
-  const [hlFade, setHlFade] = useState(false);
-  const highlightGestureRef = useRef<{ startY: number; moved: boolean } | null>(null);
-  const suppressHighlightTapRef = useRef(false);
+  const [activeHighlightMediaReady, setActiveHighlightMediaReady] = useState(false);
   const [sendProfileOpen, setSendProfileOpen] = useState(false);
   useEffect(() => {
     // If they click their own profile, redirect to their main profile tab
@@ -222,21 +220,24 @@ export default function UserProfileScreen() {
               key={h.id}
               type="button"
               onClick={() => {
-                const pos = highlights.slice(0, 2).findIndex((x) => x.id === h.id);
-                setActiveHighlightPos(Math.max(0, pos));
                 setActiveHighlightIdx(0);
+                setActiveHighlightMediaReady(false);
                 setActiveHighlight(h);
               }}
               className="flex flex-col items-center gap-1 bg-transparent border-none p-0"
             >
-              <div className="relative w-16 h-16 shrink-0 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
+              <motion.div
+                layoutId={`highlight-container-${h.id}`}
+                style={{ borderRadius: 9999 }}
+                className="relative w-16 h-16 shrink-0 border-2 border-gray-200 overflow-hidden bg-gray-100"
+              >
                 {h.photos[0]?.url ? (
                   <HighlightStillMedia
                     url={(h.photos[0].thumb_url || h.photos[0].poster_url || h.photos[0].url) as string}
                     className="absolute inset-0 h-full w-full object-cover pointer-events-none"
                   />
                 ) : null}
-              </div>
+              </motion.div>
             </button>
           ))}
         </div>
@@ -284,180 +285,130 @@ export default function UserProfileScreen() {
       </div>
 
       {/* Highlight Viewer */}
-      {activeHighlight && (
-        <div
-          className="fixed inset-0 z-50 fade-in bg-black"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setActiveHighlight(null);
-          }}
-          tabIndex={-1}
-          onPointerDown={(e) => {
-            highlightGestureRef.current = { startY: e.clientY, moved: false };
-            suppressHighlightTapRef.current = false;
-          }}
-          onPointerMove={(e) => {
-            const g = highlightGestureRef.current;
-            if (!g) return;
-            const dy = e.clientY - g.startY;
-            if (dy > 18) {
-              g.moved = true;
-              suppressHighlightTapRef.current = true;
-            }
-            if (dy > 90) {
-              highlightGestureRef.current = null;
-              setActiveHighlight(null);
-            }
-          }}
-          onPointerUp={() => {
-            highlightGestureRef.current = null;
-            window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
-          }}
-          onPointerCancel={() => {
-            highlightGestureRef.current = null;
-            window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
-          }}
-        >
-          <div className="absolute top-3 left-3 right-3 z-20 flex gap-2">
-            {(() => {
-              const shown = highlights.slice(0, 2);
-              const segs = shown.reduce((sum, h) => sum + Math.min(2, h.photos?.length || 0), 0);
-              const total = segs > 0 ? segs : 2;
-              const before = shown
-                .slice(0, activeHighlightPos)
-                .reduce((sum, h) => sum + Math.min(2, h.photos?.length || 0), 0);
-              const segIndex = before + activeHighlightIdx;
-              return Array.from({ length: total }).map((_, i) => (
-                <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
-                  <div className="h-full bg-white" style={{ width: segIndex >= i ? "100%" : "0%" }} />
-                </div>
-              ));
-            })()}
-          </div>
+      <AnimatePresence>
+        {activeHighlight && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.006, ease: "linear" }}
+              className="fixed inset-0 z-40 bg-black"
+            />
 
-          <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-150 ${hlFade ? "opacity-0" : "opacity-100"}`}>
-            {isHighlightVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
-              <video
-                src={activeHighlight.photos[activeHighlightIdx]?.url}
-                className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
-                playsInline
-                autoPlay
-                muted
-                loop
-              />
-            ) : (
-              <img
-                src={activeHighlight.photos[activeHighlightIdx]?.url}
-                alt="Highlight"
-                className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
-                draggable={false}
-              />
-            )}
-          </div>
+            <motion.div
+              layoutId={`highlight-container-${activeHighlight.id}`}
+              style={{ borderRadius: 0 }}
+              transition={{
+                layout: { duration: 0.008, ease: [0.2, 0.9, 0.2, 1] },
+                opacity: { duration: 0.006, ease: "linear" },
+              }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setActiveHighlight(null);
+              }}
+              tabIndex={-1}
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.8}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 100 || info.velocity.y > 500) setActiveHighlight(null);
+              }}
+            >
+              <div className="absolute top-3 left-3 right-3 z-50 flex gap-2">
+                {(() => {
+                  const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
+                  return Array.from({ length: total }).map((_, i) => (
+                    <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                      <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
+                    </div>
+                  ));
+                })()}
+              </div>
 
-          <button
-            type="button"
-            className="absolute inset-y-0 left-0 w-1/2 border-none bg-transparent z-30"
-            aria-label="Previous photo"
-            onClick={() => {
-              if (suppressHighlightTapRef.current) return;
-              if (activeHighlightIdx === 1) {
-                setActiveHighlightIdx(0);
-                return;
-              }
-              if (activeHighlightPos > 0) {
-                const shown = highlights.slice(0, 2);
-                const nextPos = activeHighlightPos - 1;
-                const next = shown[nextPos];
-                if (!next) return;
-                setHlFade(true);
-                window.setTimeout(() => {
-                  setActiveHighlightPos(nextPos);
-                  setActiveHighlightIdx(1);
-                  setActiveHighlight(next);
-                  setHlFade(false);
-                }, 120);
-              }
-            }}
-            onPointerDown={(e) => {
-              highlightGestureRef.current = { startY: e.clientY, moved: false };
-              suppressHighlightTapRef.current = false;
-            }}
-            onPointerMove={(e) => {
-              const g = highlightGestureRef.current;
-              if (!g) return;
-              const dy = e.clientY - g.startY;
-              if (dy > 18) {
-                g.moved = true;
-                suppressHighlightTapRef.current = true;
-              }
-              if (dy > 90) {
-                highlightGestureRef.current = null;
-                setActiveHighlight(null);
-              }
-            }}
-            onPointerUp={() => {
-              highlightGestureRef.current = null;
-              window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
-            }}
-            onPointerCancel={() => {
-              highlightGestureRef.current = null;
-              window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
-            }}
-          />
-          <button
-            type="button"
-            className="absolute inset-y-0 right-0 w-1/2 border-none bg-transparent z-30"
-            aria-label="Next photo"
-            onClick={() => {
-              if (suppressHighlightTapRef.current) return;
-              if (activeHighlightIdx === 0) {
-                setActiveHighlightIdx(1);
-                return;
-              }
-              const shown = highlights.slice(0, 2);
-              const nextPos = activeHighlightPos + 1;
-              if (nextPos < shown.length) {
-                const next = shown[nextPos];
-                if (!next) return;
-                setHlFade(true);
-                window.setTimeout(() => {
-                  setActiveHighlightPos(nextPos);
-                  setActiveHighlightIdx(0);
-                  setActiveHighlight(next);
-                  setHlFade(false);
-                }, 120);
-                return;
-              }
-              setActiveHighlight(null);
-            }}
-            onPointerDown={(e) => {
-              highlightGestureRef.current = { startY: e.clientY, moved: false };
-              suppressHighlightTapRef.current = false;
-            }}
-            onPointerMove={(e) => {
-              const g = highlightGestureRef.current;
-              if (!g) return;
-              const dy = e.clientY - g.startY;
-              if (dy > 18) {
-                g.moved = true;
-                suppressHighlightTapRef.current = true;
-              }
-              if (dy > 90) {
-                highlightGestureRef.current = null;
-                setActiveHighlight(null);
-              }
-            }}
-            onPointerUp={() => {
-              highlightGestureRef.current = null;
-              window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
-            }}
-            onPointerCancel={() => {
-              highlightGestureRef.current = null;
-              window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
-            }}
-          />
-        </div>
-      )}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {(() => {
+                  const active = activeHighlight.photos?.[activeHighlightIdx];
+                  if (!active) return null;
+
+                  const isVideo = isHighlightVideoUrl(active.url);
+                  const hasImagePoster = !!(active.poster_url || active.thumb_url);
+                  const placeholderImage = hasImagePoster
+                    ? (active.poster_url || active.thumb_url)
+                    : (!isVideo ? active.url : null);
+
+                  return (
+                    <>
+                      {placeholderImage && (
+                        <img
+                          src={placeholderImage as string}
+                          alt=""
+                          aria-hidden
+                          className="absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                          draggable={false}
+                        />
+                      )}
+
+                      {isVideo ? (
+                        <video
+                          src={active.url.includes("#") ? active.url : `${active.url}#t=0.001`}
+                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                            activeHighlightMediaReady || !placeholderImage ? "opacity-100" : "opacity-0"
+                          }`}
+                          playsInline
+                          autoPlay
+                          muted
+                          loop
+                          onLoadedData={() => setActiveHighlightMediaReady(true)}
+                        />
+                      ) : (
+                        <img
+                          src={active.url}
+                          alt=""
+                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                            activeHighlightMediaReady ? "opacity-100" : "opacity-0"
+                          }`}
+                          draggable={false}
+                          onLoad={() => setActiveHighlightMediaReady(true)}
+                        />
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
+              <button
+                type="button"
+                className="absolute inset-y-0 left-0 w-1/2 border-none bg-transparent z-40"
+                aria-label="Previous photo"
+                onClick={() => {
+                  if (activeHighlightIdx === 1) {
+                    setActiveHighlightIdx(0);
+                    setActiveHighlightMediaReady(false);
+                    return;
+                  }
+                  setActiveHighlight(null);
+                }}
+              />
+
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 w-1/2 border-none bg-transparent z-40"
+                aria-label="Next photo"
+                onClick={() => {
+                  if (activeHighlightIdx === 0) {
+                    setActiveHighlightIdx(1);
+                    setActiveHighlightMediaReady(false);
+                    return;
+                  }
+                  setActiveHighlight(null);
+                }}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
