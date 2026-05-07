@@ -553,21 +553,16 @@ export type Highlight = {
   photos: Array<{ id: string; url: string; thumb_url: string | null; poster_url: string | null; sort_index: 1 | 2 }>;
 };
 
-export async function getHighlightsByUser(userId: string): Promise<Highlight[]> {
-  const { data, error } = await supabase
-    .from("highlights")
-    .select("id, user_id, slot, created_at, highlight_photos(id, url, thumb_url, poster_url, sort_index)")
-    .eq("user_id", userId)
-    .order("slot", { ascending: true });
-  if (error) throw error;
-  const rows = (data || []) as Array<{
-    id: string;
-    user_id: string;
-    slot: number;
-    created_at: string;
-    highlight_photos?: Array<{ id: string; url: string; thumb_url?: string | null; poster_url?: string | null; sort_index: number }>;
-  }>;
-  return rows.map((h) => ({
+type HighlightDbRow = {
+  id: string;
+  user_id: string;
+  slot: number;
+  created_at: string;
+  highlight_photos?: Array<{ id: string; url: string; thumb_url?: string | null; poster_url?: string | null; sort_index: number }>;
+};
+
+function mapHighlightRow(h: HighlightDbRow): Highlight {
+  return {
     id: h.id,
     user_id: h.user_id,
     slot: (h.slot === 2 ? 2 : 1) as 1 | 2,
@@ -582,7 +577,29 @@ export async function getHighlightsByUser(userId: string): Promise<Highlight[]> 
         poster_url: p.poster_url ?? null,
         sort_index: (p.sort_index === 2 ? 2 : 1) as 1 | 2,
       })),
-  }));
+  };
+}
+
+export async function getHighlightsByUser(userId: string): Promise<Highlight[]> {
+  const { data, error } = await supabase
+    .from("highlights")
+    .select("id, user_id, slot, created_at, highlight_photos(id, url, thumb_url, poster_url, sort_index)")
+    .eq("user_id", userId)
+    .order("slot", { ascending: true });
+  if (error) throw error;
+  const rows = (data || []) as HighlightDbRow[];
+  return rows.map(mapHighlightRow);
+}
+
+export async function getHighlightById(highlightId: string): Promise<Highlight | null> {
+  const { data, error } = await supabase
+    .from("highlights")
+    .select("id, user_id, slot, created_at, highlight_photos(id, url, thumb_url, poster_url, sort_index)")
+    .eq("id", highlightId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return mapHighlightRow(data as HighlightDbRow);
 }
 
 export async function createHighlight(
@@ -611,6 +628,50 @@ export async function createHighlight(
   if (pErr) throw pErr;
 
   return highlight;
+}
+
+/** Open sell/service listings on someone’s profile storefront. */
+export type StorefrontListingItem = {
+  id: string;
+  title: string;
+  kind: "sell" | "service";
+  amount_per_person: number;
+  image_url: string | null;
+};
+
+export async function getUserListings(userId: string): Promise<StorefrontListingItem[]> {
+  const { data, error } = await supabase
+    .from("functions")
+    .select("id, title, location, amount_per_person, image_url")
+    .eq("host_id", userId)
+    .eq("status", "open")
+    .in("location", ["__SELL__", "__SERVICE__"])
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return ((data || []) as { id: string; title: string; location: string | null; amount_per_person: number | null; image_url: string | null }[]).map(
+    (row) => ({
+      id: row.id,
+      title: row.title,
+      kind: row.location === "__SELL__" ? ("sell" as const) : ("service" as const),
+      amount_per_person: row.amount_per_person ?? 0,
+      image_url: row.image_url ?? null,
+    }),
+  );
+}
+
+/** Host marks a sell/service listing inactive (schema: `cancelled`). */
+export async function cancelHostListing(hostId: string, functionId: string) {
+  const { error } = await supabase.from("functions").update({ status: "cancelled" }).eq("id", functionId).eq("host_id", hostId);
+  if (error) throw error;
+}
+
+/** One payer covers unpaid tickets for themselves + friends (event pay functions only). Pass friend user ids only; server merges payer. */
+export async function payForFunctionGroup(functionId: string, coveredFriendUserIds: string[]) {
+  const { error } = await supabase.rpc("pay_for_function_group", {
+    p_function_id: functionId,
+    p_covered_user_ids: coveredFriendUserIds,
+  });
+  if (error) throw error;
 }
 
 // ─── Plans ───────────────────────────────────────────
@@ -866,7 +927,8 @@ export type DmSharePayload =
   | { kind: "plan"; plan_id: string }
   | { kind: "function"; function_id: string }
   | { kind: "listing"; function_id: string; listing_kind: "sell" | "service" }
-  | { kind: "profile"; user_id: string };
+  | { kind: "profile"; user_id: string }
+  | { kind: "highlight"; highlight_id: string; user_id: string };
 
 export async function sendDmShareMessage(conversationId: string, senderId: string, payload: DmSharePayload) {
   const { error } = await supabase.from("dm_messages").insert({
@@ -1117,7 +1179,7 @@ export async function getBusinessDashboard(userId: string) {
     });
   }
 
-  const activeListingItems = listings.slice(0, 3).map((l) => {
+  const activeListingItems = listings.map((l) => {
     const paidCount = paidByListing[l.id] || 0;
     const cap = l.max_capacity;
     const remaining = cap != null ? Math.max(0, cap - paidCount) : null;
@@ -1140,6 +1202,7 @@ export async function getBusinessDashboard(userId: string) {
     activeListings,
     sellActive,
     serviceActive,
+    listings: activeListingItems,
   };
 }
 

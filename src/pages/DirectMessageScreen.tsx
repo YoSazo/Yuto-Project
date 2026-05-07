@@ -14,12 +14,15 @@ import {
   sendDmMessage,
   sendDmShareMessage,
   upsertDmBusinessContext,
+  getHighlightById,
   supabase,
   type DmMessage,
   type DmSharePayload,
+  type Highlight,
 } from "../lib/supabase";
 import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
 import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
+import { DmSharedHighlightCard } from "../components/dm/DmSharedHighlightCard";
 import type { Plan, FunctionListing } from "./home/types";
 import { PlanCard } from "../components/cards/PlanCard";
 import { FunctionCard } from "../components/cards/FunctionCard";
@@ -48,6 +51,7 @@ export default function DirectMessageScreen() {
     messages.length,
   );
   const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
+  const [highlightShareCache, setHighlightShareCache] = useState<Record<string, { highlight: Highlight; owner: ProfileRow }>>({});
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
@@ -63,6 +67,9 @@ export default function DirectMessageScreen() {
       return { kind: "listing", function_id: p.function_id, listing_kind: p.listing_kind };
     }
     if (p.kind === "profile" && typeof p.user_id === "string") return { kind: "profile", user_id: p.user_id };
+    if (p.kind === "highlight" && typeof p.highlight_id === "string" && typeof p.user_id === "string") {
+      return { kind: "highlight", highlight_id: p.highlight_id, user_id: p.user_id };
+    }
     return null;
   };
 
@@ -234,32 +241,41 @@ export default function DirectMessageScreen() {
       .filter((x): x is { id: string; payload: DmSharePayload } => !!x.payload && x.payload.kind !== "profile");
 
     const missing = shares.filter((s) => {
-      const key = s.payload.kind === "plan" ? `plan:${s.payload.plan_id}` : `fn:${s.payload.function_id}`;
-      return !shareCache[key];
+      if (s.payload.kind === "highlight") return false;
+      if (s.payload.kind === "plan") return !shareCache[`plan:${s.payload.plan_id}`];
+      if (s.payload.kind === "function" || s.payload.kind === "listing") return !shareCache[`fn:${s.payload.function_id}`];
+      return false;
     });
     if (missing.length === 0) return;
 
     let cancelled = false;
     (async () => {
       try {
-        const { data: planRows, error: planErr } = await supabase
-          .from("plans")
-          .select("*, creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url), plan_members(id, user_id, profiles(id, username, display_name, avatar_url))")
-          .in(
-            "id",
-            missing.filter((m) => m.payload.kind === "plan").map((m) => (m.payload as any).plan_id),
-          );
+        const planIds = missing.filter((m) => m.payload.kind === "plan").map((m) => (m.payload as { plan_id: string }).plan_id);
+        const fnIds = missing
+          .filter((m) => m.payload.kind === "function" || m.payload.kind === "listing")
+          .map((m) => (m.payload as { function_id: string }).function_id);
+
+        const { data: planRows, error: planErr } =
+          planIds.length === 0
+            ? { data: [] as Record<string, unknown>[], error: null }
+            : await supabase
+                .from("plans")
+                .select(
+                  "*, creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url), plan_members(id, user_id, profiles(id, username, display_name, avatar_url))",
+                )
+                .in("id", planIds);
         if (planErr) throw planErr;
 
-        const { data: fnRows, error: fnErr } = await supabase
-          .from("functions")
-          .select("*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))")
-          .in(
-            "id",
-            missing
-              .filter((m) => m.payload.kind !== "plan")
-              .map((m) => (m.payload as any).function_id),
-          );
+        const { data: fnRows, error: fnErr } =
+          fnIds.length === 0
+            ? { data: [] as Record<string, unknown>[], error: null }
+            : await supabase
+                .from("functions")
+                .select(
+                  "*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, profiles(id, username, display_name, avatar_url))",
+                )
+                .in("id", fnIds);
         if (fnErr) throw fnErr;
 
         if (cancelled) return;
@@ -278,6 +294,42 @@ export default function DirectMessageScreen() {
       cancelled = true;
     };
   }, [messages, shareCache, conversationId]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    const hlShares = messages
+      .map((m) => ({ id: m.id, payload: parseShare(m) }))
+      .filter((x): x is { id: string; payload: Extract<DmSharePayload, { kind: "highlight" }> } => x.payload?.kind === "highlight");
+    const missing = hlShares.filter((s) => !highlightShareCache[`hl:${s.payload.highlight_id}`]);
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        for (const s of missing) {
+          const hid = s.payload.highlight_id;
+          const ownerId = s.payload.user_id;
+          const [hl, ownerRes] = await Promise.all([
+            getHighlightById(hid),
+            supabase.from("profiles").select("id, username, display_name, avatar_url").eq("id", ownerId).single(),
+          ]);
+          if (cancelled) return;
+          if (hl && ownerRes.data) {
+            setHighlightShareCache((prev) => ({
+              ...prev,
+              [`hl:${hid}`]: { highlight: hl, owner: ownerRes.data as ProfileRow },
+            }));
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, highlightShareCache, conversationId]);
 
   return (
     <div className="h-[100dvh] flex flex-col bg-white">
@@ -309,8 +361,11 @@ export default function DirectMessageScreen() {
               const mine = m.sender_id === user?.id;
               const share = parseShare(m);
               const profileShare = share?.kind === "profile" ? share : null;
+              const hlShare = share?.kind === "highlight" ? share : null;
               const listedShare =
-                share && share.kind !== "profile" ? (share as Exclude<DmSharePayload, { kind: "profile" }>) : null;
+                share && share.kind !== "profile" && share.kind !== "highlight"
+                  ? (share as Exclude<DmSharePayload, { kind: "profile" } | { kind: "highlight" }>)
+                  : null;
               const shareKey =
                 listedShare?.kind === "plan"
                   ? `plan:${listedShare.plan_id}`
@@ -318,6 +373,8 @@ export default function DirectMessageScreen() {
                     ? `fn:${listedShare.function_id}`
                     : null;
               const sharedItem = shareKey ? shareCache[shareKey] : null;
+              const hlKey = hlShare ? `hl:${hlShare.highlight_id}` : null;
+              const hlPack = hlKey ? highlightShareCache[hlKey] : null;
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   {profileShare ? (
@@ -325,6 +382,28 @@ export default function DirectMessageScreen() {
                       {user?.id ? (
                         <DmSharedProfileCard viewerUserId={user.id} sharedUserId={profileShare.user_id} />
                       ) : null}
+                    </div>
+                  ) : hlShare ? (
+                    <div className="max-w-[95%] w-[95%] md:w-[320px]">
+                      {hlPack ? (
+                        <DmSharedHighlightCard
+                          highlight={hlPack.highlight}
+                          ownerName={hlPack.owner.display_name}
+                          ownerAvatarUrl={hlPack.owner.avatar_url}
+                          onOpen={() => {
+                            if (!user) return;
+                            if (hlPack.owner.id === user.id) {
+                              navigate("/profile", { state: { openHighlightId: hlPack.highlight.id } });
+                            } else {
+                              navigate(`/user/${hlPack.owner.id}`, { state: { openHighlightId: hlPack.highlight.id } });
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 font-semibold">
+                          Loading…
+                        </div>
+                      )}
                     </div>
                   ) : listedShare ? (
                     <div className="max-w-[95%] w-[95%] md:w-[420px]">

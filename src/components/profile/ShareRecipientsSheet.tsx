@@ -26,6 +26,8 @@ function shareSheetTitle(payload: DmSharePayload): string {
       return "Share function";
     case "listing":
       return payload.listing_kind === "sell" ? "Share selling post" : "Share service";
+    case "highlight":
+      return "Share highlight";
     default:
       return "Send to";
   }
@@ -33,6 +35,7 @@ function shareSheetTitle(payload: DmSharePayload): string {
 
 function emptyCopy(payload: DmSharePayload): string {
   if (payload.kind === "profile") return "Add friends or join a group to share profiles.";
+  if (payload.kind === "highlight") return "Add friends or join a group to share this highlight.";
   return "Add friends or join a group to share.";
 }
 

@@ -12,6 +12,7 @@ import {
   listMyGroupChats,
   listMyBusinessDmContexts,
   getBusinessDashboard,
+  cancelHostListing,
   supabase,
   type DmConversation,
   type GroupChatRow,
@@ -95,8 +96,10 @@ export default function MessagesScreen() {
     activeListings: number;
     sellActive: number;
     serviceActive: number;
+    listings: { id: string; title: string; kind: "sell" | "service"; remaining: number | null }[];
   } | null>(null);
   const [bizTab, setBizTab] = useState<"revenue" | "orders" | "listings">("revenue");
+  const [listingBusyId, setListingBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -345,6 +348,56 @@ export default function MessagesScreen() {
               </div>
             )}
           </div>
+
+          {bizTab === "listings" && user && (bizDashboard?.listings?.length ?? 0) > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1">Active listings</p>
+              {(bizDashboard?.listings ?? []).map((row) => (
+                <div
+                  key={row.id}
+                  className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex flex-col gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="font-bold text-black truncate">{row.title}</p>
+                    <p className="text-sm text-gray-400">
+                      {row.kind === "sell" ? "Sell" : "Service"}
+                      {row.remaining != null ? ` · ${row.remaining} left` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate("/home", { state: { focus: { kind: "function", id: row.id } } })}
+                      className="px-4 py-2 rounded-full bg-black text-white text-sm font-bold"
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      disabled={listingBusyId === row.id}
+                      onClick={async () => {
+                        if (!user) return;
+                        setListingBusyId(row.id);
+                        try {
+                          await cancelHostListing(user.id, row.id);
+                          const dash = await getBusinessDashboard(user.id).catch(() => null);
+                          setBizDashboard(dash);
+                        } catch (e) {
+                          console.error(e);
+                          alert("Couldn’t update listing. Try again.");
+                        } finally {
+                          setListingBusyId(null);
+                        }
+                      }}
+                      className="px-4 py-2 rounded-full bg-gray-100 text-black text-sm font-bold disabled:opacity-50"
+                    >
+                      {listingBusyId === row.id ? "…" : "Mark inactive"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1">Orders & bookings</p>

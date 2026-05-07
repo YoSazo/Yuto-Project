@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Ticket } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
+import UserAvatar from "../UserAvatar";
 
 function extractFulfillmentLine(description: string | null): string | null {
   if (!description) return null;
@@ -25,11 +26,25 @@ export function FunctionTicketModal({
   attendeeDisplayName,
   userId,
   onClose,
+  showGroupBuy,
+  groupBuyFriends,
+  groupBuySelectedIds,
+  onToggleGroupBuyFriend,
+  onBuyForGroupAndSplit,
+  groupBuyBusy,
+  groupBuyError,
 }: {
   functionItem: FunctionListing;
   attendeeDisplayName: string;
   userId: string;
   onClose: () => void;
+  showGroupBuy?: boolean;
+  groupBuyFriends?: { id: string; username: string; display_name: string; avatar_url: string | null }[];
+  groupBuySelectedIds?: string[];
+  onToggleGroupBuyFriend?: (friendUserId: string) => void;
+  onBuyForGroupAndSplit?: () => void;
+  groupBuyBusy?: boolean;
+  groupBuyError?: string;
 }) {
   const [tick, setTick] = useState(() => Date.now());
 
@@ -150,6 +165,49 @@ export function FunctionTicketModal({
                 Refreshes in ~{Math.ceil(nextRefreshMs / 1000)}s · Animated {intentLabel.toLowerCase()} is harder to fake with a screenshot
               </p>
             </div>
+
+            {showGroupBuy && (
+              <div className="mt-5 pt-4 border-t border-gray-100 space-y-3 text-left">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Buy for group &amp; split</p>
+                <p className="text-xs text-gray-500 leading-snug">
+                  Pay for friends who don&apos;t have a ticket yet, then start a Yuto split and group chat with the same people.
+                </p>
+                {groupBuyFriends && groupBuyFriends.length > 0 ? (
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      {groupBuyFriends.map((f) => {
+                        const sel = groupBuySelectedIds?.includes(f.id);
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => onToggleGroupBuyFriend?.(f.id)}
+                            disabled={groupBuyBusy}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-full border-2 text-sm font-semibold transition-all ${
+                              sel ? "bg-black border-black text-white" : "bg-white border-gray-200 text-black"
+                            } disabled:opacity-50`}
+                          >
+                            <UserAvatar name={f.display_name} avatarUrl={f.avatar_url} size="sm" className={sel ? "ring-2 ring-white" : ""} />
+                            <span className="truncate max-w-[140px]">{f.display_name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {groupBuyError ? <p className="text-xs text-red-500 font-semibold">{groupBuyError}</p> : null}
+                    <button
+                      type="button"
+                      disabled={groupBuyBusy || !(groupBuySelectedIds && groupBuySelectedIds.length > 0)}
+                      onClick={() => onBuyForGroupAndSplit?.()}
+                      className="w-full py-3.5 rounded-2xl font-bold text-white bg-gray-900 disabled:bg-gray-200 disabled:text-gray-400 tap-scale"
+                    >
+                      {groupBuyBusy ? "Working…" : "Pay & create split + chat"}
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400">Add friends on Yuto to cover their tickets from here.</p>
+                )}
+              </div>
+            )}
 
             <p className="text-[11px] text-gray-400 text-center mt-5 leading-snug px-2">
               Show this live screen. The border, shimmer, and code keep moving — a still image won&apos;t match.

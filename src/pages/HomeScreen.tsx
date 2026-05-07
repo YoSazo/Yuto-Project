@@ -25,6 +25,10 @@ import {
   upsertDmBusinessContext,
   getSavedPhoneNumber,
   getMyDmAndGroupUnreadTotal,
+  getFriends,
+  createGroup,
+  createGroupChat,
+  payForFunctionGroup,
   type DmSharePayload,
 } from "../lib/supabase";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
@@ -89,6 +93,12 @@ export default function HomeScreen() {
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
   const [activeFunctionThread, setActiveFunctionThread] = useState<FunctionListing | null>(null);
   const [functionTicket, setFunctionTicket] = useState<FunctionListing | null>(null);
+  const [groupBuyFriends, setGroupBuyFriends] = useState<
+    { id: string; username: string; display_name: string; avatar_url: string | null }[]
+  >([]);
+  const [groupBuySelectedIds, setGroupBuySelectedIds] = useState<string[]>([]);
+  const [groupBuyBusy, setGroupBuyBusy] = useState(false);
+  const [groupBuyError, setGroupBuyError] = useState("");
 
   // Plan updates state
   const [planUpdates, setPlanUpdates] = useState<Record<string, PlanUpdate[]>>({});
@@ -170,6 +180,43 @@ export default function HomeScreen() {
       setFunctionPayTarget(null);
     }
   }, [functionsFeed, functionPayTarget, user]);
+
+  useEffect(() => {
+    setGroupBuyError("");
+    setGroupBuySelectedIds([]);
+    if (!user || !functionTicket) {
+      setGroupBuyFriends([]);
+      return;
+    }
+    const fn = functionsFeed.find((f) => f.id === functionTicket.id) ?? functionTicket;
+    const isSell = fn.location === "__SELL__";
+    const isService = fn.location === "__SERVICE__";
+    const isListing = isSell || isService;
+    const me = (fn.function_members ?? []).find((m) => m.user_id === user.id);
+    const eligible = !isListing && fn.mode === "pay" && me?.has_paid;
+    if (!eligible) {
+      setGroupBuyFriends([]);
+      return;
+    }
+    let cancelled = false;
+    void getFriends(user.id)
+      .then((data) => {
+        if (cancelled) return;
+        const list = (data as { requester_id: string; addressee?: any; requester?: any }[])
+          .map((f) => (f.requester_id === user.id ? f.addressee : f.requester))
+          .filter(Boolean) as { id: string; username: string; display_name: string; avatar_url: string | null }[];
+        const unpaid = list.filter(
+          (p) => !(fn.function_members ?? []).some((m) => m.user_id === p.id && m.has_paid),
+        );
+        setGroupBuyFriends(unpaid);
+      })
+      .catch(() => {
+        if (!cancelled) setGroupBuyFriends([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, functionTicket, functionsFeed]);
 
   const loadFeed = async () => {
     if (!user) return;
@@ -473,6 +520,46 @@ export default function HomeScreen() {
     }
   };
 
+  const handleBuyForGroupAndSplit = async () => {
+    if (!user || !functionTicket) return;
+    const fn = functionsFeed.find((f) => f.id === functionTicket.id) ?? functionTicket;
+    const friendIds = groupBuySelectedIds.filter((id) => id !== user.id);
+    if (friendIds.length === 0) {
+      setGroupBuyError("Pick at least one friend.");
+      return;
+    }
+    setGroupBuyBusy(true);
+    setGroupBuyError("");
+    try {
+      for (const fid of friendIds) {
+        await joinFunction(fn.id, fid);
+      }
+      await payForFunctionGroup(fn.id, friendIds);
+      await loadFeed();
+      const totalCharged = fn.amount_per_person * (1 + friendIds.length);
+      const perPerson = Math.ceil(totalCharged / (1 + friendIds.length));
+      const group = await createGroup(`${fn.title} Tickets`, totalCharged, perPerson, user.id, [user.id, ...friendIds], "single");
+      try {
+        await createGroupChat(user.id, friendIds, `${fn.title} Tickets`);
+      } catch (e) {
+        console.error("Group chat after split:", e);
+      }
+      setFunctionTicket(null);
+      setGroupBuySelectedIds([]);
+      navigate(`/yuto/${group.id}`);
+    } catch (e) {
+      console.error(e);
+      const msg =
+        (e as { message?: string })?.message ||
+        (e as { error?: { message?: string } })?.error?.message ||
+        (e instanceof Error ? e.message : "") ||
+        "Couldn’t complete group checkout.";
+      setGroupBuyError(msg);
+    } finally {
+      setGroupBuyBusy(false);
+    }
+  };
+
   const openFunctionAttendeeChat = async (f: FunctionListing) => {
     if (!user) return;
     try {
@@ -725,6 +812,20 @@ export default function HomeScreen() {
           userId={user.id}
           attendeeDisplayName={profile?.display_name?.trim() || profile?.username?.trim() || "Guest"}
           onClose={() => setFunctionTicket(null)}
+          showGroupBuy={(() => {
+            const fn = functionsFeed.find((f) => f.id === functionTicket.id) ?? functionTicket;
+            const isListing = fn.location === "__SELL__" || fn.location === "__SERVICE__";
+            const me = (fn.function_members ?? []).find((m) => m.user_id === user.id);
+            return !isListing && fn.mode === "pay" && !!me?.has_paid;
+          })()}
+          groupBuyFriends={groupBuyFriends}
+          groupBuySelectedIds={groupBuySelectedIds}
+          onToggleGroupBuyFriend={(fid) =>
+            setGroupBuySelectedIds((prev) => (prev.includes(fid) ? prev.filter((x) => x !== fid) : [...prev, fid]))
+          }
+          onBuyForGroupAndSplit={() => void handleBuyForGroupAndSplit()}
+          groupBuyBusy={groupBuyBusy}
+          groupBuyError={groupBuyError}
         />
       )}
 

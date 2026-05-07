@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, type ReactNode, type ChangeEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -19,7 +19,8 @@ import {
 import UserAvatar from "../components/UserAvatar";
 import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
-import { Wallet, History, Plus, Copy, Check } from "lucide-react";
+import { Wallet, History, Plus, Copy, Check, Send } from "lucide-react";
+import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 
 
 function ChevronRight() {
@@ -84,6 +85,7 @@ const STAT_POSITIONS = [
 
 export default function ProfileScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, profile, signOut, refreshProfile } = useAuth();
   const [stats, setStats] = useState({ totalYutos: 0, totalSpent: 0, friendsCount: 0, plansCount: 0 });
   const [pendingCount, setPendingCount] = useState(0);
@@ -117,6 +119,7 @@ export default function ProfileScreen() {
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
   const [activeHighlightMediaReady, setActiveHighlightMediaReady] = useState(false);
+  const [shareHighlightOpen, setShareHighlightOpen] = useState(false);
 
   const activeHighlightMediaKey =
     activeHighlight?.photos?.[activeHighlightIdx]?.url ? `${activeHighlight.id}:${activeHighlightIdx}:${activeHighlight.photos[activeHighlightIdx]!.url}` : "";
@@ -312,6 +315,18 @@ export default function ProfileScreen() {
       .then((rows) => setHighlights(rows))
       .catch(() => setHighlights([]));
   }, [user]);
+
+  useEffect(() => {
+    const st = location.state as { openHighlightId?: string } | null;
+    const hid = st?.openHighlightId;
+    if (!hid || highlights.length === 0) return;
+    const found = highlights.find((h) => h.id === hid);
+    if (found) {
+      setActiveHighlightIdx(0);
+      setActiveHighlightMediaReady(false);
+      setActiveHighlight(found);
+    }
+  }, [location.state, highlights]);
 
   const handlePickHighlight = async (idx: 0 | 1, e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -872,16 +887,29 @@ export default function ProfileScreen() {
                 if (info.offset.y > 100 || info.velocity.y > 500) setActiveHighlight(null);
               }}
             >
-              {/* Progress bars */}
-              <div className="absolute top-3 left-3 right-3 z-50 flex gap-2">
-                {(() => {
-                  const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
-                  return Array.from({ length: total }).map((_, i) => (
-                    <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
-                      <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
-                    </div>
-                  ));
-                })()}
+              {/* Progress bars + share */}
+              <div className="absolute top-3 left-3 right-3 z-50 flex items-center gap-2">
+                <div className="flex flex-1 gap-2 min-w-0">
+                  {(() => {
+                    const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
+                    return Array.from({ length: total }).map((_, i) => (
+                      <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                        <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
+                      </div>
+                    ));
+                  })()}
+                </div>
+                {user && (
+                  <button
+                    type="button"
+                    onClick={() => setShareHighlightOpen(true)}
+                    className="shrink-0 w-10 h-10 rounded-xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
+                    aria-label="Share highlight"
+                    title="Share highlight"
+                  >
+                    <Send size={18} />
+                  </button>
+                )}
               </div>
 
               <div className="absolute inset-0 flex items-center justify-center">
@@ -1024,6 +1052,15 @@ export default function ProfileScreen() {
 
 
       {/* Withdraw Modal */}
+      {user && activeHighlight && (
+        <ShareRecipientsSheet
+          open={shareHighlightOpen}
+          onClose={() => setShareHighlightOpen(false)}
+          currentUserId={user.id}
+          sharePayload={{ kind: "highlight", highlight_id: activeHighlight.id, user_id: user.id }}
+        />
+      )}
+
       {showWithdrawModal && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
           <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">

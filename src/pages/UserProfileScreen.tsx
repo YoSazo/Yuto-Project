@@ -1,11 +1,21 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, getProfile, getFriends, sendFriendRequest, getHighlightsByUser, getOrCreateDmConversation, type Highlight } from "../lib/supabase";
+import {
+  supabase,
+  getProfile,
+  getFriends,
+  sendFriendRequest,
+  getHighlightsByUser,
+  getUserListings,
+  getOrCreateDmConversation,
+  type Highlight,
+  type StorefrontListingItem,
+} from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
-import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Send } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Send, Store } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 
 const STAT_POSITIONS = [
@@ -18,6 +28,7 @@ const STAT_POSITIONS = [
 export default function UserProfileScreen() {
   const { id: targetUserId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   
   const [profile, setProfile] = useState<any>(null);
@@ -37,6 +48,21 @@ export default function UserProfileScreen() {
     setActiveHighlightMediaReady(false);
   }, [activeHighlightMediaKey]);
   const [sendProfileOpen, setSendProfileOpen] = useState(false);
+  const [userListings, setUserListings] = useState<StorefrontListingItem[]>([]);
+  const [shareHighlightOpen, setShareHighlightOpen] = useState(false);
+
+  useEffect(() => {
+    const st = location.state as { openHighlightId?: string } | null;
+    const hid = st?.openHighlightId;
+    if (!hid || highlights.length === 0) return;
+    const found = highlights.find((h) => h.id === hid);
+    if (found) {
+      setActiveHighlightIdx(0);
+      setActiveHighlightMediaReady(false);
+      setActiveHighlight(found);
+    }
+  }, [location.state, highlights]);
+
   useEffect(() => {
     // If they click their own profile, redirect to their main profile tab
     if (targetUserId === user?.id) {
@@ -55,7 +81,7 @@ export default function UserProfileScreen() {
       setProfile(userProfile);
 
       // 2. Load Stats (Safe queries that don't violate RLS)
-      const [statsRes, plansRes, friendsRes, friendshipRes, highlightRows] = await Promise.all([
+      const [statsRes, plansRes, friendsRes, friendshipRes, highlightRows, listingRows] = await Promise.all([
         supabase.from("group_members").select("has_paid, groups(per_person)").eq("user_id", targetUserId),
         supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", targetUserId),
         getFriends(targetUserId).catch(() => []), 
@@ -64,6 +90,7 @@ export default function UserProfileScreen() {
           .or(`and(requester_id.eq.${user.id},addressee_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},addressee_id.eq.${user.id})`)
           .maybeSingle(),
         getHighlightsByUser(targetUserId).catch(() => []),
+        getUserListings(targetUserId).catch(() => [] as StorefrontListingItem[]),
       ]);
 
       const membersData = statsRes.data || [];
@@ -77,6 +104,7 @@ export default function UserProfileScreen() {
         plansCount: plansRes.count || 0,
       });
       setHighlights(highlightRows as Highlight[]);
+      setUserListings(listingRows as StorefrontListingItem[]);
 
       // 3. Determine Friendship Status
       if (friendshipRes.data) {
@@ -162,6 +190,15 @@ export default function UserProfileScreen() {
         />
       )}
 
+      {user && activeHighlight && targetUserId && (
+        <ShareRecipientsSheet
+          open={shareHighlightOpen}
+          onClose={() => setShareHighlightOpen(false)}
+          currentUserId={user.id}
+          sharePayload={{ kind: "highlight", highlight_id: activeHighlight.id, user_id: targetUserId }}
+        />
+      )}
+
       {/* Radial Graph */}
       <div className="relative w-full max-w-[380px] mx-auto flex-shrink-0" style={{ height: 380 }}>
         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 380 380" preserveAspectRatio="xMidYMid meet" style={{ zIndex: 1 }}>
@@ -218,6 +255,40 @@ export default function UserProfileScreen() {
         <p className="font-bold text-xl text-black">{userName}</p>
         <p className="text-sm text-gray-400">{userHandle}</p>
       </div>
+
+      {/* Storefront */}
+      {userListings.length > 0 && (
+        <div className="mb-8">
+          <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 text-center">Storefront</p>
+          <div className="grid grid-cols-2 gap-3">
+            {userListings.map((listing) => (
+              <button
+                key={listing.id}
+                type="button"
+                onClick={() => navigate("/home", { state: { focus: { kind: "function", id: listing.id } } })}
+                className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left tap-scale"
+              >
+                <div className="aspect-[4/3] bg-gray-100 relative">
+                  {listing.image_url ? (
+                    <img src={listing.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+                      <Store size={28} />
+                    </div>
+                  )}
+                  <span className="absolute top-2 left-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-black/80 text-white">
+                    {listing.kind === "sell" ? "Sell" : "Service"}
+                  </span>
+                </div>
+                <div className="p-3">
+                  <p className="font-bold text-black text-sm leading-snug line-clamp-2">{listing.title}</p>
+                  <p className="text-xs text-gray-500 mt-1 font-semibold">KSH {listing.amount_per_person.toLocaleString()}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Highlights (viewer) */}
       {highlights.length > 0 && (
@@ -323,15 +394,28 @@ export default function UserProfileScreen() {
                 if (info.offset.y > 100 || info.velocity.y > 500) setActiveHighlight(null);
               }}
             >
-              <div className="absolute top-3 left-3 right-3 z-50 flex gap-2">
-                {(() => {
-                  const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
-                  return Array.from({ length: total }).map((_, i) => (
-                    <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
-                      <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
-                    </div>
-                  ));
-                })()}
+              <div className="absolute top-3 left-3 right-3 z-50 flex items-center gap-2">
+                <div className="flex flex-1 gap-2 min-w-0">
+                  {(() => {
+                    const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
+                    return Array.from({ length: total }).map((_, i) => (
+                      <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                        <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
+                      </div>
+                    ));
+                  })()}
+                </div>
+                {user && targetUserId && (
+                  <button
+                    type="button"
+                    onClick={() => setShareHighlightOpen(true)}
+                    className="shrink-0 w-10 h-10 rounded-xl bg-white/15 text-white flex items-center justify-center hover:bg-white/25 border-none"
+                    aria-label="Share highlight"
+                    title="Share highlight"
+                  >
+                    <Send size={18} />
+                  </button>
+                )}
               </div>
 
               <div className="absolute inset-0 flex items-center justify-center">

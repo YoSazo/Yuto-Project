@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
 import { useAuth } from "../contexts/AuthContext";
-import { getFriends, createGroup } from "../lib/supabase";
+import { getFriends, createGroup, createGroupChat } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 
 interface Friend {
@@ -64,6 +64,11 @@ export default function SplitScreen() {
         [user.id, ...selectedFriends],
         "single"
       );
+      try {
+        await createGroupChat(user.id, selectedFriends, description.trim() || "Split");
+      } catch (e) {
+        console.error("Companion group chat after split:", e);
+      }
       navigate(`/yuto/${group.id}`);
     } catch (err) {
       console.error("Failed to create split:", err);

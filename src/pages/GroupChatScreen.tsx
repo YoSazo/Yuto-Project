@@ -17,10 +17,12 @@ import {
   sendGroupChatMessage,
   sendGroupChatShareMessage,
   setGroupChatTitle,
+  getHighlightById,
   supabase,
   type DmSharePayload,
   type GroupChatMessage,
   type GroupChatRow,
+  type Highlight,
 } from "../lib/supabase";
 import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
 import type { Plan, FunctionListing } from "./home/types";
@@ -29,6 +31,7 @@ import { FunctionCard } from "../components/cards/FunctionCard";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
+import { DmSharedHighlightCard } from "../components/dm/DmSharedHighlightCard";
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 
 function parseShare(m: GroupChatMessage): DmSharePayload | null {
@@ -46,8 +49,13 @@ function parseShare(m: GroupChatMessage): DmSharePayload | null {
     return { kind: "listing", function_id: p.function_id, listing_kind: p.listing_kind };
   }
   if (p.kind === "profile" && typeof p.user_id === "string") return { kind: "profile", user_id: p.user_id };
+  if (p.kind === "highlight" && typeof p.highlight_id === "string" && typeof p.user_id === "string") {
+    return { kind: "highlight", highlight_id: p.highlight_id, user_id: p.user_id };
+  }
   return null;
 }
+
+type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
 export default function GroupChatScreen() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -63,6 +71,7 @@ export default function GroupChatScreen() {
     null,
   );
   const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
+  const [highlightShareCache, setHighlightShareCache] = useState<Record<string, { highlight: Highlight; owner: ProfileRow }>>({});
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
@@ -149,9 +158,10 @@ export default function GroupChatScreen() {
       .filter((x): x is { id: string; payload: DmSharePayload } => !!x.payload && x.payload.kind !== "profile");
 
     const missing = shares.filter((s) => {
-      const key =
-        s.payload.kind === "plan" ? `plan:${s.payload.plan_id}` : `fn:${(s.payload as { function_id: string }).function_id}`;
-      return !shareCache[key];
+      if (s.payload.kind === "highlight") return false;
+      if (s.payload.kind === "plan") return !shareCache[`plan:${s.payload.plan_id}`];
+      if (s.payload.kind === "function" || s.payload.kind === "listing") return !shareCache[`fn:${(s.payload as { function_id: string }).function_id}`];
+      return false;
     });
     if (missing.length === 0) return;
 
@@ -159,7 +169,9 @@ export default function GroupChatScreen() {
     (async () => {
       try {
         const planIds = missing.filter((m) => m.payload.kind === "plan").map((m) => (m.payload as { plan_id: string }).plan_id);
-        const fnIds = missing.filter((m) => m.payload.kind !== "plan").map((m) => (m.payload as { function_id: string }).function_id);
+        const fnIds = missing
+          .filter((m) => m.payload.kind === "function" || m.payload.kind === "listing")
+          .map((m) => (m.payload as { function_id: string }).function_id);
 
         const planPromise =
           planIds.length === 0
@@ -202,6 +214,42 @@ export default function GroupChatScreen() {
       cancelled = true;
     };
   }, [messages, shareCache, groupId]);
+
+  useEffect(() => {
+    if (!groupId) return;
+    const hlShares = messages
+      .map((m) => ({ id: m.id, payload: parseShare(m) }))
+      .filter((x): x is { id: string; payload: Extract<DmSharePayload, { kind: "highlight" }> } => x.payload?.kind === "highlight");
+    const missing = hlShares.filter((s) => !highlightShareCache[`hl:${s.payload.highlight_id}`]);
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        for (const s of missing) {
+          const hid = s.payload.highlight_id;
+          const ownerId = s.payload.user_id;
+          const [hl, ownerRes] = await Promise.all([
+            getHighlightById(hid),
+            supabase.from("profiles").select("id, username, display_name, avatar_url").eq("id", ownerId).single(),
+          ]);
+          if (cancelled) return;
+          if (hl && ownerRes.data) {
+            setHighlightShareCache((prev) => ({
+              ...prev,
+              [`hl:${hid}`]: { highlight: hl, owner: ownerRes.data as ProfileRow },
+            }));
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, highlightShareCache, groupId]);
 
   const title = useMemo(() => meta?.title?.trim() || "Group chat", [meta]);
 
@@ -306,7 +354,11 @@ export default function GroupChatScreen() {
     }
   };
 
-  const renderListedShareBlock = (share: Exclude<DmSharePayload, { kind: "profile" }>, shareKey: string, mine: boolean) => {
+  const renderListedShareBlock = (
+    share: Exclude<DmSharePayload, { kind: "profile" } | { kind: "highlight" }>,
+    shareKey: string,
+    mine: boolean,
+  ) => {
     const sharedItem = shareCache[shareKey];
     const focusKind = share.kind === "plan" ? "plan" : "function";
     const focusId = share.kind === "plan" ? share.plan_id : share.function_id;
@@ -431,13 +483,16 @@ export default function GroupChatScreen() {
               const avatarUrl = mine ? profile?.avatar_url ?? null : m.sender?.avatar_url ?? null;
               const shareFull = parseShare(m);
               const profileShare = shareFull?.kind === "profile" ? shareFull : null;
+              const hlShare = shareFull?.kind === "highlight" ? shareFull : null;
               const listedShare =
-                shareFull && shareFull.kind !== "profile"
-                  ? (shareFull as Exclude<DmSharePayload, { kind: "profile" }>)
+                shareFull && shareFull.kind !== "profile" && shareFull.kind !== "highlight"
+                  ? (shareFull as Exclude<DmSharePayload, { kind: "profile" } | { kind: "highlight" }>)
                   : null;
               const shareKey =
                 listedShare?.kind === "plan" ? `plan:${listedShare.plan_id}` : listedShare ? `fn:${listedShare.function_id}` : null;
-              const isShareRow = !!(profileShare || (listedShare && shareKey));
+              const hlKey = hlShare ? `hl:${hlShare.highlight_id}` : null;
+              const hlPack = hlKey ? highlightShareCache[hlKey] : null;
+              const isShareRow = !!(profileShare || hlShare || (listedShare && shareKey));
 
               return (
                 <div
@@ -449,6 +504,23 @@ export default function GroupChatScreen() {
                     <span className="text-[11px] font-semibold text-gray-500 leading-none px-0.5">{label}</span>
                     {profileShare ? (
                       user?.id ? <DmSharedProfileCard viewerUserId={user.id} sharedUserId={profileShare.user_id} /> : null
+                    ) : hlShare && user ? (
+                      hlPack ? (
+                        <DmSharedHighlightCard
+                          highlight={hlPack.highlight}
+                          ownerName={hlPack.owner.display_name}
+                          ownerAvatarUrl={hlPack.owner.avatar_url}
+                          onOpen={() => {
+                            if (hlPack.owner.id === user.id) {
+                              navigate("/profile", { state: { openHighlightId: hlPack.highlight.id } });
+                            } else {
+                              navigate(`/user/${hlPack.owner.id}`, { state: { openHighlightId: hlPack.highlight.id } });
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 font-semibold">Loading…</div>
+                      )
                     ) : listedShare && shareKey ? (
                       renderListedShareBlock(listedShare, shareKey, mine)
                     ) : (
