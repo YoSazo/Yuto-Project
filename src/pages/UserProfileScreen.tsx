@@ -25,6 +25,7 @@ import UserAvatar from "../components/UserAvatar";
 import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
 import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Send, Store, Volume2, VolumeX } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
+import { ListingInquiryToSellerModal } from "../components/profile/ListingInquiryToSellerModal";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import type { FunctionListing } from "../lib/types";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
@@ -64,6 +65,7 @@ export default function UserProfileScreen() {
   const [hostedFunctions, setHostedFunctions] = useState<HostedFunctionItem[]>([]);
   const [shareHighlightOpen, setShareHighlightOpen] = useState(false);
   const [shareListingOpen, setShareListingOpen] = useState<StorefrontListingItem | null>(null);
+  const [listingInquiry, setListingInquiry] = useState<StorefrontListingItem | null>(null);
   const [showcaseTab, setShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
   const [ticketFunction, setTicketFunction] = useState<FunctionListing | null>(null);
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
@@ -346,6 +348,17 @@ export default function UserProfileScreen() {
         />
       )}
 
+      {user && targetUserId && listingInquiry && (
+        <ListingInquiryToSellerModal
+          open
+          onClose={() => setListingInquiry(null)}
+          buyerUserId={user.id}
+          sellerUserId={targetUserId}
+          listing={listingInquiry}
+          onSent={(convoId) => navigate(`/messages/${convoId}`, { state: { otherUserId: targetUserId } })}
+        />
+      )}
+
       {/* Radial Graph */}
       <div className="relative w-full max-w-[380px] mx-auto flex-shrink-0" style={{ height: 380 }}>
         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 380 380" preserveAspectRatio="xMidYMid meet" style={{ zIndex: 1 }}>
@@ -516,57 +529,76 @@ export default function UserProfileScreen() {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-5 w-full max-w-md mx-auto pb-4">
                 {(showcaseTab === "sell" ? sellListings : serviceListings).map((listing) => (
-                  <button
+                  <div
                     key={listing.id}
-                    type="button"
-                    onClick={() => navigate("/home", { state: { focus: { kind: "function", id: listing.id } } })}
-                    className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left tap-scale relative"
+                    className="rounded-3xl border border-gray-100 bg-white shadow-md overflow-hidden text-left"
                   >
-                    <div className="aspect-[4/3] bg-gray-100 relative">
-                      {listing.image_url ? (
-                        <img src={listing.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                          <Store size={28} />
-                        </div>
-                      )}
-                      <span className="absolute top-2 left-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-black/80 text-white">
-                        {listing.kind === "sell" ? "Sell" : "Service"}
-                      </span>
-                      {user && (
+                    <button
+                      type="button"
+                      className="w-full relative tap-scale bg-transparent border-none p-0 block"
+                      onClick={() => navigate("/home", { state: { focus: { kind: "function", id: listing.id } } })}
+                    >
+                      <div className="aspect-[4/5] bg-gray-100 relative max-h-[min(52vh,28rem)]">
+                        {listing.image_url ? (
+                          <img src={listing.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+                            <Store size={34} />
+                          </div>
+                        )}
+                        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-black/80 text-white">
+                          {listing.kind === "sell" ? "Sell" : "Service"}
+                        </span>
+                        {user && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setShareListingOpen(listing);
+                            }}
+                            className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 z-20 border-none"
+                            aria-label="Share listing"
+                            title="Share"
+                          >
+                            <Send size={16} className="-ml-0.5 mt-0.5" />
+                          </button>
+                        )}
+                      </div>
+                    </button>
+                    <div className="p-4 pb-5">
+                      <p className="font-extrabold text-black text-base leading-snug line-clamp-2">{listing.title}</p>
+                      <p className="text-sm text-gray-600 mt-2 font-bold">KSH {listing.amount_per_person.toLocaleString()}</p>
+                      <div className="mt-4 flex gap-3 items-stretch">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!user || !targetUserId) return;
+                            setListingInquiry(listing);
+                          }}
+                          className="shrink-0 w-[3.25rem] rounded-2xl bg-gray-100 hover:bg-gray-200 text-black flex items-center justify-center transition-colors tap-scale disabled:opacity-40"
+                          aria-label="Message about listing"
+                          title="Message seller"
+                          disabled={!user}
+                        >
+                          <MessageCircle size={22} strokeWidth={2} />
+                        </button>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setShareListingOpen(listing);
+                            void handleBuyListing(listing);
                           }}
-                          className="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 z-20 border-none"
-                          aria-label="Share listing"
-                          title="Share"
+                          className="flex-1 min-h-[3.25rem] rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors inline-flex items-center justify-center px-4"
                         >
-                          <Send size={14} className="-ml-0.5 mt-0.5" />
+                          {listing.kind === "service" ? "Book now" : "Buy now"}
                         </button>
-                      )}
+                      </div>
                     </div>
-                    <div className="p-3">
-                      <p className="font-bold text-black text-sm leading-snug line-clamp-2">{listing.title}</p>
-                      <p className="text-xs text-gray-500 mt-1 font-semibold">KSH {listing.amount_per_person.toLocaleString()}</p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          void handleBuyListing(listing);
-                        }}
-                        className="mt-2 w-full h-10 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
-                      >
-                        {listing.kind === "service" ? "Book now" : "Buy now"}
-                      </button>
-                    </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
