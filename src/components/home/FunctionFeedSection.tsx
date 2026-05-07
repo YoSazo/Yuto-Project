@@ -30,16 +30,6 @@ export function FunctionFeedSection({
 }) {
   const [peopleModal, setPeopleModal] = useState<{ functionId: string; title: string } | null>(null);
 
-  if (loading && functionsFeed.length === 0) {
-    return (
-      <div className="mb-6 flex flex-col gap-4">
-        <FunctionCardSkeleton />
-        <FunctionCardSkeleton />
-      </div>
-    );
-  }
-  if (functionsFeed.length === 0) return null;
-
   const events = useMemo(
     () => functionsFeed.filter((f) => f.location !== "__SELL__" && f.location !== "__SERVICE__"),
     [functionsFeed],
@@ -57,6 +47,16 @@ export function FunctionFeedSection({
     fm.forEach((m) => unique.set(m.profiles.id, m.profiles));
     return Array.from(unique.values());
   }, [peopleModal, functionsFeed]);
+
+  if (loading && functionsFeed.length === 0) {
+    return (
+      <div className="mb-6 flex flex-col gap-4">
+        <FunctionCardSkeleton />
+        <FunctionCardSkeleton />
+      </div>
+    );
+  }
+  if (functionsFeed.length === 0) return null;
 
   return (
     <div className="mb-6">
