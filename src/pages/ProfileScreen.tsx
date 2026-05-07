@@ -115,7 +115,10 @@ export default function ProfileScreen() {
   const [highlightPreviews, setHighlightPreviews] = useState<[string | null, string | null]>([null, null]);
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
+  const [activeHighlightPos, setActiveHighlightPos] = useState(0);
+  const [hlFade, setHlFade] = useState(false);
   const highlightGestureRef = useRef<{ startY: number; moved: boolean } | null>(null);
+  const suppressHighlightTapRef = useRef(false);
 
   const handleOpenHistory = async () => {
     setShowHistoryModal(true);
@@ -580,6 +583,8 @@ export default function ProfileScreen() {
               key={h.id}
               type="button"
               onClick={() => {
+                const pos = highlights.slice(0, 2).findIndex((x) => x.id === h.id);
+                setActiveHighlightPos(Math.max(0, pos));
                 setActiveHighlightIdx(0);
                 setActiveHighlight(h);
               }}
@@ -835,12 +840,16 @@ export default function ProfileScreen() {
           tabIndex={-1}
           onPointerDown={(e) => {
             highlightGestureRef.current = { startY: e.clientY, moved: false };
+            suppressHighlightTapRef.current = false;
           }}
           onPointerMove={(e) => {
             const g = highlightGestureRef.current;
             if (!g) return;
             const dy = e.clientY - g.startY;
-            if (dy > 18) g.moved = true;
+            if (dy > 18) {
+              g.moved = true;
+              suppressHighlightTapRef.current = true;
+            }
             if (dy > 90) {
               highlightGestureRef.current = null;
               setActiveHighlight(null);
@@ -848,25 +857,33 @@ export default function ProfileScreen() {
           }}
           onPointerUp={() => {
             highlightGestureRef.current = null;
+            window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
           }}
           onPointerCancel={() => {
             highlightGestureRef.current = null;
+            window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
           }}
         >
           {/* Progress bars */}
           <div className="absolute top-3 left-3 right-3 z-20 flex gap-2">
-            {[0, 1].map((i) => (
-              <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
-                <div
-                  className="h-full bg-white"
-                  style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }}
-                />
-              </div>
-            ))}
+            {(() => {
+              const shown = highlights.slice(0, 2);
+              const segs = shown.reduce((sum, h) => sum + Math.min(2, h.photos?.length || 0), 0);
+              const total = segs > 0 ? segs : 2;
+              const before = shown
+                .slice(0, activeHighlightPos)
+                .reduce((sum, h) => sum + Math.min(2, h.photos?.length || 0), 0);
+              const segIndex = before + activeHighlightIdx;
+              return Array.from({ length: total }).map((_, i) => (
+                <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
+                  <div className="h-full bg-white" style={{ width: segIndex >= i ? "100%" : "0%" }} />
+                </div>
+              ));
+            })()}
           </div>
 
           {/* Photo */}
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-150 ${hlFade ? "opacity-0" : "opacity-100"}`}>
             {isHighlightVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
               <video
                 src={activeHighlight.photos[activeHighlightIdx]?.url}
@@ -892,10 +909,49 @@ export default function ProfileScreen() {
             className="absolute inset-y-0 left-0 w-1/2 border-none bg-transparent z-30"
             aria-label="Previous photo"
             onClick={() => {
-              setActiveHighlightIdx((prev) => {
-                if (prev === 1) return 0;
-                return 0;
-              });
+              if (suppressHighlightTapRef.current) return;
+              if (activeHighlightIdx === 1) {
+                setActiveHighlightIdx(0);
+                return;
+              }
+              if (activeHighlightPos > 0) {
+                const shown = highlights.slice(0, 2);
+                const nextPos = activeHighlightPos - 1;
+                const next = shown[nextPos];
+                if (!next) return;
+                setHlFade(true);
+                window.setTimeout(() => {
+                  setActiveHighlightPos(nextPos);
+                  setActiveHighlightIdx(1);
+                  setActiveHighlight(next);
+                  setHlFade(false);
+                }, 120);
+              }
+            }}
+            onPointerDown={(e) => {
+              highlightGestureRef.current = { startY: e.clientY, moved: false };
+              suppressHighlightTapRef.current = false;
+            }}
+            onPointerMove={(e) => {
+              const g = highlightGestureRef.current;
+              if (!g) return;
+              const dy = e.clientY - g.startY;
+              if (dy > 18) {
+                g.moved = true;
+                suppressHighlightTapRef.current = true;
+              }
+              if (dy > 90) {
+                highlightGestureRef.current = null;
+                setActiveHighlight(null);
+              }
+            }}
+            onPointerUp={() => {
+              highlightGestureRef.current = null;
+              window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
+            }}
+            onPointerCancel={() => {
+              highlightGestureRef.current = null;
+              window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
             }}
           />
           <button
@@ -903,11 +959,51 @@ export default function ProfileScreen() {
             className="absolute inset-y-0 right-0 w-1/2 border-none bg-transparent z-30"
             aria-label="Next photo"
             onClick={() => {
-              setActiveHighlightIdx((prev) => {
-                if (prev === 0) return 1;
+              if (suppressHighlightTapRef.current) return;
+              if (activeHighlightIdx === 0) {
+                setActiveHighlightIdx(1);
+                return;
+              }
+              const shown = highlights.slice(0, 2);
+              const nextPos = activeHighlightPos + 1;
+              if (nextPos < shown.length) {
+                const next = shown[nextPos];
+                if (!next) return;
+                setHlFade(true);
+                window.setTimeout(() => {
+                  setActiveHighlightPos(nextPos);
+                  setActiveHighlightIdx(0);
+                  setActiveHighlight(next);
+                  setHlFade(false);
+                }, 120);
+                return;
+              }
+              setActiveHighlight(null);
+            }}
+            onPointerDown={(e) => {
+              highlightGestureRef.current = { startY: e.clientY, moved: false };
+              suppressHighlightTapRef.current = false;
+            }}
+            onPointerMove={(e) => {
+              const g = highlightGestureRef.current;
+              if (!g) return;
+              const dy = e.clientY - g.startY;
+              if (dy > 18) {
+                g.moved = true;
+                suppressHighlightTapRef.current = true;
+              }
+              if (dy > 90) {
+                highlightGestureRef.current = null;
                 setActiveHighlight(null);
-                return 1;
-              });
+              }
+            }}
+            onPointerUp={() => {
+              highlightGestureRef.current = null;
+              window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
+            }}
+            onPointerCancel={() => {
+              highlightGestureRef.current = null;
+              window.setTimeout(() => (suppressHighlightTapRef.current = false), 0);
             }}
           />
           {/* Close hint: swipe down */}

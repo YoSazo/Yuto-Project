@@ -209,7 +209,7 @@ export default function FriendsScreen() {
               <div
                 key={f.id}
                 className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3 cursor-pointer hover:border-gray-300 transition-colors"
-                onClick={() => navigate(`/user/${f.username}`)}
+                onClick={() => navigate(`/user/${f.id}`)}
               >
                 <UserAvatar name={f.display_name} avatarUrl={f.avatar_url} size="sm" />
                 <div>
