@@ -838,12 +838,16 @@ export default function ProfileScreen() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.08, ease: "linear" }}
               className="fixed inset-0 z-40 bg-black"
             />
 
             <motion.div
               layoutId={`highlight-container-${activeHighlight.id}`}
               style={{ borderRadius: 0 }}
+              transition={{
+                layout: { duration: 0.12, ease: [0.2, 0.9, 0.2, 1] },
+              }}
               className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
               onKeyDown={(e) => {
                 if (e.key === "Escape") setActiveHighlight(null);
