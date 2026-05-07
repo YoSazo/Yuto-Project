@@ -840,7 +840,7 @@ export default function ProfileScreen() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.04, ease: "linear" }}
+              transition={{ duration: 0.015, ease: "linear" }}
               className="fixed inset-0 z-40 bg-black"
             />
 
@@ -848,8 +848,8 @@ export default function ProfileScreen() {
               layoutId={`highlight-container-${activeHighlight.id}`}
               style={{ borderRadius: 0 }}
               transition={{
-                layout: { duration: 0.08, ease: [0.2, 0.9, 0.2, 1] },
-                opacity: { duration: 0.04, ease: "linear" },
+                layout: { duration: 0.02, ease: [0.2, 0.9, 0.2, 1] },
+                opacity: { duration: 0.015, ease: "linear" },
               }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
@@ -879,47 +879,44 @@ export default function ProfileScreen() {
               <div className="absolute inset-0 flex items-center justify-center">
                 {(() => {
                   const active = activeHighlight.photos?.[activeHighlightIdx];
-                  const ph = active?.poster_url || active?.thumb_url || active?.url;
-                  if (!ph) return null;
+                  if (!active) return null;
+                  const ph = active.poster_url || active.thumb_url || active.url;
+
                   return (
-                    <img
-                      src={ph}
-                      alt=""
-                      aria-hidden
-                      className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-60 pointer-events-none"
-                      draggable={false}
-                    />
+                    <>
+                      {ph && (
+                        <HighlightStillMedia
+                          url={ph as string}
+                          className="absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                        />
+                      )}
+
+                      {isHighlightVideoUrl(active.url) ? (
+                        <video
+                          src={active.url}
+                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                            activeHighlightMediaReady ? "opacity-100" : "opacity-0"
+                          }`}
+                          playsInline
+                          autoPlay
+                          muted
+                          loop
+                          onLoadedData={() => setActiveHighlightMediaReady(true)}
+                        />
+                      ) : (
+                        <img
+                          src={active.url}
+                          alt=""
+                          className={`absolute inset-0 max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-200 ease-in-out ${
+                            activeHighlightMediaReady ? "opacity-100" : "opacity-0"
+                          }`}
+                          draggable={false}
+                          onLoad={() => setActiveHighlightMediaReady(true)}
+                        />
+                      )}
+                    </>
                   );
                 })()}
-
-                {isHighlightVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
-                  <video
-                    src={activeHighlight.photos[activeHighlightIdx]?.url}
-                    poster={
-                      activeHighlight.photos[activeHighlightIdx]?.poster_url ||
-                      activeHighlight.photos[activeHighlightIdx]?.thumb_url ||
-                      undefined
-                    }
-                    className={`max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-150 ${
-                      activeHighlightMediaReady ? "opacity-100" : "opacity-0"
-                    }`}
-                    playsInline
-                    autoPlay
-                    muted
-                    loop
-                    onLoadedData={() => setActiveHighlightMediaReady(true)}
-                  />
-                ) : (
-                  <img
-                    src={activeHighlight.photos[activeHighlightIdx]?.url}
-                    alt="Highlight"
-                    className={`max-w-full max-h-full w-full h-full object-contain pointer-events-none transition-opacity duration-150 ${
-                      activeHighlightMediaReady ? "opacity-100" : "opacity-0"
-                    }`}
-                    draggable={false}
-                    onLoad={() => setActiveHighlightMediaReady(true)}
-                  />
-                )}
               </div>
 
               {/* Tap zones */}
