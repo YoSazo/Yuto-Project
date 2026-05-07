@@ -92,11 +92,17 @@ export function PostsFeedSection({
                       <video
                         src={post.media_url}
                         poster={post.media_thumb_url || undefined}
-                        className="w-full h-[220px] object-cover bg-black"
+                        className="block w-full h-[220px] object-cover"
                         muted
                         playsInline
-                        controls
+                        autoPlay
+                        loop
                         preload="metadata"
+                        onClick={(e) => {
+                          const v = e.currentTarget;
+                          if (v.paused) void v.play().catch(() => {});
+                          else v.pause();
+                        }}
                       />
                     ) : (
                       <img src={post.media_url} alt="" className="w-full h-[220px] object-cover" />
