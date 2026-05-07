@@ -960,11 +960,6 @@ export type DmSharePayload =
   | { kind: "profile"; user_id: string }
   | { kind: "highlight"; highlight_id: string; user_id: string };
 
-export type PublicPostTagPayload = Exclude<
-  DmSharePayload,
-  { kind: "profile" } | { kind: "highlight" }
->;
-
 export type PublicPost = {
   id: string;
   user_id: string;
@@ -972,7 +967,7 @@ export type PublicPost = {
   media_url: string | null;
   media_type: "image" | "video" | null;
   media_thumb_url: string | null;
-  tag_payload: PublicPostTagPayload | null;
+  tag_payload: any | null;
   created_at: string;
   author: { id: string; username: string; display_name: string; avatar_url: string | null };
 };
@@ -1018,7 +1013,7 @@ export async function createPublicPost(input: {
   userId: string;
   contentText: string;
   mediaFile?: File | null;
-  tagPayload?: PublicPostTagPayload | null;
+  tagPayload?: any | null;
 }) {
   const content_text = input.contentText.trim();
   if (!content_text) throw new Error("Post text is required.");

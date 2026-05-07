@@ -28,6 +28,7 @@ import {
   createGroup,
   createGroupChat,
   payForFunctionGroup,
+  createPublicPost,
   getPublicPosts,
   type PublicPost,
   type DmSharePayload,
@@ -534,6 +535,7 @@ export default function HomeScreen() {
       <HomeComposeSheet
         open={showCompose}
         onClose={closeCompose}
+        currentUserId={user?.id}
         onSubmitPlan={async (data) => {
           if (!user) return;
           await createPlan(
@@ -563,6 +565,31 @@ export default function HomeScreen() {
             Number.isFinite(maxCap as number) ? (maxCap as number) : null,
             null,
           );
+          await loadFeed();
+        }}
+        onSubmitPost={async (data) => {
+          if (!user) return;
+          const entity = (() => {
+            const t = data.taggedEntity;
+            if (!t) return null;
+            if (t.kind === "plan") return { kind: "plan", plan_id: t.id };
+            if (t.kind === "function") return { kind: "function", function_id: t.id };
+            if (t.kind === "sell") return { kind: "listing", function_id: t.id, listing_kind: "sell" };
+            if (t.kind === "service") return { kind: "listing", function_id: t.id, listing_kind: "service" };
+            return null;
+          })();
+
+          const tag_payload = {
+            entity,
+            tagged_user_ids: data.taggedUserIds,
+          };
+
+          await createPublicPost({
+            userId: user.id,
+            contentText: data.text,
+            mediaFile: data.mediaFile,
+            tagPayload: tag_payload,
+          });
           await loadFeed();
         }}
       />

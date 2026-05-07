@@ -1,19 +1,23 @@
 import { useMemo } from "react";
 import { MessageCircle } from "lucide-react";
-import type { PublicPost, PublicPostTagPayload } from "../../lib/supabase";
+import type { PublicPost } from "../../lib/supabase";
 import UserAvatar from "../UserAvatar";
 
-function tagLabel(tag: PublicPostTagPayload): string {
-  switch (tag.kind) {
-    case "plan":
-      return "Plan";
-    case "function":
-      return "Function";
-    case "listing":
-      return tag.listing_kind === "sell" ? "Storefront" : "Services";
-    default:
-      return "Tag";
-  }
+function extractEntityTag(tagPayload: any): { kind: "plan" | "function" | "listing"; function_id?: string; plan_id?: string; listing_kind?: "sell" | "service" } | null {
+  if (!tagPayload) return null;
+  const t = tagPayload?.entity ?? tagPayload;
+  if (!t || typeof t !== "object") return null;
+  if (t.kind === "plan" && typeof t.plan_id === "string") return t;
+  if (t.kind === "function" && typeof t.function_id === "string") return t;
+  if (t.kind === "listing" && typeof t.function_id === "string") return t;
+  return null;
+}
+
+function tagLabel(tag: { kind: string; listing_kind?: string }): string {
+  if (tag.kind === "plan") return "Plan";
+  if (tag.kind === "function") return "Function";
+  if (tag.kind === "listing") return tag.listing_kind === "sell" ? "Storefront" : "Services";
+  return "Tag";
 }
 
 export function PostsFeedSection({
@@ -21,7 +25,7 @@ export function PostsFeedSection({
   onNavigateToTag,
 }: {
   posts: PublicPost[];
-  onNavigateToTag: (tag: PublicPostTagPayload) => void;
+  onNavigateToTag: (tag: any) => void;
 }) {
   const visiblePosts = useMemo(() => posts.filter((p) => !!p.content_text?.trim()), [posts]);
 
@@ -53,15 +57,15 @@ export function PostsFeedSection({
 
                 <p className="mt-2 text-sm text-gray-800 whitespace-pre-wrap break-words">{post.content_text}</p>
 
-                {post.tag_payload && (
+                {extractEntityTag(post.tag_payload) && (
                   <div className="mt-3">
                     <button
                       type="button"
-                      onClick={() => onNavigateToTag(post.tag_payload as PublicPostTagPayload)}
+                      onClick={() => onNavigateToTag(extractEntityTag(post.tag_payload))}
                       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors"
                     >
                       <MessageCircle size={14} className="opacity-70" />
-                      <span className="text-xs font-extrabold text-black">{tagLabel(post.tag_payload as PublicPostTagPayload)}</span>
+                      <span className="text-xs font-extrabold text-black">{tagLabel(extractEntityTag(post.tag_payload)!)}</span>
                       <span className="text-xs text-gray-500 font-semibold">· Tap to view</span>
                     </button>
                   </div>
