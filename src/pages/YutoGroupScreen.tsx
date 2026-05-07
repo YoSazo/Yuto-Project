@@ -10,6 +10,7 @@ import {
   submitRideAmount,
   getSavedPhoneNumber,
   saveProfilePhoneNumber,
+  ensureWalletGroupChat,
 } from "../lib/supabase";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 
@@ -218,12 +219,14 @@ function PayOutModal({
   userId,
   onClose,
   onSuccess,
+  onNeedTopUp,
 }: {
   amount: number;
   groupId: string;
   userId: string;
   onClose: () => void;
   onSuccess: () => void;
+  onNeedTopUp: (topUpKes: number) => void;
 }) {
   const [tab, setTab] = useState<PaymentTab>("phone");
   const [phone, setPhone] = useState("");
@@ -266,7 +269,13 @@ function PayOutModal({
           onClose();
         }, 1800);
       } else {
-        setError(data.message || "Payment failed. Your balance was not charged.");
+        const msg = String(data.message || "Payment failed. Your balance was not charged.");
+        if (rpcErrorIsInsufficientBalance(msg)) {
+          onNeedTopUp(inferTopUpKes(msg, amount));
+          onClose();
+          return;
+        }
+        setError(msg);
         setStep("error");
       }
     } catch {
@@ -692,7 +701,16 @@ export default function YutoGroupScreen() {
           </button>
           <button
             type="button"
-            onClick={() => navigate(`/messages/group/${groupId}`)}
+            onClick={async () => {
+              if (!user || !groupId) return;
+              try {
+                const chatId = await ensureWalletGroupChat(groupId, user.id);
+                navigate(`/messages/group/${chatId}`);
+              } catch (e) {
+                console.error(e);
+                alert("Couldn't open the chat yet. Apply latest migrations and try again.");
+              }
+            }}
             className="px-4 py-2 bg-black text-white rounded-full font-bold text-sm flex items-center gap-1.5 hover:bg-gray-800 transition-colors"
           >
             <MessageCircle size={16} /> Chat
@@ -921,6 +939,11 @@ export default function YutoGroupScreen() {
           userId={user.id}
           onClose={() => setShowPayOutModal(false)}
           onSuccess={() => setGroupStatus("completed")}
+          onNeedTopUp={(kes) => {
+            setBalanceTopUpAmount(kes);
+            setShowPayOutModal(false);
+            setShowBalanceTopUpModal(true);
+          }}
         />
       )}
     </div>

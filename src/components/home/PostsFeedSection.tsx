@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { MessageCircle, Trash2 } from "lucide-react";
 import type { PublicPost } from "../../lib/supabase";
 import UserAvatar from "../UserAvatar";
+import { PostMediaCarousel } from "./PostMediaCarousel";
 
 function extractEntityTag(tagPayload: any): { kind: "plan" | "function" | "listing"; function_id?: string; plan_id?: string; listing_kind?: "sell" | "service" } | null {
   if (!tagPayload) return null;
@@ -25,11 +26,13 @@ export function PostsFeedSection({
   onNavigateToTag,
   currentUserId,
   onDeletePost,
+  taggedProfilesById,
 }: {
   posts: PublicPost[];
   onNavigateToTag: (tag: any) => void;
   currentUserId?: string;
   onDeletePost?: (postId: string) => void;
+  taggedProfilesById?: Record<string, { id: string; username: string; display_name: string; avatar_url: string | null }>;
 }) {
   const visiblePosts = useMemo(() => posts.filter((p) => !!p.content_text?.trim()), [posts]);
 
@@ -72,6 +75,33 @@ export function PostsFeedSection({
 
                 <p className="mt-2 text-sm text-gray-800 whitespace-pre-wrap break-words">{post.content_text}</p>
 
+                {Array.isArray((post as any)?.tag_payload?.tagged_user_ids) &&
+                ((post as any).tag_payload.tagged_user_ids as any[]).length > 0 ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {((post as any).tag_payload.tagged_user_ids as any[])
+                      .filter((id) => typeof id === "string")
+                      .slice(0, 5)
+                      .map((id) => {
+                        const p = taggedProfilesById?.[id];
+                        const label = p ? `@${p.username}` : "@user";
+                        return (
+                          <span
+                            key={id}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700"
+                          >
+                            {p ? <UserAvatar name={p.display_name || p.username} avatarUrl={p.avatar_url} size="xs" /> : null}
+                            {label}
+                          </span>
+                        );
+                      })}
+                    {((post as any).tag_payload.tagged_user_ids as any[]).length > 5 ? (
+                      <span className="text-xs font-bold text-gray-400">
+                        +{((post as any).tag_payload.tagged_user_ids as any[]).length - 5}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 {extractEntityTag(post.tag_payload) && (
                   <div className="mt-3">
                     <button
@@ -86,41 +116,13 @@ export function PostsFeedSection({
                   </div>
                 )}
 
-                {post.media_url && (
+                {Array.isArray(post.media) && post.media.length > 0 ? (
+                  <PostMediaCarousel media={post.media as any} />
+                ) : post.media_url ? (
                   <div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
-                    {post.media_type === "video" ? (
-                      <div className="w-full bg-black flex items-center justify-center">
-                        <video
-                          src={post.media_url}
-                          poster={post.media_thumb_url || undefined}
-                          className="block w-full h-auto max-h-[520px] object-contain"
-                          muted
-                          playsInline
-                          autoPlay
-                          loop
-                          preload="metadata"
-                          controls={false}
-                          controlsList="nodownload noplaybackrate noremoteplayback"
-                          disablePictureInPicture
-                          onContextMenu={(e) => e.preventDefault()}
-                          onVolumeChange={(e) => {
-                            // Keep it Twitter-style: always muted in-feed.
-                            const v = e.currentTarget;
-                            if (!v.muted) v.muted = true;
-                            if (v.volume !== 0) v.volume = 0;
-                          }}
-                          onClick={(e) => {
-                            const v = e.currentTarget;
-                            if (v.paused) void v.play().catch(() => {});
-                            else v.pause();
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <img src={post.media_url} alt="" className="w-full h-[220px] object-cover" />
-                    )}
+                    <img src={post.media_url} alt="" className="w-full h-[220px] object-cover block" />
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>

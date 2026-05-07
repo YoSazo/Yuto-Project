@@ -23,7 +23,7 @@ export function HomeComposeSheet({
     text: string;
     taggedEntity: { id: string; kind: string } | null;
     taggedUserIds: string[];
-    mediaFile: File | null;
+    mediaFiles: File[];
   }) => Promise<void>;
   currentUserId?: string;
 }) {
@@ -40,6 +40,9 @@ export function HomeComposeSheet({
   const [maxCapacity, setMaxCapacity] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const createMediaInputRef = useRef<HTMLInputElement | null>(null);
+  const [createMediaFile, setCreateMediaFile] = useState<File | null>(null);
+  const [createMediaPreview, setCreateMediaPreview] = useState<string | null>(null);
 
   // --- POST MODE STATE ---
   const [postText, setPostText] = useState("");
@@ -56,8 +59,8 @@ export function HomeComposeSheet({
   >([]);
   const [postError, setPostError] = useState<string | null>(null);
   const postMediaInputRef = useRef<HTMLInputElement | null>(null);
-  const [postMediaFile, setPostMediaFile] = useState<File | null>(null);
-  const [postMediaPreview, setPostMediaPreview] = useState<string | null>(null);
+  const [postMediaFiles, setPostMediaFiles] = useState<File[]>([]);
+  const [postMediaPreviews, setPostMediaPreviews] = useState<string[]>([]);
 
   // Reset state when opened
   useEffect(() => {
@@ -77,9 +80,12 @@ export function HomeComposeSheet({
       setShowPeoplePicker(false);
       setTaggedPeople([]);
       setPostError(null);
-      setPostMediaFile(null);
-      if (postMediaPreview) URL.revokeObjectURL(postMediaPreview);
-      setPostMediaPreview(null);
+      setPostMediaFiles([]);
+      postMediaPreviews.forEach((u) => URL.revokeObjectURL(u));
+      setPostMediaPreviews([]);
+      setCreateMediaFile(null);
+      if (createMediaPreview) URL.revokeObjectURL(createMediaPreview);
+      setCreateMediaPreview(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -91,8 +97,8 @@ export function HomeComposeSheet({
   }, [title, amount, composeMode]);
 
   const canPostSubmit = useMemo(() => {
-    return !!postText.trim() || !!taggedEntity || taggedPeople.length > 0 || !!postMediaFile;
-  }, [postText, taggedEntity, taggedPeople.length, postMediaFile]);
+    return !!postText.trim() || !!taggedEntity || taggedPeople.length > 0 || postMediaFiles.length > 0;
+  }, [postText, taggedEntity, taggedPeople.length, postMediaFiles.length]);
 
   const handlePostSubmit = async () => {
     if (!canPostSubmit) return;
@@ -104,7 +110,7 @@ export function HomeComposeSheet({
           text: postText,
           taggedEntity: taggedEntity ? { id: taggedEntity.id, kind: taggedEntity.kind } : null,
           taggedUserIds: taggedPeople.map((p) => p.id),
-          mediaFile: postMediaFile,
+          mediaFiles: postMediaFiles,
         });
       }
       onClose();
@@ -122,7 +128,12 @@ export function HomeComposeSheet({
     setCreateError(null);
     try {
       if (composeMode === "plan") {
-        await onSubmitPlan?.({ title: title.trim(), amount: parseInt(amount) || 0, date });
+        await onSubmitPlan?.({
+          title: title.trim(),
+          amount: parseInt(amount) || 0,
+          date,
+          mediaFile: createMediaFile,
+        });
       } else {
         const isSell = composeMode === "sell";
         const isService = composeMode === "service";
@@ -133,6 +144,7 @@ export function HomeComposeSheet({
           date: date || null,
           location: isSell ? "__SELL__" : isService ? "__SERVICE__" : location.trim() || null,
           max_capacity: parseInt(maxCapacity) || null,
+          mediaFile: createMediaFile,
         });
       }
       onClose();
@@ -243,6 +255,53 @@ export function HomeComposeSheet({
                 </div>
               )}
 
+              {/* Create mode media (photo) */}
+              <div className="mb-1">
+                {createMediaPreview ? (
+                  <div className="relative rounded-2xl overflow-hidden bg-gray-100 flex items-center justify-center">
+                    {createMediaFile?.type.startsWith("video/") ? (
+                      <video src={createMediaPreview} className="w-full h-64 object-cover" muted playsInline />
+                    ) : (
+                      <img src={createMediaPreview} alt="" className="w-full h-64 object-cover" draggable={false} />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (createMediaPreview) URL.revokeObjectURL(createMediaPreview);
+                        setCreateMediaFile(null);
+                        setCreateMediaPreview(null);
+                      }}
+                      className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white border-none"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => createMediaInputRef.current?.click()}
+                    className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
+                  >
+                    <ImageIcon size={20} />
+                    <span className="text-sm font-medium">Add photo</span>
+                  </button>
+                )}
+                <input
+                  ref={createMediaInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (!file) return;
+                    if (createMediaPreview) URL.revokeObjectURL(createMediaPreview);
+                    const url = URL.createObjectURL(file);
+                    setCreateMediaFile(file);
+                    setCreateMediaPreview(url);
+                  }}
+                />
+              </div>
+
               <div className="flex gap-3">
                 <div className="flex-1">
                   <p className="text-xs text-gray-400 mb-1 font-semibold">
@@ -341,14 +400,18 @@ export function HomeComposeSheet({
                   ref={postMediaInputRef}
                   type="file"
                   accept="image/*,video/*"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    if (!file) return;
-                    if (postMediaPreview) URL.revokeObjectURL(postMediaPreview);
-                    const url = URL.createObjectURL(file);
-                    setPostMediaFile(file);
-                    setPostMediaPreview(url);
+                    const files = Array.from(e.target.files || []).slice(0, 5);
+                    if (files.length === 0) return;
+                    // Combine with existing, cap at 5.
+                    const combined = [...postMediaFiles, ...files].slice(0, 5);
+                    postMediaPreviews.forEach((u) => URL.revokeObjectURL(u));
+                    const previews = combined.map((f) => URL.createObjectURL(f));
+                    setPostMediaFiles(combined);
+                    setPostMediaPreviews(previews);
+                    e.currentTarget.value = "";
                   }}
                 />
                 <button
@@ -383,13 +446,30 @@ export function HomeComposeSheet({
                 </button>
               </div>
 
-              {postMediaPreview && (
-                <div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
-                  {postMediaFile?.type.startsWith("video/") ? (
-                    <video src={postMediaPreview} className="w-full h-64 object-cover" controls muted playsInline />
-                  ) : (
-                    <img src={postMediaPreview} alt="" className="w-full h-64 object-cover" />
-                  )}
+              {postMediaPreviews.length > 0 && (
+                <div className="mt-3 flex gap-2 overflow-x-auto">
+                  {postMediaPreviews.map((u, idx) => (
+                    <div key={u} className="relative w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
+                      {postMediaFiles[idx]?.type.startsWith("video/") ? (
+                        <video src={u} className="w-full h-full object-cover" muted playsInline />
+                      ) : (
+                        <img src={u} alt="" className="w-full h-full object-cover" draggable={false} />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextFiles = postMediaFiles.filter((_, i) => i !== idx);
+                          const nextPreviews = postMediaPreviews.filter((_, i) => i !== idx);
+                          URL.revokeObjectURL(u);
+                          setPostMediaFiles(nextFiles);
+                          setPostMediaPreviews(nextPreviews);
+                        }}
+                        className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
 

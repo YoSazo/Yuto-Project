@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase, getFunctionMessages, sendFunctionMessage } from "../../lib/supabase";
+import {
+  supabase,
+  ensureFunctionAttendeeChat,
+  getFunctionMessages,
+  sendFunctionMessage,
+  sendGroupChatMessage,
+} from "../../lib/supabase";
 import UserAvatar from "../UserAvatar";
 import type { FunctionListing, FunctionMessage } from "../../pages/home/types";
 import { setFunctionThreadSeenAt } from "../../pages/home/threadStorage";
@@ -65,6 +71,17 @@ export function FunctionMessagesModal({
     setError("");
     try {
       await sendFunctionMessage(functionItem.id, currentUserId, content);
+
+      // Keep paid attendees in the loop: broadcast host answers into the attendee chat.
+      if (currentUserId === functionItem.host_id) {
+        try {
+          const gid = await ensureFunctionAttendeeChat(functionItem.id);
+          await sendGroupChatMessage(gid, currentUserId, `Host Q&A: ${content}`);
+        } catch (e) {
+          console.error("broadcast host Q&A to attendee chat failed:", e);
+        }
+      }
+
       setMessageInput("");
       await loadMessages();
     } catch (err) {

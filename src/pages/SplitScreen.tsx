@@ -65,7 +65,7 @@ export default function SplitScreen() {
         "single"
       );
       try {
-        await createGroupChat(user.id, selectedFriends, description.trim() || "Split");
+        await createGroupChat(user.id, selectedFriends, description.trim() || "Split", group.id);
       } catch (e) {
         console.error("Companion group chat after split:", e);
       }

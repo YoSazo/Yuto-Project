@@ -89,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     <meta name="twitter:title" content="${escapeHtml(title)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${escapeHtml(fallbackOg)}" />
-    <meta http-equiv="refresh" content="0; url=/home" />
+    <meta http-equiv="refresh" content="0; url=${escapeHtml(canonicalUrl)}" />
   </head>
   <body></body>
 </html>`;
@@ -130,7 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     <meta name="twitter:description" content="${escapeHtml(subLine)}" />
     <meta name="twitter:image" content="${escapeHtml(ogImageUrl)}" />
     <meta name="theme-color" content="#000000" />
-    <meta http-equiv="refresh" content="0; url=/home" />
+    <meta http-equiv="refresh" content="0; url=${escapeHtml(canonicalUrl)}" />
   </head>
   <body></body>
 </html>`;

@@ -13,6 +13,7 @@ import {
   deletePlan,
   addPlanUpdate,
   getPlanUpdates,
+  uploadPlanImage,
   getFunctionsPublic,
   createFunction,
   joinFunction,
@@ -58,6 +59,9 @@ export default function HomeScreen() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [functionsFeed, setFunctionsFeed] = useState<FunctionListing[]>([]);
   const [publicPosts, setPublicPosts] = useState<PublicPost[]>([]);
+  const [taggedProfilesById, setTaggedProfilesById] = useState<
+    Record<string, { id: string; username: string; display_name: string; avatar_url: string | null }>
+  >({});
   const [functionUnreadCounts, setFunctionUnreadCounts] = useState<Record<string, number>>({});
   const [dmUnreadTotal, setDmUnreadTotal] = useState(0);
   const focusAttemptRef = useRef<"none" | "public" | "friends">("none");
@@ -217,7 +221,34 @@ export default function HomeScreen() {
       const functionList = (functionData as FunctionListing[]) || [];
       setPlans(planList);
       setFunctionsFeed(functionList);
-      setPublicPosts(postsData as PublicPost[]);
+      const posts = postsData as PublicPost[];
+      setPublicPosts(posts);
+
+      // Batch resolve tagged_user_ids -> profiles for rendering.
+      try {
+        const ids = Array.from(
+          new Set(
+            posts
+              .flatMap((p) => (Array.isArray((p as any)?.tag_payload?.tagged_user_ids) ? (p as any).tag_payload.tagged_user_ids : []))
+              .filter((x) => typeof x === "string" && x.length > 0),
+          ),
+        );
+        if (ids.length === 0) {
+          setTaggedProfilesById({});
+        } else {
+          const { data: rows, error: pErr } = await supabase
+            .from("profiles")
+            .select("id, username, display_name, avatar_url")
+            .in("id", ids);
+          if (!pErr) {
+            const map: Record<string, any> = {};
+            (rows || []).forEach((r: any) => (map[r.id] = r));
+            setTaggedProfilesById(map);
+          }
+        }
+      } catch (e) {
+        console.error("tagged profiles:", e);
+      }
       const updatesMap: Record<string, PlanUpdate[]> = {};
       if (tab === "public" && functionList.length > 0) {
         const { data: messageRows, error: messageError } = await supabase
@@ -372,10 +403,29 @@ export default function HomeScreen() {
       const perPerson = Math.ceil(totalCharged / (1 + friendIds.length));
       const group = await createGroup(`${fn.title} Tickets`, totalCharged, perPerson, user.id, [user.id, ...friendIds], "single");
       try {
-        await createGroupChat(user.id, friendIds, `${fn.title} Tickets`);
+        await createGroupChat(user.id, friendIds, `${fn.title} Tickets`, group.id);
       } catch (e) {
         console.error("Group chat after split:", e);
       }
+
+      // Auto-DM each friend their ticket + split context so they don't miss it.
+      try {
+        await Promise.all(
+          friendIds.map(async (fid) => {
+            const convo = await getOrCreateDmConversation(user.id, fid);
+            await sendDmMessage(
+              convo.id,
+              user.id,
+              `I grabbed your ticket for "${fn.title}". Here's the proof of entry — just pay me back in the split.`,
+            );
+            await sendDmShareMessage(convo.id, user.id, { kind: "function", function_id: fn.id });
+            await sendDmMessage(convo.id, user.id, `Split link: /yuto/${group.id}`);
+          }),
+        );
+      } catch (e) {
+        console.error("Auto-DM ticket distribution failed:", e);
+      }
+
       setFunctionTicket(null);
       setGroupBuySelectedIds([]);
       navigate(`/yuto/${group.id}`);
@@ -499,6 +549,7 @@ export default function HomeScreen() {
               navigate("/home", { state: { focus } });
             }}
             currentUserId={user?.id}
+            taggedProfilesById={taggedProfilesById}
             onDeletePost={(postId) => {
               if (!user) return;
               void deletePublicPost(postId).then(loadFeed).catch((e) => {
@@ -547,12 +598,20 @@ export default function HomeScreen() {
         currentUserId={user?.id}
         onSubmitPlan={async (data) => {
           if (!user) return;
+          let imageUrl: string | null = null;
+          if (data?.mediaFile instanceof File) {
+            try {
+              imageUrl = await uploadPlanImage(user.id, data.mediaFile);
+            } catch (e) {
+              console.error(e);
+            }
+          }
           await createPlan(
             user.id,
             String(data?.title ?? "").trim(),
             data?.amount ? Number(data.amount) : null,
             null,
-            null,
+            imageUrl,
           );
           await loadFeed();
         }}
@@ -564,6 +623,14 @@ export default function HomeScreen() {
           const dateIso = data?.date ? new Date(String(data.date)).toISOString() : null;
           const location = (data?.location ?? null) as string | null;
           const maxCap = data?.max_capacity != null ? Number(data.max_capacity) : null;
+          let imageUrl: string | null = null;
+          if (data?.mediaFile instanceof File) {
+            try {
+              imageUrl = await uploadPlanImage(user.id, data.mediaFile);
+            } catch (e) {
+              console.error(e);
+            }
+          }
           await createFunction(
             user.id,
             title,
@@ -572,7 +639,7 @@ export default function HomeScreen() {
             location,
             amountPerPerson,
             Number.isFinite(maxCap as number) ? (maxCap as number) : null,
-            null,
+            imageUrl,
           );
           await loadFeed();
         }}
@@ -596,7 +663,7 @@ export default function HomeScreen() {
           await createPublicPost({
             userId: user.id,
             contentText: data.text,
-            mediaFile: data.mediaFile,
+            mediaFiles: data.mediaFiles,
             tagPayload: tag_payload,
           });
           await loadFeed();

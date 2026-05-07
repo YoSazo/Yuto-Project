@@ -970,6 +970,13 @@ export type PublicPost = {
   tag_payload: any | null;
   created_at: string;
   author: { id: string; username: string; display_name: string; avatar_url: string | null };
+  media?: Array<{
+    id: string;
+    idx: number;
+    media_url: string;
+    media_type: "image" | "video";
+    media_thumb_url: string | null;
+  }>;
 };
 
 async function uploadPostMediaAsset(userId: string, file: File): Promise<{
@@ -1013,44 +1020,77 @@ export async function createPublicPost(input: {
   userId: string;
   contentText: string;
   mediaFile?: File | null;
+  mediaFiles?: File[] | null;
   tagPayload?: any | null;
 }) {
   const content_text = input.contentText.trim();
   if (!content_text) throw new Error("Post text is required.");
 
-  let media_url: string | null = null;
-  let media_type: "image" | "video" | null = null;
-  let media_thumb_url: string | null = null;
+  const files = (input.mediaFiles && input.mediaFiles.length > 0 ? input.mediaFiles : input.mediaFile ? [input.mediaFile] : [])
+    .filter(Boolean)
+    .slice(0, 5) as File[];
 
-  if (input.mediaFile) {
-    const uploaded = await uploadPostMediaAsset(input.userId, input.mediaFile);
-    media_url = uploaded.media_url;
-    media_type = uploaded.media_type;
-    media_thumb_url = uploaded.media_thumb_url;
+  // Keep legacy single-media columns populated for backward compat (first item only).
+  let first_media_url: string | null = null;
+  let first_media_type: "image" | "video" | null = null;
+  let first_media_thumb_url: string | null = null;
+
+  const uploadedItems = files.length
+    ? await Promise.all(files.map((f) => uploadPostMediaAsset(input.userId, f)))
+    : [];
+
+  if (uploadedItems.length > 0) {
+    first_media_url = uploadedItems[0].media_url;
+    first_media_type = uploadedItems[0].media_type;
+    first_media_thumb_url = uploadedItems[0].media_thumb_url;
   }
 
-  const { error } = await supabase.from("public_posts").insert({
-    user_id: input.userId,
-    content_text,
-    media_url,
-    media_type,
-    media_thumb_url,
-    tag_payload: input.tagPayload ?? null,
-  });
-  if (error) throw error;
+  const { data: postRow, error: postErr } = await supabase
+    .from("public_posts")
+    .insert({
+      user_id: input.userId,
+      content_text,
+      media_url: first_media_url,
+      media_type: first_media_type,
+      media_thumb_url: first_media_thumb_url,
+      tag_payload: input.tagPayload ?? null,
+    })
+    .select("id")
+    .single();
+  if (postErr) throw postErr;
+
+  if (uploadedItems.length > 0) {
+    const { error: mediaErr } = await supabase.from("public_post_media").insert(
+      uploadedItems.map((u, idx) => ({
+        post_id: postRow.id,
+        idx,
+        media_url: u.media_url,
+        media_type: u.media_type,
+        media_thumb_url: u.media_thumb_url,
+      })),
+    );
+    if (mediaErr) throw mediaErr;
+  }
 }
 
 export async function getPublicPosts(limit = 50): Promise<PublicPost[]> {
   const { data, error } = await supabase
     .from("public_posts")
     .select(
-      "*, author:profiles!public_posts_user_id_fkey(id, username, display_name, avatar_url)",
+      "*, author:profiles!public_posts_user_id_fkey(id, username, display_name, avatar_url), media:public_post_media(id, idx, media_url, media_type, media_thumb_url)",
     )
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
 
-  return (data || []) as PublicPost[];
+  const rows = (data || []) as PublicPost[];
+  // Ensure deterministic ordering of media array.
+  rows.forEach((p) => {
+    if (Array.isArray(p.media)) {
+      p.media = [...p.media].sort((a, b) => (a.idx ?? 0) - (b.idx ?? 0));
+    }
+  });
+  return rows;
 }
 
 export async function deletePublicPost(postId: string) {
@@ -1159,6 +1199,7 @@ export type GroupChatRow = {
   id: string;
   created_by: string;
   title: string | null;
+  wallet_group_id?: string | null;
   created_at: string;
 };
 
@@ -1173,14 +1214,19 @@ export type GroupChatMessage = {
   sender?: { id: string; username: string; display_name: string; avatar_url: string | null };
 };
 
-export async function createGroupChat(creatorId: string, memberIds: string[], title = "Group chat") {
+export async function createGroupChat(
+  creatorId: string,
+  memberIds: string[],
+  title = "Group chat",
+  walletGroupId?: string | null,
+) {
   const unique = Array.from(new Set([creatorId, ...memberIds]));
   if (unique.length < 2) throw new Error("Pick at least one friend.");
 
   const { data: chat, error: cErr } = await supabase
     .from("group_chats")
-    .insert({ created_by: creatorId, title: title.trim() || "Group chat" })
-    .select("id, created_by, title, created_at")
+    .insert({ created_by: creatorId, title: title.trim() || "Group chat", wallet_group_id: walletGroupId ?? null })
+    .select("id, created_by, title, wallet_group_id, created_at")
     .single();
   if (cErr) throw cErr;
 
@@ -1189,6 +1235,24 @@ export async function createGroupChat(creatorId: string, memberIds: string[], ti
   if (mErr) throw mErr;
 
   return chat as GroupChatRow;
+}
+
+export async function ensureWalletGroupChat(walletGroupId: string, currentUserId: string): Promise<string> {
+  // Try to find an existing companion chat (only visible if you're a member).
+  const existing = await supabase
+    .from("group_chats")
+    .select("id")
+    .eq("wallet_group_id", walletGroupId)
+    .limit(1)
+    .maybeSingle();
+  if (!existing.error && existing.data?.id) return existing.data.id as string;
+
+  // Otherwise create it using the wallet group's members.
+  const g = await getGroup(walletGroupId);
+  const memberIds = (g.group_members ?? []).map((m: any) => m.user_id).filter(Boolean) as string[];
+  const others = memberIds.filter((id) => id !== currentUserId);
+  const chat = await createGroupChat(currentUserId, others, (g as any).name || "Group chat", walletGroupId);
+  return chat.id;
 }
 
 export async function listMyGroupChats(userId: string) {

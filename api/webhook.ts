@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import webpush from "web-push";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -15,12 +16,54 @@ function getSupabaseClient() {
       `Missing Supabase env in webhook: ${missing.join(", ")}. Use service role key (not anon) for server-side.`,
     );
   }
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  return createClient<any>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 }
 
 const REFERRAL_BONUS_KES = 10;
 
-async function creditWalletBalance(supabase: ReturnType<typeof createClient>, userId: string, amountKes: number) {
+function initWebPush() {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) return false;
+  webpush.setVapidDetails("mailto:support@yuto.app", publicKey, privateKey);
+  return true;
+}
+
+async function sendPushNotification(
+  supabase: any,
+  userId: string,
+  title: string,
+  body: string,
+) {
+  try {
+    if (!initWebPush()) return;
+    const { data: tokenRow, error } = await supabase
+      .from("push_tokens")
+      .select("token")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || !tokenRow?.token) return;
+    const subscription = JSON.parse(tokenRow.token);
+    await webpush.sendNotification(subscription, JSON.stringify({ title, body }));
+  } catch (err) {
+    console.error("[webhook] push notification error:", err);
+  }
+}
+
+async function getDisplayName(supabase: any, userId: string) {
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("display_name, username")
+      .eq("id", userId)
+      .maybeSingle();
+    return (data?.display_name || data?.username || "Someone") as string;
+  } catch {
+    return "Someone";
+  }
+}
+
+async function creditWalletBalance(supabase: any, userId: string, amountKes: number) {
   // Avoid `topup_balance` RPC: some DBs have an enum mismatch (`transaction_type` missing "topup") which breaks credits.
   if (!Number.isFinite(amountKes) || amountKes <= 0) return { ok: false as const, reason: "invalid_amount" as const };
 
@@ -97,7 +140,7 @@ async function fetchAmountFromStatus(invoiceId: string): Promise<number> {
   }
 }
 
-async function maybeConvertReferralOnFirstTopUp(supabase: ReturnType<typeof createClient>, referredUserId: string) {
+async function maybeConvertReferralOnFirstTopUp(supabase: any, referredUserId: string) {
   // If this user has a referral row and it hasn't converted yet, convert it and credit the referrer once.
   const { data: ref, error } = await supabase
     .from("referrals")
@@ -128,6 +171,13 @@ async function maybeConvertReferralOnFirstTopUp(supabase: ReturnType<typeof crea
       description: `Referral bonus (+KSH ${REFERRAL_BONUS_KES})`,
     });
     if (txErr) console.error("[webhook] referral_bonus transaction insert error:", txErr);
+
+    await sendPushNotification(
+      supabase,
+      ref.referrer_id,
+      "Referral bonus",
+      `You earned +KSH ${REFERRAL_BONUS_KES} from a friend's first top up.`,
+    );
   } catch (e) {
     console.error("[webhook] referral convert/credit error:", e);
   }
@@ -199,6 +249,13 @@ async function processIntaSendWebhook(payload: {
       if (topupTxErr) console.error("[webhook] topup transaction insert error:", topupTxErr);
       // If this is their first ever top-up conversion, reward referrer.
       await maybeConvertReferralOnFirstTopUp(supabase, uid);
+
+      await sendPushNotification(
+        supabase,
+        uid,
+        "Top up received",
+        `Your Yuto Balance was credited with KSH ${Math.round(amount).toLocaleString("en-KE")}.`,
+      );
     } else {
       console.error("[webhook] TOPUP amount missing/zero:", {
         invoice_id: payload.invoice_id,
@@ -238,7 +295,7 @@ async function processIntaSendWebhook(payload: {
         membershipTable = entry.table;
         parentTable = entry.table === "group_members" ? "groups" : "functions";
         parentIdColumn = entry.idColumn;
-        groupId = match[entry.idColumn] as string;
+        groupId = (match as any)[entry.idColumn] as string;
         userId = match.user_id;
         break;
       }
@@ -255,7 +312,7 @@ async function processIntaSendWebhook(payload: {
         membershipTable = entry.table;
         parentTable = entry.table === "group_members" ? "groups" : "functions";
         parentIdColumn = entry.idColumn;
-        groupId = match[entry.idColumn] as string;
+        groupId = (match as any)[entry.idColumn] as string;
         userId = match.user_id;
         break;
       }
@@ -278,6 +335,35 @@ async function processIntaSendWebhook(payload: {
   console.log(
     `Webhook: set has_paid=true for ${membershipTable} parent_id=${groupId} user_id=${userId}`,
   );
+
+  // Push notification for hosts: "X just paid KSH Y for Z"
+  try {
+    const payerName = await getDisplayName(supabase, userId);
+    const amount = extractKesAmount(payload as any) || (payload.invoice_id ? await fetchAmountFromStatus(String(payload.invoice_id)) : 0);
+    if (membershipTable === "group_members") {
+      const { data: group } = await supabase.from("groups").select("id, name, created_by").eq("id", groupId).maybeSingle();
+      if (group?.created_by && group.created_by !== userId) {
+        await sendPushNotification(
+          supabase,
+          group.created_by,
+          "Payment received",
+          `${payerName} just paid KSH ${Math.round(amount || 0).toLocaleString("en-KE")} for ${group.name}.`,
+        );
+      }
+    } else {
+      const { data: fn } = await supabase.from("functions").select("id, title, host_id").eq("id", groupId).maybeSingle();
+      if (fn?.host_id && fn.host_id !== userId) {
+        await sendPushNotification(
+          supabase,
+          fn.host_id,
+          "Payment received",
+          `${payerName} just paid KSH ${Math.round(amount || 0).toLocaleString("en-KE")} for ${fn.title}.`,
+        );
+      }
+    }
+  } catch (e) {
+    console.error("[webhook] host push notify error:", e);
+  }
 
   const { data: members, error: membersError } = await supabase
     .from(membershipTable)

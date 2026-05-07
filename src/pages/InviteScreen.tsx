@@ -50,6 +50,17 @@ export default function InviteScreen() {
     setAdding(true);
     try {
       await sendFriendRequest(user.id, profile.id);
+      // Also log referral if they were already logged in when visiting /invite/:username
+      // (signup flow already handles this via signUp()).
+      try {
+        await supabase.from("referrals").insert({
+          referrer_id: profile.id,
+          referred_id: user.id,
+        });
+      } catch (e) {
+        // Ignore duplicates / RLS issues; this should never block adding a friend.
+        console.warn("referral insert:", e);
+      }
       setAdded(true);
     } catch (err: any) {
       setError(err.message || "Failed to send request.");

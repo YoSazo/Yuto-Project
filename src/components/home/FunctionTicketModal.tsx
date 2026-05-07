@@ -110,15 +110,45 @@ export function FunctionTicketModal({
               <p className="relative text-sm text-gray-500 mt-2">
                 {isSell ? (
                   <>
-                    Sold by <span className="font-semibold text-gray-800">{functionItem.host.display_name}</span>
+                    Sold by{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigate(`/user/${functionItem.host.id}`);
+                      }}
+                      className="font-semibold text-gray-800 underline underline-offset-2"
+                    >
+                      {functionItem.host.display_name}
+                    </button>
                   </>
                 ) : isService ? (
                   <>
-                    Provided by <span className="font-semibold text-gray-800">{functionItem.host.display_name}</span>
+                    Provided by{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigate(`/user/${functionItem.host.id}`);
+                      }}
+                      className="font-semibold text-gray-800 underline underline-offset-2"
+                    >
+                      {functionItem.host.display_name}
+                    </button>
                   </>
                 ) : (
                   <>
-                    Hosted by <span className="font-semibold text-gray-800">{functionItem.host.display_name}</span>
+                    Hosted by{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigate(`/user/${functionItem.host.id}`);
+                      }}
+                      className="font-semibold text-gray-800 underline underline-offset-2"
+                    >
+                      {functionItem.host.display_name}
+                    </button>
                   </>
                 )}
               </p>
