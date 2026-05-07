@@ -98,16 +98,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const hostName = data.host?.display_name || data.host?.username || "Someone";
-    const titleLine = `🎉 ${hostName} is hosting a ${data.title}`;
+    const isSell = data.location === "__SELL__";
+    const isService = data.location === "__SERVICE__";
+    const titleLine = isSell
+      ? `🛍️ ${hostName} is selling ${data.title}`
+      : isService
+        ? `🛠️ ${hostName} offers ${data.title}`
+        : `🎉 ${hostName} is hosting a ${data.title}`;
     const joinedCount = Array.isArray(data.function_members) ? data.function_members.length : 0;
     const spotsLeft =
       typeof data.max_capacity === "number" && data.max_capacity > 0
         ? Math.max(0, data.max_capacity - joinedCount)
         : null;
 
-    const subLine = `${formatShareDate(data.date)} · KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} ${
-      spotsLeft != null ? `· ${spotsLeft} spots left` : ""
-    }`.trim();
+    const subLine = isSell
+      ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Available now`.trim()
+      : isService
+        ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Book now`.trim()
+        : `${formatShareDate(data.date)} · KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} ${
+            spotsLeft != null ? `· ${spotsLeft} spots left` : ""
+          }`.trim();
 
     const ogImageUrl = `${origin}/og/function/${encodeURIComponent(functionId)}.png`;
 

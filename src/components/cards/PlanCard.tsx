@@ -56,6 +56,9 @@ export function PlanCard({
             {new Date(plan.created_at).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" })}
           </p>
         </div>
+        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide inline-flex items-center gap-1.5 bg-orange-50 text-orange-700">
+          Plan
+        </span>
         {isMine && onDeletePlan && (
           <button
             type="button"

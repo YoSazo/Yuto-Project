@@ -96,14 +96,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const hostName = data.host?.display_name || data.host?.username || "Someone";
     const title = data.title || "Function";
+    const isSell = data.location === "__SELL__";
+    const isService = data.location === "__SERVICE__";
     const joinedCount = Array.isArray(data.function_members) ? data.function_members.length : 0;
     const spotsLeft =
       typeof data.max_capacity === "number" && data.max_capacity > 0
         ? Math.max(0, data.max_capacity - joinedCount)
         : null;
-    const metaLine = `${formatShareDate(data.date)} · KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")}${
-      spotsLeft != null ? ` · ${spotsLeft} spots left` : ""
-    }${data.location ? ` · ${data.location}` : ""}`;
+    const metaLine = isSell
+      ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Available now`
+      : isService
+        ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Book now`
+        : `${formatShareDate(data.date)} · KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")}${
+            spotsLeft != null ? ` · ${spotsLeft} spots left` : ""
+          }${data.location ? ` · ${data.location}` : ""}`;
 
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
@@ -125,7 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   </g>
 
   <text x="110" y="165" font-size="26" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" fill="#E5E7EB" opacity="0.95">
-    🎉 ${escapeXml(hostName)} is hosting a function
+    ${isSell ? "🛍️" : isService ? "🛠️" : "🎉"} ${escapeXml(hostName)} ${isSell ? "is selling" : isService ? "offers" : "is hosting a function"}
   </text>
 
   <text x="110" y="245" font-size="76" font-weight="800" letter-spacing="-1.5" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" fill="#FFFFFF">
