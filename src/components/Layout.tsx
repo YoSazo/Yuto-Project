@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, useLocation, Navigate } from "react-router-dom";
 import GlassNavBar from "./GlassNavBar";
 import { useAuth } from "../contexts/AuthContext";
-import { getPendingRequests } from "../lib/supabase";
+import { getPendingRequests, getMyDmAndGroupUnreadTotal } from "../lib/supabase";
 import { useAppResume } from "../hooks/useAppResume";
 
 type NavTab = "split" | "home" | "activity" | "profile";
@@ -21,14 +21,16 @@ export default function Layout() {
   const activeTab = TAB_ROUTES[location.pathname];
   const showNav = !!activeTab;
   const [pendingCount, setPendingCount] = useState(0);
+  const [dmUnreadCount, setDmUnreadCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    const fetchPending = () => {
+    const fetchCounts = () => {
       getPendingRequests(user.id).then((data) => setPendingCount(data.length)).catch(() => {});
+      getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadCount).catch(() => {});
     };
-    fetchPending();
-    const interval = setInterval(fetchPending, 15000);
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 15000);
     return () => clearInterval(interval);
   }, [user, location.pathname]);
 
@@ -58,7 +60,7 @@ export default function Layout() {
 
         {showNav && (
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
-            <GlassNavBar activeTab={activeTab} pendingCount={pendingCount} />
+            <GlassNavBar activeTab={activeTab} pendingCount={pendingCount} dmUnreadCount={dmUnreadCount} />
           </div>
         )}
       </div>

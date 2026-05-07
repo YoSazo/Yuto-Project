@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { createGroupChat, getFriends, getOrCreateDmConversation, sendDmMessage, sendGroupChatMessage } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
+import { toast } from "sonner";
 
 interface FriendRow {
   id: string;
@@ -72,7 +73,7 @@ export default function CreateGroupChatScreen() {
         (e as { details?: string })?.details ||
         (e as { hint?: string })?.hint ||
         (typeof e === "string" ? e : "");
-      alert(msg || "Couldn't create group. Try again.");
+      toast.error(msg || "Couldn't create group. Try again.");
     } finally {
       setCreating(false);
     }

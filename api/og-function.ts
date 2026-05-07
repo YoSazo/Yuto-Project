@@ -27,6 +27,12 @@ function escapeXml(input: string) {
     .replaceAll("'", "&#039;");
 }
 
+function sanitizeForSvg(input: string) {
+  return escapeXml(input)
+    .slice(0, 80)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+}
+
 function formatShareDate(dateValue: string | null) {
   if (!dateValue) return "Anytime";
   try {
@@ -94,7 +100,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           create: { width: W, height: H, channels: 3, background: "#0b0b0c" },
         });
 
-    const hostName = data.host?.display_name || data.host?.username || "Someone";
+    const hostRaw = data.host as
+      | { display_name?: string | null; username?: string | null }
+      | { display_name?: string | null; username?: string | null }[]
+      | null
+      | undefined;
+    const hostProfile = Array.isArray(hostRaw) ? hostRaw[0] : hostRaw;
+    const hostName = hostProfile?.display_name || hostProfile?.username || "Someone";
     const title = data.title || "Function";
     const isSell = data.location === "__SELL__";
     const isService = data.location === "__SERVICE__";
@@ -131,17 +143,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   </g>
 
   <text x="110" y="165" font-size="26" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" fill="#E5E7EB" opacity="0.95">
-    ${isSell ? "🛍️" : isService ? "🛠️" : "🎉"} ${escapeXml(hostName)} ${isSell ? "is selling" : isService ? "offers" : "is hosting a function"}
+    ${isSell ? "🛍️" : isService ? "🛠️" : "🎉"} ${sanitizeForSvg(hostName)} ${isSell ? "is selling" : isService ? "offers" : "is hosting a function"}
   </text>
 
   <text x="110" y="245" font-size="76" font-weight="800" letter-spacing="-1.5" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" fill="#FFFFFF">
-    ${escapeXml(title)}
+    ${sanitizeForSvg(title)}
   </text>
 
   <g>
     <rect x="110" y="288" rx="18" ry="18" width="${W - 220}" height="74" fill="#FFFFFF" fill-opacity="0.10" stroke="#FFFFFF" stroke-opacity="0.14"/>
     <text x="140" y="338" font-size="30" font-weight="700" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" fill="#F3F4F6">
-      ${escapeXml(metaLine)}
+      ${sanitizeForSvg(metaLine)}
     </text>
   </g>
 

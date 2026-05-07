@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Briefcase, SquarePen, Users } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
@@ -18,6 +18,7 @@ import {
   type GroupChatRow,
 } from "../lib/supabase";
 import { buildGroupChatPickerLabels } from "../lib/groupChatDisplay";
+import { toast } from "sonner";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -79,8 +80,15 @@ function StackedGroupMemberAvatars({
 export default function MessagesScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"personal" | "business">("personal");
+  const [activeTab, setActiveTab] = useState<"personal" | "business">(() =>
+    searchParams.get("tab") === "business" ? "business" : "personal",
+  );
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "business") setActiveTab("business");
+  }, [searchParams]);
   const [groups, setGroups] = useState<GroupChatRow[]>([]);
   const [convos, setConvos] = useState<DmConversation[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, ProfileRow>>({});
@@ -394,7 +402,7 @@ export default function MessagesScreen() {
                           setBizDashboard(dash);
                         } catch (e) {
                           console.error(e);
-                          alert("Couldn’t update listing. Try again.");
+                          toast.error("Couldn't update listing. Try again.");
                         } finally {
                           setListingBusyId(null);
                         }

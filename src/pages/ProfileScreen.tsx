@@ -5,8 +5,8 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   fetchYutoBalance,
   createHighlight,
+  createWalletOffer,
   getFriends,
-  transferYutoBalance,
   getHighlightsByUser,
   getMyGroups,
   getPendingRequests,
@@ -15,6 +15,7 @@ import {
   getUserListings,
   saveProfilePhoneNumber,
   sendDmMessage,
+  sendDmShareMessage,
   uploadHighlightAsset,
   uploadAvatar,
   supabase,
@@ -25,6 +26,9 @@ import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highligh
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { Wallet, History, Plus, Copy, Check, Send, Volume2, VolumeX } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
+import { useCountUp } from "../hooks/useCountUp";
+import { toast } from "sonner";
+import { haptics } from "../lib/haptics";
 
 
 function ChevronRight() {
@@ -136,7 +140,28 @@ export default function ProfileScreen() {
   const [highlightReplySending, setHighlightReplySending] = useState(false);
   const [highlightStickerOpen, setHighlightStickerOpen] = useState(false);
   const [highlightStickerListingId, setHighlightStickerListingId] = useState<string | null>(null);
+  const highlightLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [highlightPendingDelete, setHighlightPendingDelete] = useState<string | null>(null);
   const [myListings, setMyListings] = useState<Array<{ id: string; title: string; kind: "sell" | "service"; amount_per_person: number }>>([]);
+
+  const animatedBalance = useCountUp(points, 1100);
+  const prevBalanceRef = useRef<number | null>(null);
+  const [balancePulse, setBalancePulse] = useState(false);
+
+  useEffect(() => {
+    if (prevBalanceRef.current === null) {
+      prevBalanceRef.current = points;
+      return;
+    }
+    if (points > prevBalanceRef.current) {
+      setBalancePulse(true);
+      haptics.success();
+      const t = window.setTimeout(() => setBalancePulse(false), 1400);
+      prevBalanceRef.current = points;
+      return () => window.clearTimeout(t);
+    }
+    prevBalanceRef.current = points;
+  }, [points]);
 
   const activeHighlightMediaKey =
     activeHighlight?.photos?.[activeHighlightIdx]?.url ? `${activeHighlight.id}:${activeHighlightIdx}:${activeHighlight.photos[activeHighlightIdx]!.url}` : "";
@@ -145,6 +170,12 @@ export default function ProfileScreen() {
     // Prevent "previous image" lingering when switching items.
     setActiveHighlightMediaReady(false);
   }, [activeHighlightMediaKey]);
+
+  useEffect(() => {
+    return () => {
+      if (highlightLongPressTimerRef.current) clearTimeout(highlightLongPressTimerRef.current);
+    };
+  }, []);
   const handleOpenHistory = async () => {
     setShowHistoryModal(true);
     setLoadingHistory(true);
@@ -209,7 +240,7 @@ export default function ProfileScreen() {
       const data = await res.json();
       
       if (data.success) {
-        alert("Success! KSH " + amountNum + " has been sent to your M-PESA.");
+        toast.success("Success! KSH " + amountNum + " has been sent to your M-PESA.");
         setShowWithdrawModal(false);
         setWithdrawAmount("");
         try {
@@ -390,7 +421,7 @@ export default function ProfileScreen() {
           v.onerror = () => reject(new Error("Couldn't read video metadata"));
         });
         if (durationSeconds > 30) {
-          alert("Please pick a video that is 30 seconds or less.");
+          toast.error("Please pick a video that is 30 seconds or less.");
           URL.revokeObjectURL(urlForPreview);
           return;
         }
@@ -398,7 +429,7 @@ export default function ProfileScreen() {
     } catch (err) {
       if (urlForPreview) URL.revokeObjectURL(urlForPreview);
       console.error(err);
-      alert("Couldn't use that media file. Try again.");
+      toast.error("Couldn't use that media file. Try again.");
       return;
     }
 
@@ -453,7 +484,7 @@ export default function ProfileScreen() {
         (err as { hint?: string })?.hint ||
         (typeof err === "string" ? err : "") ||
         "Couldn't create highlight.";
-      alert(msg);
+      toast.error(msg);
     }
     setCreatingHighlight(false);
   };
@@ -646,30 +677,71 @@ export default function ProfileScreen() {
         {highlights.length > 0 && (
           <div className="flex items-center justify-center gap-4">
             {highlights.slice(0, 2).map((h) => (
-              <button
-                key={h.id}
-                type="button"
-                onClick={() => {
-                  setActiveHighlightIdx(0);
-                  setActiveHighlightMediaReady(false);
-                  setHighlightViewerMuted(true);
-                  setActiveHighlight(h);
-                }}
-                className="bg-transparent border-none p-0"
-              >
-                <motion.div
-                  layoutId={`highlight-container-${h.id}`}
-                  style={{ borderRadius: 9999 }}
-                  className="relative w-16 h-16 shrink-0 border-2 border-gray-200 overflow-hidden bg-gray-100"
+              <div key={h.id} className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (highlightPendingDelete === h.id) {
+                      setHighlightPendingDelete(null);
+                      return;
+                    }
+                    setActiveHighlightIdx(0);
+                    setActiveHighlightMediaReady(false);
+                    setHighlightViewerMuted(true);
+                    setActiveHighlight(h);
+                  }}
+                  onPointerDown={() => {
+                    if (highlightLongPressTimerRef.current) clearTimeout(highlightLongPressTimerRef.current);
+                    highlightLongPressTimerRef.current = setTimeout(() => {
+                      setHighlightPendingDelete(h.id);
+                    }, 550);
+                  }}
+                  onPointerUp={() => {
+                    if (highlightLongPressTimerRef.current) {
+                      clearTimeout(highlightLongPressTimerRef.current);
+                      highlightLongPressTimerRef.current = null;
+                    }
+                  }}
+                  onPointerLeave={() => {
+                    if (highlightLongPressTimerRef.current) {
+                      clearTimeout(highlightLongPressTimerRef.current);
+                      highlightLongPressTimerRef.current = null;
+                    }
+                  }}
+                  className="bg-transparent border-none p-0"
                 >
-                  {h.photos[0]?.url ? (
-                    <HighlightStillMedia
-                      url={(h.photos[0].thumb_url || h.photos[0].poster_url || h.photos[0].url) as string}
-                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
-                    />
-                  ) : null}
-                </motion.div>
-              </button>
+                  <motion.div
+                    layoutId={`highlight-container-${h.id}`}
+                    style={{ borderRadius: 9999 }}
+                    className="relative w-16 h-16 shrink-0 border-2 border-gray-200 overflow-hidden bg-gray-100"
+                  >
+                    {h.photos[0]?.url ? (
+                      <HighlightStillMedia
+                        url={(h.photos[0].thumb_url || h.photos[0].poster_url || h.photos[0].url) as string}
+                        className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                      />
+                    ) : null}
+                  </motion.div>
+                </button>
+                {highlightPendingDelete === h.id ? (
+                  <button
+                    type="button"
+                    className="text-[11px] font-bold text-red-500 bg-transparent border-none p-0"
+                    onClick={async () => {
+                      try {
+                        await supabase.from("highlights").delete().eq("id", h.id);
+                        setHighlights((prev) => prev.filter((x) => x.id !== h.id));
+                      } catch (e) {
+                        console.error(e);
+                      } finally {
+                        setHighlightPendingDelete(null);
+                      }
+                    }}
+                  >
+                    Delete
+                  </button>
+                ) : null}
+              </div>
             ))}
           </div>
         )}
@@ -708,10 +780,14 @@ export default function ProfileScreen() {
         {walletTab === "balance" ? (
           <div className="relative z-10">
             <div className="flex items-end justify-center">
-              <div className="text-center">
+              <div className={`text-center transition-all duration-300 ${balancePulse ? "scale-105" : "scale-100"}`}>
                 <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
-                <span className="text-5xl font-bold tracking-tight">
-                  {points.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <span
+                  className={`text-5xl font-bold tracking-tight transition-colors duration-500 ${
+                    balancePulse ? "text-green-400" : "text-white"
+                  }`}
+                >
+                  {animatedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -1016,7 +1092,7 @@ export default function ProfileScreen() {
                             setHighlightReplyText("");
                           } catch (e) {
                             console.error(e);
-                            alert("Couldn't send message.");
+                            toast.error("Couldn't send message.");
                           } finally {
                             setHighlightReplySending(false);
                           }
@@ -1346,10 +1422,19 @@ export default function ProfileScreen() {
                 setSendBusy(true);
                 setSendError("");
                 try {
-                  await transferYutoBalance(user.id, sendSelectedId, amt, sendNote.trim() || null);
+                  if (!user) return;
+                  const convo = await getOrCreateDmConversation(user.id, sendSelectedId);
+                  const offerId = await createWalletOffer({
+                    amountKes: amt,
+                    note: sendNote.trim() || null,
+                    dmConversationId: convo.id,
+                    recipientUserId: sendSelectedId,
+                  });
+                  await sendDmShareMessage(convo.id, user.id, { kind: "wallet_offer", offer_id: offerId } as any);
                   const bal = await fetchYutoBalance(user.id);
                   setPoints(bal);
                   setShowSendModal(false);
+                  navigate(`/messages/${convo.id}`, { state: { otherUserId: sendSelectedId } });
                 } catch (e) {
                   console.error(e);
                   setSendError(e instanceof Error ? e.message : "Couldn't send. Try again.");

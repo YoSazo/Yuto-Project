@@ -3,6 +3,7 @@ import type { Plan } from "../../pages/home/types";
 import { PeopleListModal } from "../PeopleListModal";
 import { useMemo, useState } from "react";
 import { PlanCard } from "../cards/PlanCard";
+import { PlanCardSkeleton } from "../skeletons/PlanCardSkeleton";
 
 export function PlansFeedSection({
   loading,
@@ -46,8 +47,10 @@ export function PlansFeedSection({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col gap-4">
+        {[1, 2, 3].map((i) => (
+          <PlanCardSkeleton key={i} />
+        ))}
       </div>
     );
   }

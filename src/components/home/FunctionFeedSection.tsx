@@ -3,9 +3,11 @@ import type { DmSharePayload } from "../../lib/supabase";
 import { PeopleListModal } from "../PeopleListModal";
 import { useMemo, useState } from "react";
 import { FunctionCard } from "../cards/FunctionCard";
+import { FunctionCardSkeleton } from "../skeletons/FunctionCardSkeleton";
 
 export function FunctionFeedSection({
   functionsFeed,
+  loading = false,
   currentUserId,
   functionUnreadCounts,
   onNavigateToHost,
@@ -16,6 +18,7 @@ export function FunctionFeedSection({
   onShareInMessages,
 }: {
   functionsFeed: FunctionListing[];
+  loading?: boolean;
   currentUserId?: string;
   functionUnreadCounts: Record<string, number>;
   onNavigateToHost: (hostUserId: string) => void;
@@ -25,9 +28,17 @@ export function FunctionFeedSection({
   onOpenTicket: (f: FunctionListing) => void;
   onShareInMessages?: (payload: DmSharePayload) => void;
 }) {
-  if (functionsFeed.length === 0) return null;
-
   const [peopleModal, setPeopleModal] = useState<{ functionId: string; title: string } | null>(null);
+
+  if (loading && functionsFeed.length === 0) {
+    return (
+      <div className="mb-6 flex flex-col gap-4">
+        <FunctionCardSkeleton />
+        <FunctionCardSkeleton />
+      </div>
+    );
+  }
+  if (functionsFeed.length === 0) return null;
 
   const events = useMemo(
     () => functionsFeed.filter((f) => f.location !== "__SELL__" && f.location !== "__SERVICE__"),

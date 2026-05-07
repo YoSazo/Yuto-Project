@@ -14,6 +14,8 @@ import {
 } from "../lib/supabase";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { useAppResume } from "../hooks/useAppResume";
+import { toast } from "sonner";
+import { haptics } from "../lib/haptics";
 
 interface Member {
   user_id: string;
@@ -423,6 +425,7 @@ export default function YutoGroupScreen() {
   const [isSubmittingRide, setIsSubmittingRide] = useState(false);
   const [rideSubmitError, setRideSubmitError] = useState("");
   const [isPayingShare, setIsPayingShare] = useState(false);
+  const [originPlan, setOriginPlan] = useState<{ id: string; title: string } | null>(null);
   const justJoinedTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Load group
@@ -468,6 +471,19 @@ export default function YutoGroupScreen() {
       }
     })();
   }, [groupId, user]);
+
+  useEffect(() => {
+    if (!groupId) return;
+    void supabase
+      .from("plans")
+      .select("id, title")
+      .eq("yuto_group_id", groupId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.id && data.title) setOriginPlan({ id: data.id, title: data.title });
+        else setOriginPlan(null);
+      });
+  }, [groupId]);
 
   // If routed from a high-intent notification, auto-pop Pay modal.
   useEffect(() => {
@@ -535,6 +551,7 @@ export default function YutoGroupScreen() {
     const allPaid = members.length > 0 && members.every((m) => m.isPaid);
     if (allPaid && !allPaidRef.current) {
       allPaidRef.current = true;
+      haptics.success();
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 2500);
     }
@@ -612,7 +629,7 @@ export default function YutoGroupScreen() {
           setBalanceTopUpAmount(inferTopUpKes(msg, shareAmt));
           setShowBalanceTopUpModal(true);
         } else {
-          alert(msg || "Couldn't pay share after topping up.");
+          toast.error(msg || "Couldn't pay share after topping up.");
         }
         return;
       }
@@ -652,7 +669,7 @@ export default function YutoGroupScreen() {
           setBalanceTopUpAmount(inferTopUpKes(msg, perPersonAmount));
           setShowBalanceTopUpModal(true);
         } else {
-          alert(msg || "Payment failed.");
+          toast.error(msg || "Payment failed.");
         }
         return;
       }
@@ -663,7 +680,7 @@ export default function YutoGroupScreen() {
 
     } catch (err) {
       console.error("Payment error:", err);
-      alert("An unexpected error occurred.");
+      toast.error("An unexpected error occurred.");
     } finally {
       setIsPayingShare(false);
     }
@@ -729,7 +746,7 @@ export default function YutoGroupScreen() {
                 navigate(`/messages/group/${chatId}`);
               } catch (e) {
                 console.error(e);
-                alert("Couldn't open the chat yet. Apply latest migrations and try again.");
+                toast.error("Couldn't open the chat yet. Apply latest migrations and try again.");
               }
             }}
             className="px-4 py-2 bg-black text-white rounded-full font-bold text-sm flex items-center gap-1.5 hover:bg-gray-800 transition-colors"
@@ -744,6 +761,16 @@ export default function YutoGroupScreen() {
         <h1 className="text-3xl font-bold text-black">{groupName}</h1>
         <p className="text-base text-gray-500 mt-0.5">KSH {totalAmount.toLocaleString()} total</p>
       </div>
+
+      {originPlan && (
+        <button
+          type="button"
+          onClick={() => navigate("/home", { state: { focus: { kind: "plan", id: originPlan.id } } })}
+          className="mx-auto mb-4 flex max-w-full items-center justify-center gap-2 px-4 py-2 rounded-full bg-orange-50 border border-orange-200 text-orange-800 text-xs font-bold"
+        >
+          <span className="truncate">From plan: {originPlan.title}</span>
+        </button>
+      )}
 
       {/* Graph / Mind-map layout */}
       <div className="relative w-full max-w-[380px] mx-auto flex-1 min-h-[380px]">
@@ -863,6 +890,35 @@ export default function YutoGroupScreen() {
           ? `${members.filter((m) => m.rideAmount !== null).length}/${members.length} fares submitted`
           : `${paidCount}/${members.length} have paid`}
       </p>
+
+      {allPaid && isHost && groupStatus !== "completed" && (
+        <button
+          type="button"
+          onClick={async () => {
+            const summary =
+              `✅ ${groupName}\n` +
+              `KSH ${totalAmount.toLocaleString()} collected\n` +
+              `${members.length} people · All paid\n` +
+              `Powered by Yuto`;
+            try {
+              if (navigator.share) {
+                await navigator.share({
+                  title: `${groupName} — Paid!`,
+                  text: summary,
+                });
+              } else {
+                await navigator.clipboard.writeText(summary);
+                toast.success("Receipt copied!");
+              }
+            } catch {
+              /* cancelled */
+            }
+          }}
+          className="w-full mb-4 py-3 rounded-2xl font-bold text-sm bg-gray-100 text-black border border-gray-200 hover:bg-gray-200 transition-colors tap-scale"
+        >
+          Share payment receipt
+        </button>
+      )}
 
       {/* ── Action button ── */}
       <div>

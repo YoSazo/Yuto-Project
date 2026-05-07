@@ -15,6 +15,7 @@ import {
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 import type { DmSharePayload } from "../../lib/supabase";
 import { FixedMediaCarousel } from "../media/FixedMediaCarousel";
+import { toast } from "sonner";
 
 function extractFulfillmentLine(description: string | null): string | null {
   if (!description) return null;
@@ -88,9 +89,9 @@ export function FunctionCard({
     }
     try {
       await navigator.clipboard.writeText(url);
-      alert("Link copied!");
+      toast.success("Link copied!");
     } catch {
-      alert(url);
+      toast.error("Couldn't copy link.");
     }
   };
 
@@ -256,6 +257,12 @@ export function FunctionCard({
           </span>
         )}
       </div>
+
+      {isMember && !me?.has_paid && (
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-50 border border-amber-200">
+          <span className="text-amber-800 text-xs font-bold">Spot reserved — complete payment to confirm</span>
+        </div>
+      )}
 
       <div className={["pt-1 border-t", isFunction ? "border-white/10" : "border-gray-100"].join(" ")}>
         <div className="flex items-center justify-between gap-2 mt-3">

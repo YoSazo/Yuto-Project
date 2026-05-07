@@ -131,7 +131,12 @@ export default function InviteScreen() {
             {adding ? "Sending..." : user ? `Add ${profile?.display_name}` : "Sign up & Add Friend"}
           </button>
           {!user && (
-            <p className="text-xs text-gray-400">You'll need a Yuto account to add friends</p>
+            <>
+              <p className="text-xs text-gray-400 text-center">
+                {profile?.display_name} earns KSH 10 when you top up for the first time.
+              </p>
+              <p className="text-xs text-gray-400 text-center">You&apos;ll need a Yuto account to add friends.</p>
+            </>
           )}
           {error && <p className="text-red-500 text-sm">{error}</p>}
         </div>

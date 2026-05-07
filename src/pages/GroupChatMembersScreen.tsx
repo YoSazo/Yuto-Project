@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import { createGroup, getOrCreateDmConversation, sendDmMessage, sendDmShareMessage, supabase } from "../lib/supabase";
+import { toast } from "sonner";
 
 type PersonRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -163,7 +164,7 @@ export default function GroupChatMembersScreen() {
                   navigate(`/messages/${convo.id}`, { state: { otherUserId: target.id } });
                 } catch (e) {
                   console.error(e);
-                  alert("Couldn't send request. Try again.");
+                  toast.error("Couldn't send request. Try again.");
                 } finally {
                   setSubmitting(false);
                 }

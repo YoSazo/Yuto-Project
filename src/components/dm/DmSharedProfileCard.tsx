@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Clock, MessageCircle, UserPlus } from "lucide-react";
 import UserAvatar from "../UserAvatar";
 import { getProfile, getOrCreateDmConversation, sendFriendRequest, supabase } from "../../lib/supabase";
+import { toast } from "sonner";
 
 type Friendship = "none" | "pending" | "friends";
 
@@ -61,7 +62,7 @@ export function DmSharedProfileCard({ viewerUserId, sharedUserId }: { viewerUser
       navigate(`/messages/${convo.id}`, { state: { otherUserId: sharedUserId } });
     } catch (e) {
       console.error(e);
-      alert("Couldn't open messages. Try again.");
+      toast.error("Couldn't open messages. Try again.");
     }
     setActionBusy(false);
   };
@@ -74,7 +75,7 @@ export function DmSharedProfileCard({ viewerUserId, sharedUserId }: { viewerUser
       setSentRequestThisSession(true);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Couldn't send request.";
-      alert(msg.includes("already") ? "You've already interacted with this person." : msg);
+      toast.error(msg.includes("already") ? "You've already interacted with this person." : msg);
     }
     setActionBusy(false);
   };

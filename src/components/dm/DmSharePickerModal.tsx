@@ -34,6 +34,11 @@ export function DmSharePickerModal({
       setLoading(true);
       try {
         const { supabase } = await import("../../lib/supabase");
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+        const uid = authUser?.id ?? null;
+
         const [pRes, fRes] = await Promise.all([
           supabase.from("plans").select("*, creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url), plan_members(id, user_id, profiles(id, username, display_name, avatar_url))").order("created_at", { ascending: false }).limit(25),
           supabase.from("functions").select("*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))").eq("is_public", true).order("created_at", { ascending: false }).limit(25),
@@ -41,8 +46,35 @@ export function DmSharePickerModal({
         if (pRes.error) throw pRes.error;
         if (fRes.error) throw fRes.error;
         if (cancelled) return;
-        setPlans((pRes.data || []) as Plan[]);
-        setFunctions((fRes.data || []) as FunctionListing[]);
+
+        const sortPlans = (list: Plan[]) => {
+          if (!uid) return list;
+          return [...list].sort((a, b) => {
+            const aMine =
+              a.creator_id === uid || !!(a.plan_members ?? []).some((m: { user_id?: string }) => m.user_id === uid);
+            const bMine =
+              b.creator_id === uid || !!(b.plan_members ?? []).some((m: { user_id?: string }) => m.user_id === uid);
+            if (aMine && !bMine) return -1;
+            if (!aMine && bMine) return 1;
+            return 0;
+          });
+        };
+
+        const sortFunctions = (list: FunctionListing[]) => {
+          if (!uid) return list;
+          return [...list].sort((a, b) => {
+            const aMine =
+              a.host_id === uid || !!(a.function_members ?? []).some((m: { user_id?: string }) => m.user_id === uid);
+            const bMine =
+              b.host_id === uid || !!(b.function_members ?? []).some((m: { user_id?: string }) => m.user_id === uid);
+            if (aMine && !bMine) return -1;
+            if (!aMine && bMine) return 1;
+            return 0;
+          });
+        };
+
+        setPlans(sortPlans((pRes.data || []) as Plan[]));
+        setFunctions(sortFunctions((fRes.data || []) as FunctionListing[]));
       } catch (e) {
         console.error(e);
       } finally {

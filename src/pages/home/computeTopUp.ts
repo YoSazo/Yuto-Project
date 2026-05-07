@@ -7,6 +7,8 @@ export async function computeFunctionTopUpGapKes(opts: {
   shareKes: number;
   rpcErrorMessage?: string | null;
   userId: string;
+  /** When the caller already fetched balance, avoids a duplicate network read */
+  cachedBalance?: number;
 }): Promise<number> {
   const share = Math.max(0, Math.ceil(Number(opts.shareKes) || 0));
   const msg = opts.rpcErrorMessage ?? "";
@@ -16,7 +18,7 @@ export async function computeFunctionTopUpGapKes(opts: {
     const need = parseFloat(m[2]) || share;
     return Math.max(MIN_MPESA_TOPUP_KES, Math.ceil(need - have));
   }
-  const bal = await fetchYutoBalance(opts.userId);
+  const bal = opts.cachedBalance ?? (await fetchYutoBalance(opts.userId));
   const gap = Math.ceil(share - bal);
   if (gap > 0) return Math.max(MIN_MPESA_TOPUP_KES, gap);
   return Math.max(MIN_MPESA_TOPUP_KES, share);

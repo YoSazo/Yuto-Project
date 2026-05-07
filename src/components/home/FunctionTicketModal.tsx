@@ -4,6 +4,8 @@ import { MessageCircle, Send, Store, Ticket } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 import UserAvatar from "../UserAvatar";
 import { confirmListingReceipt, ensureFunctionAttendeeChat } from "../../lib/supabase";
+import { toast } from "sonner";
+import { haptics } from "../../lib/haptics";
 
 function extractFulfillmentLine(description: string | null): string | null {
   if (!description) return null;
@@ -69,6 +71,9 @@ export function FunctionTicketModal({
   const intentLabel = isListing ? "Proof" : "Ticket";
   const fulfillment = isListing ? extractFulfillmentLine(functionItem.description) : null;
   const buyerConfirmedAt = (me as any)?.buyer_confirmed_at as string | null | undefined;
+  const paidAtRaw = (me as any)?.paid_at as string | null | undefined;
+  const daysSincePaid = paidAtRaw ? Math.floor((Date.now() - new Date(paidAtRaw).getTime()) / 86400000) : null;
+  const autoConfirmDaysLeft = daysSincePaid !== null ? Math.max(0, 7 - daysSincePaid) : null;
   const shareUrl = useMemo(() => {
     const shareOrigin =
       window.location.hostname === "localhost" || window.location.hostname.startsWith("127.")
@@ -76,6 +81,10 @@ export function FunctionTicketModal({
         : "https://yuto.social";
     return `${shareOrigin}/function/${functionItem.id}`;
   }, [functionItem.id]);
+
+  useEffect(() => {
+    haptics.light();
+  }, [windowIdx]);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
@@ -229,9 +238,9 @@ export function FunctionTicketModal({
                   }
                   try {
                     await navigator.clipboard.writeText(shareUrl);
-                    alert("Link copied!");
+                    toast.success("Link copied!");
                   } catch {
-                    alert(shareUrl);
+                    toast.error("Couldn't copy link.");
                   } finally {
                     setSharing(false);
                   }
@@ -244,22 +253,30 @@ export function FunctionTicketModal({
             )}
 
             {isListing && me?.has_paid && !buyerConfirmedAt && (
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await confirmListingReceipt(functionItem.id, userId);
-                    alert("Thanks — marked as received. This unlocks the seller’s payout.");
-                    onClose();
-                  } catch (e) {
-                    console.error(e);
-                    alert("Couldn't confirm yet. Try again.");
-                  }
-                }}
-                className="w-full mt-4 py-3.5 bg-black text-white rounded-2xl font-extrabold text-sm tap-scale"
-              >
-                Confirm receipt
-              </button>
+              <>
+                {autoConfirmDaysLeft !== null && (
+                  <p className="text-xs text-gray-400 text-center mb-2 font-semibold">
+                    Auto-confirms in {autoConfirmDaysLeft} day{autoConfirmDaysLeft === 1 ? "" : "s"} if you don&apos;t
+                    confirm first (when enabled).
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await confirmListingReceipt(functionItem.id, userId);
+                      toast.success("Thanks — marked as received. This unlocks the seller's payout.");
+                      onClose();
+                    } catch (e) {
+                      console.error(e);
+                      toast.error("Couldn't confirm yet. Try again.");
+                    }
+                  }}
+                  className="w-full mt-4 py-3.5 bg-black text-white rounded-2xl font-extrabold text-sm tap-scale"
+                >
+                  Confirm receipt
+                </button>
+              </>
             )}
 
             {isListing && me?.has_paid && (
@@ -292,7 +309,7 @@ export function FunctionTicketModal({
                     navigate(`/messages/group/${gid}`);
                   } catch (e) {
                     console.error(e);
-                    alert("Couldn't open chat. Try again.");
+                    toast.error("Couldn't open chat. Try again.");
                   } finally {
                     setJoiningChat(false);
                   }

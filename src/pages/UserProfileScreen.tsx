@@ -17,6 +17,7 @@ import {
   sendDmShareMessage,
   upsertDmBusinessContext,
   getSavedPhoneNumber,
+  fetchYutoBalance,
   type Highlight,
   type HostedFunctionItem,
   type StorefrontListingItem,
@@ -30,6 +31,7 @@ import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeT
 import type { FunctionListing } from "../lib/types";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
+import { toast } from "sonner";
 
 const STAT_POSITIONS = [
   { id: "splits", angle: -2.4, label: "Splits" },
@@ -180,7 +182,7 @@ export default function UserProfileScreen() {
       navigate(`/messages/${convo.id}`, { state: { otherUserId: targetUserId } });
     } catch (err) {
       console.error(err);
-      alert("Couldn't open messages. Try again.");
+      toast.error("Couldn't open messages. Try again.");
     }
   };
 
@@ -199,10 +201,12 @@ export default function UserProfileScreen() {
           .eq("user_id", user.id)
           .eq("has_paid", false);
 
+        const cachedBal = await fetchYutoBalance(user.id);
         const topUp = await computeFunctionTopUpGapKes({
           shareKes: Number(fn.amount_per_person) || 0,
           rpcErrorMessage: error.message,
           userId: user.id,
+          cachedBalance: cachedBal,
         });
         setFunctionTopUpAmount(topUp);
         setPendingJoinFunction(fn);
@@ -246,7 +250,7 @@ export default function UserProfileScreen() {
       }
     } catch (err) {
       console.error(err);
-      alert("Couldn't complete purchase. Try again.");
+      toast.error("Couldn't complete purchase. Try again.");
     }
   };
 
@@ -263,10 +267,12 @@ export default function UserProfileScreen() {
           .eq("user_id", user.id)
           .eq("has_paid", false);
 
+        const cachedBal = await fetchYutoBalance(user.id);
         const topUp = await computeFunctionTopUpGapKes({
           shareKes: Number(hosted.amount_per_person) || 0,
           rpcErrorMessage: error.message,
           userId: user.id,
+          cachedBalance: cachedBal,
         });
         setFunctionTopUpAmount(topUp);
         setPendingJoinFunction({ ...(hosted as any), location: hosted.location || "" } as any);
@@ -277,7 +283,7 @@ export default function UserProfileScreen() {
       setTicketFunction(full);
     } catch (e) {
       console.error(e);
-      alert("Couldn't join. Try again.");
+      toast.error("Couldn't join. Try again.");
     }
   };
 
@@ -752,7 +758,7 @@ export default function UserProfileScreen() {
                             setHighlightReplyText("");
                           } catch (e) {
                             console.error(e);
-                            alert("Couldn't send message.");
+                            toast.error("Couldn't send message.");
                           } finally {
                             setHighlightReplySending(false);
                           }

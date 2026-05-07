@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { saveProfilePhoneNumber } from "../../lib/supabase";
 import { useAppResume } from "../../hooks/useAppResume";
+import { toast } from "sonner";
+import { haptics } from "../../lib/haptics";
 
 export function FunctionPayModal({
   amount,
@@ -24,6 +26,8 @@ export function FunctionPayModal({
   const [phone, setPhone] = useState(defaultPhoneNumber || "254");
   const [step, setStep] = useState<"input" | "sending" | "waiting" | "error">("input");
   const [error, setError] = useState("");
+  const [pollCount, setPollCount] = useState(0);
+  const invoiceIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (defaultPhoneNumber) {
@@ -31,10 +35,44 @@ export function FunctionPayModal({
     }
   }, [defaultPhoneNumber]);
 
-  // When app returns from STK PIN, re-check status.
   useAppResume(() => {
     if (onRefreshStatus) void onRefreshStatus();
   });
+
+  useEffect(() => {
+    if (step !== "waiting" || !invoiceIdRef.current) return;
+    const invoiceId = invoiceIdRef.current;
+    const iv = window.setInterval(async () => {
+      try {
+        const res = await fetch("/api/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invoice_id: invoiceId }),
+        });
+        const data = (await res.json()) as { state?: string };
+        const state = String(data.state || "").toUpperCase();
+        setPollCount((c) => c + 1);
+        if (state === "COMPLETE") {
+          window.clearInterval(iv);
+          invoiceIdRef.current = null;
+          haptics.success();
+          toast.success("Payment confirmed");
+          await onRefreshStatus?.();
+          onClose();
+        } else if (state === "FAILED" || state === "CANCELLED") {
+          window.clearInterval(iv);
+          invoiceIdRef.current = null;
+          haptics.error();
+          toast.error("Payment was cancelled or failed.");
+          setError("Payment cancelled or failed. Try again.");
+          setStep("error");
+        }
+      } catch {
+        /* keep polling */
+      }
+    }, 3000);
+    return () => window.clearInterval(iv);
+  }, [step, onRefreshStatus, onClose]);
 
   const handlePay = async () => {
     if (phone.length < 12) {
@@ -43,6 +81,7 @@ export function FunctionPayModal({
     }
     setStep("sending");
     setError("");
+    setPollCount(0);
     try {
       const res = await fetch("/api/charge", {
         method: "POST",
@@ -56,6 +95,7 @@ export function FunctionPayModal({
       const data = await res.json();
       if (data.success) {
         void saveProfilePhoneNumber(userId, phone).catch(() => {});
+        invoiceIdRef.current = typeof data.invoice_id === "string" ? data.invoice_id : null;
         setStep("waiting");
       } else {
         setError(data.message || "Failed to initiate payment");
@@ -128,15 +168,34 @@ export function FunctionPayModal({
       </div>
     ) : (
       <div className="py-12 text-center">
-        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-            <line x1="12" y1="18" x2="12.01" y2="18" />
-          </svg>
+        <div className="relative w-16 h-16 mx-auto mb-4">
+          <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center relative z-10">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+              <line x1="12" y1="18" x2="12.01" y2="18" />
+            </svg>
+          </div>
+          <div className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-20 pointer-events-none" />
         </div>
         <p className="font-bold text-lg text-black mb-2">Check your phone</p>
         <p className="text-sm text-gray-500">Enter your M-PESA PIN to complete payment</p>
-        <p className="text-xs text-gray-400 mt-6">This will close automatically once confirmed</p>
+
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <div
+            className={`w-2 h-2 rounded-full transition-colors ${pollCount > 0 ? "bg-green-500" : "bg-gray-200"}`}
+          />
+          <div
+            className={`w-2 h-2 rounded-full transition-colors delay-75 ${pollCount > 1 ? "bg-green-500" : "bg-gray-200"}`}
+          />
+          <div
+            className={`w-2 h-2 rounded-full transition-colors delay-150 ${pollCount > 2 ? "bg-green-500" : "bg-gray-200"}`}
+          />
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          {pollCount === 0 ? "Waiting for PIN…" : pollCount < 3 ? "Checking payment…" : "Still waiting…"}
+        </p>
+
+        <p className="text-xs text-gray-400 mt-4">This will close automatically once confirmed</p>
         {onRefreshStatus && (
           <button
             type="button"

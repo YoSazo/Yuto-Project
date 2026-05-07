@@ -38,7 +38,9 @@ import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModa
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 import { GroupChargeModal } from "../components/wallet/GroupChargeModal";
 import { ConfirmUnsendModal } from "../components/ui/ConfirmUnsendModal";
-import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
+import { toast } from "sonner";
+import { haptics } from "../lib/haptics";
+import { SmartReplies } from "../components/chat/SmartReplies";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -165,6 +167,17 @@ export default function DirectMessageScreen() {
         (payload) => {
           const row = payload.new as DmMessage;
           setMessages((prev) => {
+            const i = prev.findIndex((m) => m.id === row.id);
+            if (i >= 0) {
+              const next = [...prev];
+              const cur = prev[i]!;
+              next[i] = {
+                ...cur,
+                ...row,
+                sender: cur.sender ?? (row as DmMessage).sender,
+              } as DmMessage;
+              return next;
+            }
             if (prev.some((m) => m.id === row.id)) return prev;
             return [...prev, row];
           });
@@ -182,18 +195,47 @@ export default function DirectMessageScreen() {
 
   const title = useMemo(() => other?.display_name || "Message", [other]);
 
-  const onSend = async () => {
+  const lastReceivedMessage = useMemo(() => {
+    if (!user) return null;
+    return [...messages].reverse().find((m) => m.sender_id !== user.id) ?? null;
+  }, [messages, user]);
+
+  const sendWithContent = async (raw: string) => {
     if (!user || !conversationId) return;
-    const content = text.trim();
+    const content = raw.trim();
     if (!content) return;
     setText("");
+
+    const optimisticId = globalThis.crypto.randomUUID();
+    const optimisticMsg: DmMessage = {
+      id: optimisticId,
+      conversation_id: conversationId,
+      sender_id: user.id,
+      content,
+      created_at: new Date().toISOString(),
+      message_type: "text",
+      sender: {
+        id: user.id,
+        username: profile?.username || "",
+        display_name: profile?.display_name || "You",
+        avatar_url: profile?.avatar_url ?? null,
+      },
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
     try {
-      await sendDmMessage(conversationId, user.id, content);
+      await sendDmMessage(conversationId, user.id, content, optimisticId);
+      haptics.light();
     } catch (e) {
       console.error(e);
-      alert("Couldn't send. Try again.");
+      toast.error("Couldn't send. Try again.");
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setText(content);
     }
+  };
+
+  const onSend = async () => {
+    await sendWithContent(text);
   };
 
   const sendShare = async (payload: DmSharePayload, preview: { title: string; subtitle: string; kindLabel: string }) => {
@@ -204,7 +246,7 @@ export default function DirectMessageScreen() {
       setTimeout(() => setPreviewShare(null), 1400);
     } catch (e) {
       console.error(e);
-      alert("Couldn't send. Try again.");
+      toast.error("Couldn't send. Try again.");
     }
   };
 
@@ -242,7 +284,7 @@ export default function DirectMessageScreen() {
     const cap = eventFunction.max_capacity;
     const isFull = cap != null ? members.length >= cap && !isMember : false;
     if (isFull) {
-      alert("This function is currently full!");
+      toast.error("This function is currently full!");
       return;
     }
 
@@ -259,10 +301,12 @@ export default function DirectMessageScreen() {
           .eq("user_id", user.id)
           .eq("has_paid", false);
 
+        const cachedBal = await fetchYutoBalance(user.id);
         const topUp = await computeFunctionTopUpGapKes({
           shareKes: eventFunction.amount_per_person,
           rpcErrorMessage: error.message,
           userId: user.id,
+          cachedBalance: cachedBal,
         });
         setFunctionTopUpAmount(topUp);
         setPendingJoinFunction(eventFunction);
@@ -309,7 +353,7 @@ export default function DirectMessageScreen() {
       setTicketFunction(data as FunctionListing);
     } catch (err) {
       console.error("Error joining function", err);
-      alert("Couldn't complete that action. Try again.");
+      toast.error("Couldn't complete that action. Try again.");
     }
   };
 
@@ -706,7 +750,7 @@ export default function DirectMessageScreen() {
                                         setWalletOfferCache((prev) => ({ ...prev, [listedShare.offer_id]: fresh }));
                                       } catch (e) {
                                         console.error(e);
-                                        alert(e instanceof Error ? e.message : "Couldn't accept.");
+                                        toast.error(e instanceof Error ? e.message : "Couldn't accept.");
                                       }
                                     }}
                                     disabled={!canAccept}
@@ -778,7 +822,7 @@ export default function DirectMessageScreen() {
                                         setQuickSplitTopUp({ groupId: listedShare.group_id, amount: perPerson, perPerson });
                                         return;
                                       }
-                                      alert(msg || "Payment failed.");
+                                      toast.error(msg || "Payment failed.");
                                       return;
                                     }
                                   } catch (e) {
@@ -840,7 +884,7 @@ export default function DirectMessageScreen() {
                                 navigate(`/messages/group/${gid}`);
                               } catch (e) {
                                 console.error(e);
-                                alert("Couldn't open the event chat yet.");
+                                toast.error("Couldn't open the event chat yet.");
                               }
                             }}
                             onOpenPeople={() => navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })}
@@ -907,12 +951,18 @@ export default function DirectMessageScreen() {
             setMessages((prev) => prev.filter((x) => x.id !== messageId));
           } catch (e) {
             console.error(e);
-            alert("Couldn't delete message.");
+            toast.error("Couldn't delete message.");
           }
         }}
       />
 
       <div className="px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-3 border-t border-gray-100">
+        <SmartReplies
+          lastMessage={lastReceivedMessage}
+          onSelect={(reply) => {
+            void sendWithContent(reply);
+          }}
+        />
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -1075,7 +1125,7 @@ export default function DirectMessageScreen() {
             setQuickSplitTopUp(null);
             const { error } = await supabase.rpc("pay_for_plan", { p_group_id: g.groupId, p_amount: g.perPerson });
             if (error) {
-              alert(error.message || "Couldn't pay share yet.");
+              toast.error(error.message || "Couldn't pay share yet.");
             }
           }}
         />

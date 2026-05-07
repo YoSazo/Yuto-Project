@@ -1,11 +1,13 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { haptics } from "../lib/haptics";
 
 type NavTab = "split" | "home" | "activity" | "profile";
 
 interface GlassNavBarProps {
   activeTab: NavTab;
   pendingCount?: number;
+  dmUnreadCount?: number;
 }
 
 function SplitIcon({ color }: { color: string }) {
@@ -49,9 +51,18 @@ const tabs: { id: NavTab; label: string; path: string; Icon: typeof SplitIcon }[
   { id: "profile", label: "Profile", path: "/profile", Icon: PersonIcon },
 ];
 
-export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBarProps) {
+const TAB_COUNT = tabs.length;
+
+export default function GlassNavBar({ activeTab, pendingCount = 0, dmUnreadCount = 0 }: GlassNavBarProps) {
   const navigate = useNavigate();
   const activeIndex = tabs.findIndex((t) => t.id === activeTab);
+
+  const [justLanded, setJustLanded] = useState<NavTab | null>(null);
+  useEffect(() => {
+    setJustLanded(activeTab);
+    const t = window.setTimeout(() => setJustLanded(null), 550);
+    return () => window.clearTimeout(t);
+  }, [activeTab]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStart = useRef({ pointerX: 0, pillLeft: 0 });
@@ -61,15 +72,15 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
 
   const getPillWidth = useCallback(() => {
     if (!containerRef.current) return 0;
-    return containerRef.current.getBoundingClientRect().width / 4 - 10;
+    return containerRef.current.getBoundingClientRect().width / TAB_COUNT - 10;
   }, []);
 
   const getHoverIndex = useCallback(() => {
     if (!containerRef.current) return activeIndex;
     const w = containerRef.current.getBoundingClientRect().width;
-    const pillW = w / 4 - 10;
+    const pillW = w / TAB_COUNT - 10;
     const center = dragLeft + pillW / 2;
-    return Math.min(3, Math.max(0, Math.floor(center / (w / 4))));
+    return Math.min(TAB_COUNT - 1, Math.max(0, Math.floor(center / (w / TAB_COUNT))));
   }, [dragLeft, activeIndex]);
 
   const handlePointerDown = useCallback(
@@ -80,7 +91,7 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
       const rect = container.getBoundingClientRect();
-      const currentLeft = (activeIndex / 4) * rect.width + 5;
+      const currentLeft = (activeIndex / TAB_COUNT) * rect.width + 5;
 
       dragStart.current = { pointerX: e.clientX, pillLeft: currentLeft };
       setDragLeft(currentLeft);
@@ -96,7 +107,7 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      const pillW = rect.width / 4 - 10;
+      const pillW = rect.width / TAB_COUNT - 10;
       const delta = e.clientX - dragStart.current.pointerX;
       const newLeft = dragStart.current.pillLeft + delta;
       setDragLeft(Math.max(5, Math.min(newLeft, rect.width - pillW - 5)));
@@ -112,11 +123,14 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const clickedIndex = Math.min(3, Math.max(0, Math.floor(x / (rect.width / 4))));
-      navigate(tabs[clickedIndex].path);
+      const clickedIndex = Math.min(TAB_COUNT - 1, Math.max(0, Math.floor(x / (rect.width / TAB_COUNT))));
+      const target = tabs[clickedIndex];
+      if (target.id !== activeTab) haptics.tap();
+      navigate(target.path);
     } else {
       const snapIndex = getHoverIndex();
       if (tabs[snapIndex].id !== activeTab) {
+        haptics.medium();
         navigate(tabs[snapIndex].path);
       }
     }
@@ -132,8 +146,8 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
         transform: "scaleY(1.03)",
       }
     : {
-        left: `calc(${activeIndex * 25}% + 5px)`,
-        width: "calc(25% - 10px)",
+        left: `calc(${activeIndex * (100 / TAB_COUNT)}% + 5px)`,
+        width: `calc(${100 / TAB_COUNT}% - 10px)`,
       };
 
   return (
@@ -171,11 +185,10 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
           let scale = 1;
           if (isDragging) {
             const pillCenter = dragLeft + getPillWidth() / 2;
-            const tabCenter = containerRef.current
-              ? (i * 33.33 + 16.66) / 100 * containerRef.current.getBoundingClientRect().width
-              : 0;
+            const w = containerRef.current?.getBoundingClientRect().width ?? 0;
+            const tabCenter = w > 0 ? ((i + 0.5) / TAB_COUNT) * w : 0;
             const distance = Math.abs(pillCenter - tabCenter);
-            const maxDist = containerRef.current ? containerRef.current.getBoundingClientRect().width / 3 : 100;
+            const maxDist = w > 0 ? w / TAB_COUNT : 100;
             const proximity = Math.max(0, 1 - distance / maxDist);
             scale = 1 + proximity * 0.35;
           }
@@ -183,7 +196,10 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
           return (
             <button
               key={tab.id}
-              onClick={() => navigate(tab.path)}
+              onClick={() => {
+                if (tab.id !== activeTab) haptics.tap();
+                navigate(tab.path);
+              }}
               className={`flex-1 relative flex flex-col items-center justify-center gap-0.5 h-full cursor-pointer bg-transparent border-none ${
                 isLit && !isDragging ? "pointer-events-none" : ""
               }`}
@@ -193,6 +209,11 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
                 style={{ transform: `scale(${scale})` }}
               >
                 <tab.Icon color={color} />
+                {tab.id === "home" && dmUnreadCount > 0 && (
+                  <div className="absolute -top-1 -right-1.5 min-w-4 h-4 px-0.5 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-[9px] font-bold text-white">{dmUnreadCount > 99 ? "99+" : dmUnreadCount}</span>
+                  </div>
+                )}
                 {tab.id === "profile" && pendingCount > 0 && (
                   <div className="absolute -top-1 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                     <span className="text-[9px] font-bold text-white">{pendingCount}</span>
@@ -200,9 +221,14 @@ export default function GlassNavBar({ activeTab, pendingCount = 0 }: GlassNavBar
                 )}
               </div>
               <span
-                className={`text-[10px] font-semibold transition-colors duration-200 ${
+                className={`text-[10px] font-semibold transition-all duration-200 ${
                   isLit ? "text-white" : "text-gray-400"
-                }`}
+                } ${justLanded === tab.id ? "scale-110" : "scale-100"}`}
+                style={{
+                  transform:
+                    justLanded === tab.id ? "scale(1.12)" : "scale(1)",
+                  transition: "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s",
+                }}
               >
                 {tab.label}
               </span>

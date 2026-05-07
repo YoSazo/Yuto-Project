@@ -43,6 +43,7 @@ import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 import { GroupChargeModal } from "../components/wallet/GroupChargeModal";
 import { ConfirmUnsendModal } from "../components/ui/ConfirmUnsendModal";
+import { toast } from "sonner";
 import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
 
 function parseShare(m: GroupChatMessage): DmSharePayload | null {
@@ -448,7 +449,7 @@ export default function GroupChatScreen() {
       setTimeout(() => setPreviewShare(null), 1400);
     } catch (e) {
       console.error(e);
-      alert("Couldn't send. Try again.");
+      toast.error("Couldn't send. Try again.");
     }
   };
 
@@ -489,7 +490,7 @@ export default function GroupChatScreen() {
     const cap = eventFunction.max_capacity;
     const isFull = cap != null ? members.length >= cap && !isMember : false;
     if (isFull) {
-      alert("This function is currently full!");
+      toast.error("This function is currently full!");
       return;
     }
 
@@ -506,10 +507,12 @@ export default function GroupChatScreen() {
           .eq("user_id", user.id)
           .eq("has_paid", false);
 
+        const cachedBal = await fetchYutoBalance(user.id);
         const topUp = await computeFunctionTopUpGapKes({
           shareKes: eventFunction.amount_per_person,
           rpcErrorMessage: error.message,
           userId: user.id,
+          cachedBalance: cachedBal,
         });
         setFunctionTopUpAmount(topUp);
         setPendingJoinFunction(eventFunction);
@@ -555,7 +558,7 @@ export default function GroupChatScreen() {
       setTicketFunction(data as FunctionListing);
     } catch (err) {
       console.error("Error joining function", err);
-      alert("Couldn't complete that action. Try again.");
+      toast.error("Couldn't complete that action. Try again.");
     }
   };
 
@@ -568,7 +571,7 @@ export default function GroupChatScreen() {
       await sendGroupChatMessage(groupId, user.id, content);
     } catch (e) {
       console.error(e);
-      alert("Couldn't send. Try again.");
+      toast.error("Couldn't send. Try again.");
       setText(content);
     }
   };
@@ -629,7 +632,7 @@ export default function GroupChatScreen() {
                 setWalletOfferCache((prev) => ({ ...prev, [share.offer_id]: fresh }));
               } catch (e) {
                 console.error(e);
-                alert(e instanceof Error ? e.message : "Couldn't accept.");
+                toast.error(e instanceof Error ? e.message : "Couldn't accept.");
               }
             }}
             disabled={!canAccept}
@@ -716,7 +719,7 @@ export default function GroupChatScreen() {
                           setQuickSplitTopUp({ groupId: share.group_id, amount: perPerson, perPerson });
                           return;
                         }
-                        alert(msg || "Payment failed.");
+                        toast.error(msg || "Payment failed.");
                         return;
                       }
                     } catch (e) {
@@ -794,7 +797,7 @@ export default function GroupChatScreen() {
                   navigate(`/messages/group/${gid}`);
                 } catch (e) {
                   console.error(e);
-                  alert("Couldn't open the event chat yet.");
+                  toast.error("Couldn't open the event chat yet.");
                 }
               }}
               onOpenPeople={() =>
@@ -967,7 +970,7 @@ export default function GroupChatScreen() {
             setMessages((prev) => prev.filter((x) => x.id !== messageId));
           } catch (e) {
             console.error(e);
-            alert("Couldn't delete message.");
+            toast.error("Couldn't delete message.");
           }
         }}
       />
@@ -1070,7 +1073,7 @@ export default function GroupChatScreen() {
             if (!g) return;
             setQuickSplitTopUp(null);
             const { error } = await supabase.rpc("pay_for_plan", { p_group_id: g.groupId, p_amount: g.perPerson });
-            if (error) alert(error.message || "Couldn't pay share yet.");
+            if (error) toast.error(error.message || "Couldn't pay share yet.");
           }}
         />
       )}
@@ -1130,7 +1133,7 @@ export default function GroupChatScreen() {
                       setRenameOpen(false);
                     } catch (e) {
                       console.error(e);
-                      alert("Couldn't rename the group yet. Run the latest migrations or try again.");
+                      toast.error("Couldn't rename the group yet. Run the latest migrations or try again.");
                     }
                     setRenameSaving(false);
                   })();

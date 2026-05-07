@@ -4,6 +4,7 @@ import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.
 import { useAuth } from "../contexts/AuthContext";
 import {
   supabase,
+  fetchYutoBalance,
   getPlansPublic,
   getPlansFriends,
   createPlan,
@@ -51,6 +52,9 @@ import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeT
 import { getUnreadFunctionMessageCount } from "./home/threadStorage";
 import { Users, Globe, MessageCircle, Bell, Send } from "lucide-react";
 import { SegmentedTabsBar } from "../components/ui/SegmentedTabsBar";
+import { toast } from "sonner";
+import { haptics } from "../lib/haptics";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 
 export default function HomeScreen() {
   const { user, profile } = useAuth();
@@ -127,6 +131,17 @@ export default function HomeScreen() {
     void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
     void getMyNotificationUnreadCount(user.id).then(setNotifUnreadTotal).catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const onResume = () => {
+      void loadFeed();
+      void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
+      void getMyNotificationUnreadCount(user.id).then(setNotifUnreadTotal).catch(() => {});
+    };
+    window.addEventListener("yuto:resume", onResume);
+    return () => window.removeEventListener("yuto:resume", onResume);
+  }, [user?.id]);
 
   useEffect(() => {
     const focus = (location.state as any)?.focus as { kind?: string; id?: string } | undefined;
@@ -287,6 +302,25 @@ export default function HomeScreen() {
     setLoading(false);
   };
 
+  const refreshFunctionById = async (functionId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("functions")
+        .select(
+          `*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url))`,
+        )
+        .eq("id", functionId)
+        .single();
+      if (error) throw error;
+      if (data) {
+        setFunctionsFeed((prev) => prev.map((f) => (f.id === functionId ? (data as FunctionListing) : f)));
+      }
+    } catch (e) {
+      console.error(e);
+      await loadFeed();
+    }
+  };
+
   const loadPlans = loadFeed;
 
   const handlePostUpdate = async (planId: string) => {
@@ -325,7 +359,11 @@ export default function HomeScreen() {
     const isMember = members.some((m) => m.user_id === user.id);
     const cap = eventFunction.max_capacity;
     const isFull = cap != null ? members.length >= cap && !isMember : false;
-    if (isFull) { alert("This function is currently full!"); return; }
+    if (isFull) {
+      toast.error("This function is currently full.");
+      haptics.error();
+      return;
+    }
   
     try {
       if (!isMember) await joinFunction(eventFunction.id, user.id);
@@ -336,10 +374,12 @@ export default function HomeScreen() {
         // ✅ Roll back provisional member row, compute top-up gap (not always full ticket price)
         await supabase.from("function_members").delete()
           .eq("function_id", eventFunction.id).eq("user_id", user.id).eq("has_paid", false);
+        const cachedBal = await fetchYutoBalance(user.id);
         const topUp = await computeFunctionTopUpGapKes({
           shareKes: eventFunction.amount_per_person,
           rpcErrorMessage: error.message,
           userId: user.id,
+          cachedBalance: cachedBal,
         });
         setFunctionTopUpAmount(topUp);
         setPendingJoinFunction(eventFunction);
@@ -347,7 +387,7 @@ export default function HomeScreen() {
         return;
       }
   
-      await loadFeed();
+      await refreshFunctionById(eventFunction.id);
 
       // Sell/Service: after a successful pay, jump into a DM with the provider.
       const isSell = eventFunction.location === "__SELL__";
@@ -452,7 +492,7 @@ export default function HomeScreen() {
       navigate(`/messages/group/${gid}`);
     } catch (e) {
       console.error(e);
-      alert("Couldn't open the attendee chat yet. Make sure the latest migrations are applied.");
+      toast.error("Couldn't open the attendee chat yet. Make sure the latest migrations are applied.");
     }
   };
 
@@ -468,18 +508,51 @@ export default function HomeScreen() {
     const joinerName =
       profile.display_name?.trim() || profile.username?.trim() || "Someone";
 
+    const prevPlansSnapshot = plans;
+
+    setPlans((prev) =>
+      prev.map((p) => {
+        if (p.id !== plan.id) return p;
+        if (isMember) {
+          return {
+            ...p,
+            plan_members: (p.plan_members ?? []).filter((m) => m.user_id !== user.id),
+          };
+        }
+        return {
+          ...p,
+          plan_members: [
+            ...(p.plan_members ?? []),
+            {
+              id: `optimistic-${Date.now()}`,
+              user_id: user.id,
+              profiles: {
+                id: user.id,
+                username: profile.username || "",
+                display_name: joinerName,
+                avatar_url: profile.avatar_url ?? null,
+              },
+            },
+          ],
+        };
+      }),
+    );
+
     setJoiningPlanId(plan.id);
 
     try {
       if (isMember) {
         await leavePlan(plan.id, user.id);
+        haptics.light();
       } else {
         await joinPlan(plan.id, user.id, joinerName, plan.creator_id);
+        haptics.medium();
       }
       await loadFeed();
     } catch (error) {
       console.error(isMember ? "Error leaving plan:" : "Error joining plan:", error);
-      alert(error instanceof Error ? error.message : "Something went wrong. Try again.");
+      setPlans(prevPlansSnapshot);
+      toast.error(error instanceof Error ? error.message : "Something went wrong. Try again.");
     } finally {
       setJoiningPlanId(null);
     }
@@ -505,8 +578,34 @@ export default function HomeScreen() {
     } catch (err) { console.error(err); }
   };
 
+  const pullRefresh = usePullToRefresh(async () => {
+    await loadFeed();
+  });
+
   return (
-    <div className="flex flex-col overflow-y-auto pb-28 px-5 pt-6">
+    <div
+      ref={pullRefresh.scrollRef}
+      className="flex flex-col overflow-y-auto pb-28 px-5 pt-6"
+      style={{ touchAction: pullRefresh.pullDistance > 0 ? "none" : "auto" }}
+      onTouchStart={pullRefresh.onTouchStart}
+      onTouchMove={pullRefresh.onTouchMove}
+      onTouchEnd={pullRefresh.onTouchEnd}
+    >
+      <div
+        className="flex items-center justify-center overflow-hidden transition-all duration-300 shrink-0"
+        style={{
+          height: pullRefresh.pullDistance > 0 ? `${pullRefresh.pullDistance}px` : 0,
+          marginTop: pullRefresh.pullDistance > 0 ? `-${Math.min(pullRefresh.pullDistance * 0.3, 16)}px` : 0,
+        }}
+      >
+        <div
+          className={`w-8 h-8 rounded-full border-2 border-black/20 border-t-black ${pullRefresh.refreshing ? "animate-spin" : ""}`}
+          style={{
+            transform: `rotate(${(pullRefresh.pullDistance / 72) * 360}deg)`,
+            opacity: Math.min(pullRefresh.pullDistance / 40, 1),
+          }}
+        />
+      </div>
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
@@ -587,13 +686,14 @@ export default function HomeScreen() {
               if (!user) return;
               void deletePublicPost(postId).then(loadFeed).catch((e) => {
                 console.error(e);
-                alert("Couldn't delete post.");
+                toast.error("Couldn't delete post.");
               });
             }}
           />
 
           <FunctionFeedSection
             functionsFeed={functionsFeed}
+            loading={loading}
             currentUserId={user?.id}
             functionUnreadCounts={functionUnreadCounts}
             onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}

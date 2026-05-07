@@ -336,6 +336,67 @@ async function processIntaSendWebhook(payload: {
     `Webhook: set has_paid=true for ${membershipTable} parent_id=${groupId} user_id=${userId}`,
   );
 
+  if (membershipTable === "function_members") {
+    try {
+      const { data: fnRow } = await supabase
+        .from("functions")
+        .select("id, title, host_id, location")
+        .eq("id", groupId)
+        .maybeSingle();
+
+      if (fnRow && fnRow.location !== "__SELL__" && fnRow.location !== "__SERVICE__") {
+        const { data: existingLink } = await supabase
+          .from("function_attendee_chats")
+          .select("group_id")
+          .eq("function_id", groupId)
+          .maybeSingle();
+
+        let chatGroupId = existingLink?.group_id as string | undefined;
+
+        if (!chatGroupId) {
+          const chatTitle = `${String(fnRow.title || "").trim() || "Function"} • Attendees`;
+          const { data: chat, error: chatInsErr } = await supabase
+            .from("group_chats")
+            .insert({ created_by: fnRow.host_id, title: chatTitle })
+            .select("id")
+            .single();
+          if (chatInsErr) throw chatInsErr;
+          chatGroupId = chat.id as string;
+
+          const { error: linkErr } = await supabase.from("function_attendee_chats").insert({
+            function_id: groupId,
+            group_id: chatGroupId,
+          });
+          if (linkErr) throw linkErr;
+
+          const { data: paidMembers } = await supabase
+            .from("function_members")
+            .select("user_id")
+            .eq("function_id", groupId)
+            .eq("has_paid", true);
+
+          const uidSet = new Set<string>([fnRow.host_id as string]);
+          for (const row of paidMembers || []) uidSet.add((row as { user_id: string }).user_id);
+          const memberRows = Array.from(uidSet).map((uid) => ({ group_id: chatGroupId as string, user_id: uid }));
+          if (memberRows.length > 0) {
+            const { error: memErr } = await supabase.from("group_chat_members").upsert(memberRows, {
+              onConflict: "group_id,user_id",
+            });
+            if (memErr) throw memErr;
+          }
+        } else {
+          const { error: memErr } = await supabase.from("group_chat_members").upsert(
+            { group_id: chatGroupId, user_id: userId },
+            { onConflict: "group_id,user_id" },
+          );
+          if (memErr) throw memErr;
+        }
+      }
+    } catch (e) {
+      console.error("[webhook] attendee chat provisioning failed:", e);
+    }
+  }
+
   // Push notification for hosts: "X just paid KSH Y for Z"
   try {
     const payerName = await getDisplayName(supabase, userId);

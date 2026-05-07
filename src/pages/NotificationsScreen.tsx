@@ -4,6 +4,7 @@ import { ArrowLeft, Bell, Wallet, Ticket, Users } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import { getMyNotifications, getMyNotificationUnreadCount, markAllNotificationsRead, markNotificationRead, type AppNotification } from "../lib/supabase";
+import { toast } from "sonner";
 
 function iconForType(type: string) {
   if (/pay|paid|payout|topup|wallet/i.test(type)) return <Wallet size={18} />;
@@ -111,7 +112,7 @@ export default function NotificationsScreen() {
               }
               try {
                 await navigator.clipboard.writeText(url);
-                alert("Invite link copied!");
+                toast.success("Invite link copied!");
               } catch {
                 navigate("/friends");
               }
@@ -135,11 +136,27 @@ export default function NotificationsScreen() {
                   if (n.reference_kind === "group" && n.reference_id) {
                     const autoPay = /split_invited|split_invite|split_payment_required|split_request/i.test(n.type);
                     navigate(`/yuto/${n.reference_id}`, { state: autoPay ? { autoPay: true } : undefined });
+                  } else if (n.reference_kind === "function" && n.reference_id) {
+                    navigate("/home", { state: { focus: { kind: "function", id: n.reference_id } } });
+                  } else if (n.reference_kind === "plan" && n.reference_id) {
+                    navigate("/home", { state: { focus: { kind: "plan", id: n.reference_id } } });
+                  } else if (n.reference_kind === "user" && n.reference_id) {
+                    navigate(`/user/${n.reference_id}`);
+                  } else if (n.reference_kind === "wallet_transfer") {
+                    navigate("/profile");
+                  } else if (n.reference_kind === "dm_conversation" && n.reference_id) {
+                    const otherUserId = n.actor_id || undefined;
+                    navigate(`/messages/${n.reference_id}`, { state: otherUserId ? { otherUserId } : undefined });
+                  } else if (n.reference_kind === "group_chat" && n.reference_id) {
+                    navigate(`/messages/group/${n.reference_id}`);
+                  } else if (n.reference_kind === "highlight" && n.reference_id) {
+                    const profileUserId = n.actor_id || n.reference_id;
+                    navigate(`/user/${profileUserId}`, { state: { openHighlightId: n.reference_id } });
+                  } else if (n.reference_kind === "listing" && n.reference_id) {
+                    navigate("/messages?tab=business");
+                  } else {
+                    await load();
                   }
-                  else if (n.reference_kind === "function" && n.reference_id) navigate("/home", { state: { focus: { kind: "function", id: n.reference_id } } });
-                  else if (n.reference_kind === "user" && n.reference_id) navigate(`/user/${n.reference_id}`);
-                  else if (n.reference_kind === "wallet_transfer") navigate("/profile");
-                  else await load();
                 }}
                 className={[
                   "w-full rounded-3xl border px-4 py-4 text-left shadow-sm transition-colors",

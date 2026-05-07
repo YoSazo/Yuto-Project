@@ -28,8 +28,8 @@ export async function signUp(username: string, password: string, displayName: st
     if (!refUsername) {
       const storedRedirect = sessionStorage.getItem("joinAfterAuth");
       if (storedRedirect && storedRedirect.startsWith("/invite/")) {
-        // Extract the username from "/invite/salah"
-        refUsername = storedRedirect.split("/invite/")[1]; 
+        refUsername = storedRedirect.split("/invite/")[1];
+        sessionStorage.removeItem("joinAfterAuth");
       }
     }
 
@@ -1158,10 +1158,17 @@ export async function getDmMessages(conversationId: string) {
   return (data || []) as DmMessage[];
 }
 
-export async function sendDmMessage(conversationId: string, senderId: string, content: string) {
+export async function sendDmMessage(conversationId: string, senderId: string, content: string, clientMessageId?: string) {
   const trimmed = content.trim();
   if (!trimmed) return;
-  const { error } = await supabase.from("dm_messages").insert({ conversation_id: conversationId, sender_id: senderId, content: trimmed, message_type: "text" });
+  const row: Record<string, unknown> = {
+    conversation_id: conversationId,
+    sender_id: senderId,
+    content: trimmed,
+    message_type: "text",
+  };
+  if (clientMessageId) row.id = clientMessageId;
+  const { error } = await supabase.from("dm_messages").insert(row);
   if (error) throw error;
 }
 
