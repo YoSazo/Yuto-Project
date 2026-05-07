@@ -108,7 +108,7 @@ begin
     values (v_from, -v_amount, 'transfer_sent', now(), p_note, p_to_user_id);
     insert into public.transactions (user_id, amount, kind, created_at, note, counterparty_id)
     values (p_to_user_id, v_amount, 'transfer_received', now(), p_note, v_from);
-  exception when undefined_table then
+  exception when undefined_table or undefined_column then
     null;
   end;
 

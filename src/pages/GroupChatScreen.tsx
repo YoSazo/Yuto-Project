@@ -402,7 +402,6 @@ export default function GroupChatScreen() {
       }
     }
     await sendGroupChatShareMessage(groupId, user.id, { kind: "group", group_id: group.id, amount_kes: perPerson, memo: args.memo, media_url, media_type } as any);
-    await sendGroupChatMessage(groupId, user.id, `Split created: KSH ${perPerson.toLocaleString("en-KE")} each${args.memo ? ` for ${args.memo}` : ""}.`);
   };
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
@@ -508,26 +507,25 @@ export default function GroupChatScreen() {
       const paid = !!groupPaidById[share.group_id];
       return (
         <div className="w-full max-w-[min(100vw-4rem,48rem)]">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
-            {(share as any).media_url && (
-              <div className="mt-3 rounded-xl overflow-hidden bg-gray-100">
-                <FixedMediaCarousel
-                  items={[
-                    {
-                      url: String((share as any).media_url),
-                      type: String((share as any).media_type || "").startsWith("video") ? "video" : "image",
-                    },
-                  ]}
-                  showDots={false}
-                />
-              </div>
-            )}
-            <p className="mt-1 font-extrabold text-black text-lg truncate">{title}</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Amount: <span className="font-bold text-black">KSH {Number(amt).toLocaleString("en-KE")}</span>
-            </p>
-            <div className="mt-4 flex flex-col sm:flex-row gap-3">
+          <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+            {(share as any).media_url ? (
+              <FixedMediaCarousel
+                items={[
+                  {
+                    url: String((share as any).media_url),
+                    type: String((share as any).media_type || "").startsWith("video") ? "video" : "image",
+                  },
+                ]}
+                showDots={false}
+              />
+            ) : null}
+            <div className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
+              <p className="mt-1 font-extrabold text-black text-lg truncate">{title}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Amount: <span className="font-bold text-black">KSH {Number(amt).toLocaleString("en-KE")}</span>
+              </p>
+              <div className="mt-4 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => navigate(`/yuto/${share.group_id}`)}
@@ -571,6 +569,7 @@ export default function GroupChatScreen() {
                   Pay your share
                 </button>
               )}
+            </div>
             </div>
           </div>
         </div>

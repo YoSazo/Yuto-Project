@@ -199,7 +199,6 @@ export default function DirectMessageScreen() {
       }
     }
     await sendDmShareMessage(conversationId, user.id, { kind: "group", group_id: group.id, amount_kes: args.amountKes, memo: args.memo, media_url, media_type } as any);
-    await sendDmMessage(conversationId, user.id, `Split created: KSH ${args.amountKes.toLocaleString("en-KE")} each${args.memo ? ` for ${args.memo}` : ""}.`);
   };
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
@@ -554,21 +553,20 @@ export default function DirectMessageScreen() {
                   ) : listedShare ? (
                     <div className="max-w-[99%] w-[99%] md:w-[760px]">
                       {listedShare.kind === "group" ? (
-                        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
-                          {(listedShare as any).media_url && (
-                            <div className="mt-3 rounded-xl overflow-hidden bg-gray-100">
-                              <FixedMediaCarousel
-                                items={[
-                                  {
-                                    url: String((listedShare as any).media_url),
-                                    type: String((listedShare as any).media_type || "").startsWith("video") ? "video" : "image",
-                                  },
-                                ]}
-                                showDots={false}
-                              />
-                            </div>
-                          )}
+                        <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+                          {(listedShare as any).media_url ? (
+                            <FixedMediaCarousel
+                              items={[
+                                {
+                                  url: String((listedShare as any).media_url),
+                                  type: String((listedShare as any).media_type || "").startsWith("video") ? "video" : "image",
+                                },
+                              ]}
+                              showDots={false}
+                            />
+                          ) : null}
+                          <div className="p-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
                           <p className="mt-1 font-extrabold text-black text-lg truncate">
                             {sharedGroup?.name || listedShare.memo || "Payment request"}
                           </p>
@@ -625,6 +623,7 @@ export default function DirectMessageScreen() {
                                 Pay now
                               </button>
                             )}
+                          </div>
                           </div>
                         </div>
                       ) : sharedItem ? (
