@@ -25,6 +25,7 @@ import {
   upsertDmBusinessContext,
   getSavedPhoneNumber,
   getMyDmAndGroupUnreadTotal,
+  getMyNotificationUnreadCount,
   getFriends,
   createGroup,
   createGroupChat,
@@ -48,7 +49,7 @@ import { PostsFeedSection } from "../components/home/PostsFeedSection";
 import { type Plan, type PlanUpdate, type FunctionListing } from "./home/types";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { getUnreadFunctionMessageCount } from "./home/threadStorage";
-import { Users, Globe, MessageCircle, Send } from "lucide-react";
+import { Users, Globe, MessageCircle, Bell, Send } from "lucide-react";
 import { SegmentedTabsBar } from "../components/ui/SegmentedTabsBar";
 
 export default function HomeScreen() {
@@ -64,6 +65,7 @@ export default function HomeScreen() {
   >({});
   const [functionUnreadCounts, setFunctionUnreadCounts] = useState<Record<string, number>>({});
   const [dmUnreadTotal, setDmUnreadTotal] = useState(0);
+  const [notifUnreadTotal, setNotifUnreadTotal] = useState(0);
   const focusAttemptRef = useRef<"none" | "public" | "friends">("none");
   const [loading, setLoading] = useState(true);
   const [joiningPlanId, setJoiningPlanId] = useState<string | null>(null);
@@ -123,6 +125,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!user) return;
     void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
+    void getMyNotificationUnreadCount(user.id).then(setNotifUnreadTotal).catch(() => {});
   }, [user]);
 
   useEffect(() => {
@@ -510,22 +513,40 @@ export default function HomeScreen() {
           <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
           <span className="text-2xl font-bold text-black">Home</span>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate("/messages")}
-          className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
-          aria-label="Messages"
-          title="Messages"
-        >
-          <span className="relative">
-            <MessageCircle size={18} />
-            {dmUnreadTotal > 0 && (
-              <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-extrabold flex items-center justify-center shadow-sm">
-                {Math.min(99, dmUnreadTotal)}
-              </span>
-            )}
-          </span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/notifications")}
+            className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+            aria-label="Notifications"
+            title="Notifications"
+          >
+            <span className="relative">
+              <Bell size={18} />
+              {notifUnreadTotal > 0 && (
+                <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-extrabold flex items-center justify-center shadow-sm">
+                  {Math.min(99, notifUnreadTotal)}
+                </span>
+              )}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/messages")}
+            className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+            aria-label="Messages"
+            title="Messages"
+          >
+            <span className="relative">
+              <MessageCircle size={18} />
+              {dmUnreadTotal > 0 && (
+                <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-extrabold flex items-center justify-center shadow-sm">
+                  {Math.min(99, dmUnreadTotal)}
+                </span>
+              )}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Tab switcher (matches Post Something segmented control) */}
