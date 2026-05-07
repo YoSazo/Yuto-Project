@@ -187,7 +187,19 @@ export function PostsFeedSection({
                         mediaType === "video" || /\.(mp4|mov|webm|m4v)(\?.*)?$/i.test(url);
                       if (looksVideo) {
                         return (
-                          <div className="relative w-full bg-black flex items-center justify-center">
+                          <div className="relative w-full bg-gray-50 flex items-center justify-center overflow-hidden">
+                            {/* blurred fill background to avoid black bars */}
+                            <video
+                              src={url}
+                              className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-35"
+                              muted
+                              playsInline
+                              autoPlay
+                              loop
+                              preload="metadata"
+                              controls={false}
+                              aria-hidden
+                            />
                             <video
                               src={url}
                               poster={(post as any).media_thumb_url || undefined}
@@ -229,7 +241,17 @@ export function PostsFeedSection({
                           </div>
                         );
                       }
-                      return <img src={url} alt="" className="w-full h-[220px] object-cover block" />;
+                      return (
+                        <div className="relative w-full bg-gray-50 overflow-hidden">
+                          <img
+                            src={url}
+                            alt=""
+                            aria-hidden
+                            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-35"
+                          />
+                          <img src={url} alt="" className="w-full h-[520px] object-contain block relative" />
+                        </div>
+                      );
                     })()}
                     </div>
                   </div>
