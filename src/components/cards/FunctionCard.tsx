@@ -5,7 +5,7 @@ import {
   CalendarDays,
   MapPin,
   MessageCircle,
-  Plane,
+  Send,
   Share2,
   Sparkles,
   Store,
@@ -167,7 +167,7 @@ export function FunctionCard({
             aria-label={`Send ${eventFunction.title} in messages`}
             title="Share in messages"
           >
-            <Plane size={15} strokeWidth={2} />
+            <Send size={15} strokeWidth={2} />
           </button>
         )}
       </div>

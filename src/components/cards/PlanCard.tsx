@@ -1,5 +1,5 @@
 import UserAvatar from "../UserAvatar";
-import { MessageCircle, Plane, Rocket, Trash2, UserCheck } from "lucide-react";
+import { MessageCircle, Rocket, Send, Trash2, UserCheck } from "lucide-react";
 import type { Plan } from "../../pages/home/types";
 
 export function PlanCard({
@@ -127,7 +127,7 @@ export function PlanCard({
                   aria-label={`Share ${plan.title}`}
                   title="Share in messages"
                 >
-                  <Plane size={16} />
+                  <Send size={16} />
                 </button>
               )}
               {onOpenPlanChat && (
@@ -200,7 +200,7 @@ export function PlanCard({
                 aria-label={`Share ${plan.title}`}
                 title="Share in messages"
               >
-                <Plane size={16} />
+                <Send size={16} />
               </button>
             )}
             {onOpenPlanChat && (

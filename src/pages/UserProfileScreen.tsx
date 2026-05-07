@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { supabase, getProfile, getFriends, sendFriendRequest, getHighlightsByUser, getOrCreateDmConversation, type Highlight } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
 import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
-import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Plane } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, Clock, MessageCircle, Send } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 
 const STAT_POSITIONS = [
@@ -139,7 +139,7 @@ export default function UserProfileScreen() {
             aria-label="Send profile in messages"
             title="Send profile"
           >
-            <Plane size={20} strokeWidth={2} />
+            <Send size={20} strokeWidth={2} />
           </button>
         )}
       </div>
