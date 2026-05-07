@@ -18,6 +18,7 @@ import {
   sendGroupChatShareMessage,
   setGroupChatTitle,
   getHighlightById,
+  ensureFunctionAttendeeChat,
   supabase,
   type DmSharePayload,
   type GroupChatMessage,
@@ -32,6 +33,7 @@ import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeT
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
 import { DmSharedHighlightCard } from "../components/dm/DmSharedHighlightCard";
+import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
 
 function parseShare(m: GroupChatMessage): DmSharePayload | null {
@@ -73,6 +75,7 @@ export default function GroupChatScreen() {
   const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
   const [highlightShareCache, setHighlightShareCache] = useState<Record<string, { highlight: Highlight; owner: ProfileRow }>>({});
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
+  const [ticketFunction, setTicketFunction] = useState<FunctionListing | null>(null);
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
@@ -329,11 +332,13 @@ export default function GroupChatScreen() {
             listing_kind: isSell ? "sell" : "service",
             listing_title: eventFunction.title,
           });
-          navigate(`/messages/${convo.id}`, { state: { otherUserId: eventFunction.host.id } });
+          // Stay in current group chat; provider DM is created silently for fulfillment.
         } catch (e) {
           console.error(e);
         }
       }
+
+      setTicketFunction(data as FunctionListing);
     } catch (err) {
       console.error("Error joining function", err);
       alert("Couldn't complete that action. Try again.");
@@ -410,6 +415,16 @@ export default function GroupChatScreen() {
               unreadCount={0}
               onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
               onJoinFunction={(f) => void handleJoinFunction(f)}
+              onOpenTicket={(f) => setTicketFunction(f)}
+              onOpenFunctionAttendeeChat={async (f) => {
+                try {
+                  const gid = await ensureFunctionAttendeeChat(f.id);
+                  navigate(`/messages/group/${gid}`);
+                } catch (e) {
+                  console.error(e);
+                  alert("Couldn't open the event chat yet.");
+                }
+              }}
               onOpenPeople={() =>
                 navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })
               }
@@ -661,6 +676,15 @@ export default function GroupChatScreen() {
             </div>
           </div>
         </div>
+      )}
+
+      {ticketFunction && user && (
+        <FunctionTicketModal
+          functionItem={shareCache[`fn:${ticketFunction.id}`] ? (shareCache[`fn:${ticketFunction.id}`] as FunctionListing) : ticketFunction}
+          userId={user.id}
+          attendeeDisplayName={profile?.display_name?.trim() || profile?.username?.trim() || "Guest"}
+          onClose={() => setTicketFunction(null)}
+        />
       )}
 
       {showFunctionTopUp && user && pendingJoinFunction && (

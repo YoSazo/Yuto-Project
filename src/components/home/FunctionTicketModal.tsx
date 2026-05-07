@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { Ticket } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { MessageCircle, Ticket } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 import UserAvatar from "../UserAvatar";
+import { ensureFunctionAttendeeChat } from "../../lib/supabase";
 
 function extractFulfillmentLine(description: string | null): string | null {
   if (!description) return null;
@@ -46,7 +48,9 @@ export function FunctionTicketModal({
   groupBuyBusy?: boolean;
   groupBuyError?: string;
 }) {
+  const navigate = useNavigate();
   const [tick, setTick] = useState(() => Date.now());
+  const [joiningChat, setJoiningChat] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setTick(Date.now()), 1500);
@@ -165,6 +169,30 @@ export function FunctionTicketModal({
                 Refreshes in ~{Math.ceil(nextRefreshMs / 1000)}s · Animated {intentLabel.toLowerCase()} is harder to fake with a screenshot
               </p>
             </div>
+
+            {!isListing && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setJoiningChat(true);
+                  try {
+                    const gid = await ensureFunctionAttendeeChat(functionItem.id);
+                    onClose();
+                    navigate(`/messages/group/${gid}`);
+                  } catch (e) {
+                    console.error(e);
+                    alert("Couldn't open chat. Try again.");
+                  } finally {
+                    setJoiningChat(false);
+                  }
+                }}
+                disabled={joiningChat}
+                className="w-full mt-4 py-3.5 bg-gray-100 text-black rounded-2xl font-bold text-sm flex items-center justify-center gap-2 tap-scale disabled:opacity-50"
+              >
+                <MessageCircle size={16} />
+                {joiningChat ? "Opening Chat..." : "Enter Event Chat"}
+              </button>
+            )}
 
             {showGroupBuy && (
               <div className="mt-5 pt-4 border-t border-gray-100 space-y-3 text-left">

@@ -15,6 +15,7 @@ import {
   sendDmShareMessage,
   upsertDmBusinessContext,
   getHighlightById,
+  ensureFunctionAttendeeChat,
   supabase,
   type DmMessage,
   type DmSharePayload,
@@ -23,6 +24,7 @@ import {
 import { DmSharePickerModal } from "../components/dm/DmSharePickerModal";
 import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
 import { DmSharedHighlightCard } from "../components/dm/DmSharedHighlightCard";
+import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import type { Plan, FunctionListing } from "./home/types";
 import { PlanCard } from "../components/cards/PlanCard";
 import { FunctionCard } from "../components/cards/FunctionCard";
@@ -53,6 +55,7 @@ export default function DirectMessageScreen() {
   const [shareCache, setShareCache] = useState<Record<string, Plan | FunctionListing>>({});
   const [highlightShareCache, setHighlightShareCache] = useState<Record<string, { highlight: Highlight; owner: ProfileRow }>>({});
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
+  const [ticketFunction, setTicketFunction] = useState<FunctionListing | null>(null);
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
@@ -223,11 +226,14 @@ export default function DirectMessageScreen() {
             listing_kind: isSell ? "sell" : "service",
             listing_title: eventFunction.title,
           });
-          navigate(`/messages/${convo.id}`, { state: { otherUserId: eventFunction.host.id } });
+          // In-message purchase should not kick you out of your current conversation.
         } catch (e) {
           console.error(e);
         }
       }
+
+      // After successful pay, show proof/ticket in-place.
+      setTicketFunction(data as FunctionListing);
     } catch (err) {
       console.error("Error joining function", err);
       alert("Couldn't complete that action. Try again.");
@@ -384,7 +390,7 @@ export default function DirectMessageScreen() {
                       ) : null}
                     </div>
                   ) : hlShare ? (
-                    <div className="max-w-[95%] w-[95%] md:w-[320px]">
+                    <div className="max-w-[96%] w-[96%] md:w-[380px]">
                       {hlPack ? (
                         <DmSharedHighlightCard
                           highlight={hlPack.highlight}
@@ -445,7 +451,16 @@ export default function DirectMessageScreen() {
                             unreadCount={0}
                             onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
                             onJoinFunction={(f) => void handleJoinFunction(f)}
-                            // Ticket/threads are Home-only for now.
+                            onOpenTicket={(f) => setTicketFunction(f)}
+                            onOpenFunctionAttendeeChat={async (f) => {
+                              try {
+                                const gid = await ensureFunctionAttendeeChat(f.id);
+                                navigate(`/messages/group/${gid}`);
+                              } catch (e) {
+                                console.error(e);
+                                alert("Couldn't open the event chat yet.");
+                              }
+                            }}
                             onOpenPeople={() => navigate("/home", { state: { focus: { kind: "function", id: (sharedItem as FunctionListing).id } } })}
                           />
                         )
@@ -564,6 +579,15 @@ export default function DirectMessageScreen() {
             </button>
           </div>
         </div>
+      )}
+
+      {ticketFunction && user && (
+        <FunctionTicketModal
+          functionItem={shareCache[`fn:${ticketFunction.id}`] ? (shareCache[`fn:${ticketFunction.id}`] as FunctionListing) : ticketFunction}
+          userId={user.id}
+          attendeeDisplayName={profile?.display_name?.trim() || profile?.username?.trim() || "Guest"}
+          onClose={() => setTicketFunction(null)}
+        />
       )}
 
       {showFunctionTopUp && user && pendingJoinFunction && (

@@ -53,6 +53,7 @@ export default function UserProfileScreen() {
   const [userListings, setUserListings] = useState<StorefrontListingItem[]>([]);
   const [hostedFunctions, setHostedFunctions] = useState<HostedFunctionItem[]>([]);
   const [shareHighlightOpen, setShareHighlightOpen] = useState(false);
+  const [shareListingOpen, setShareListingOpen] = useState<StorefrontListingItem | null>(null);
   const [showcaseTab, setShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
 
   useEffect(() => {
@@ -221,6 +222,15 @@ export default function UserProfileScreen() {
         />
       )}
 
+      {user && shareListingOpen && (
+        <ShareRecipientsSheet
+          open
+          onClose={() => setShareListingOpen(null)}
+          currentUserId={user.id}
+          sharePayload={{ kind: "listing", function_id: shareListingOpen.id, listing_kind: shareListingOpen.kind }}
+        />
+      )}
+
       {/* Radial Graph */}
       <div className="relative w-full max-w-[380px] mx-auto flex-shrink-0" style={{ height: 380 }}>
         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 380 380" preserveAspectRatio="xMidYMid meet" style={{ zIndex: 1 }}>
@@ -316,8 +326,8 @@ export default function UserProfileScreen() {
         const hasFns = hostedFunctions.length > 0;
         const available: Array<{ id: "functions" | "sell" | "service"; label: string; count: number }> = [];
         if (hasFns) available.push({ id: "functions", label: "Functions", count: hostedFunctions.length });
-        if (sellListings.length > 0) available.push({ id: "sell", label: "Sell", count: sellListings.length });
-        if (serviceListings.length > 0) available.push({ id: "service", label: "Service", count: serviceListings.length });
+        if (sellListings.length > 0) available.push({ id: "sell", label: "Storefront", count: sellListings.length });
+        if (serviceListings.length > 0) available.push({ id: "service", label: "Services", count: serviceListings.length });
         if (available.length === 0) return null;
 
         return (
@@ -383,7 +393,7 @@ export default function UserProfileScreen() {
                     key={listing.id}
                     type="button"
                     onClick={() => navigate("/home", { state: { focus: { kind: "function", id: listing.id } } })}
-                    className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left tap-scale"
+                    className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left tap-scale relative"
                   >
                     <div className="aspect-[4/3] bg-gray-100 relative">
                       {listing.image_url ? (
@@ -396,6 +406,21 @@ export default function UserProfileScreen() {
                       <span className="absolute top-2 left-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-black/80 text-white">
                         {listing.kind === "sell" ? "Sell" : "Service"}
                       </span>
+                      {user && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShareListingOpen(listing);
+                          }}
+                          className="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 z-20 border-none"
+                          aria-label="Share listing"
+                          title="Share"
+                        >
+                          <Send size={14} className="-ml-0.5 mt-0.5" />
+                        </button>
+                      )}
                     </div>
                     <div className="p-3">
                       <p className="font-bold text-black text-sm leading-snug line-clamp-2">{listing.title}</p>

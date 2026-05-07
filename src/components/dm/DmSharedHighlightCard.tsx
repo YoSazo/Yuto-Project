@@ -35,7 +35,7 @@ export function DmSharedHighlightCard({
           <p className="font-extrabold text-black truncate text-sm">{ownerName}</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-0.5 bg-gray-100 aspect-[2/1]">
+      <div className="grid grid-cols-2 gap-0.5 bg-gray-100 aspect-[2.2/1]">
         {[p0, p1].map((p, i) => {
           const url = thumb(p);
           if (!url) {

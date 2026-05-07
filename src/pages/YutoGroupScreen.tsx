@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import { MessageCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import {
   supabase,
@@ -672,7 +673,7 @@ export default function YutoGroupScreen() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <button onClick={() => navigate("/activity")} className="text-gray-400 hover:text-black bg-transparent border-none cursor-pointer text-base">← Back</button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => {
               const link = `${window.location.origin}/join/${groupId}`;
@@ -682,17 +683,19 @@ export default function YutoGroupScreen() {
                 navigator.clipboard.writeText(link);
               }
             }}
-            className="p-2 bg-transparent border-none cursor-pointer hover:opacity-70"
+            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-200"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E1E1E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
               <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
           </button>
-          <button onClick={() => navigate(`/yuto/${groupId}/chat`, { state: { groupName } })} className="p-2 bg-transparent border-none cursor-pointer hover:opacity-70">
-            <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
-              <path d="M42 23C42 25.64 41.39 28.24 40.2 30.6C38.79 33.42 36.62 35.8 33.93 37.46C31.25 39.12 28.16 40 25 40C22.36 40.01 19.76 39.39 17.4 38.2L6 42L9.8 30.6C8.61 28.24 7.99 25.64 8 23C8 19.84 8.88 16.75 10.54 14.07C12.2 11.38 14.58 9.21 17.4 7.8C19.76 6.61 22.36 5.99 25 6H26C30.17 6.23 34.11 7.99 37.06 10.94C40.01 13.89 41.77 17.83 42 22V23Z" stroke="#1E1E1E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+          <button
+            type="button"
+            onClick={() => navigate(`/messages/group/${groupId}`)}
+            className="px-4 py-2 bg-black text-white rounded-full font-bold text-sm flex items-center gap-1.5 hover:bg-gray-800 transition-colors"
+          >
+            <MessageCircle size={16} /> Chat
           </button>
         </div>
       </div>
