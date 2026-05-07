@@ -9,6 +9,8 @@ import {
   getGroupMemberIds,
   listMyDmConversations,
   listMyGroupChats,
+  listMyBusinessDmContexts,
+  getBusinessDashboard,
   supabase,
   type DmConversation,
   type GroupChatRow,
@@ -76,12 +78,17 @@ export default function MessagesScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"personal" | "business">("personal");
   const [groups, setGroups] = useState<GroupChatRow[]>([]);
   const [convos, setConvos] = useState<DmConversation[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, ProfileRow>>({});
   const [groupMemberIds, setGroupMemberIds] = useState<Record<string, string[]>>({});
   const [unreadByConvo, setUnreadByConvo] = useState<Record<string, number>>({});
   const [unreadByGroup, setUnreadByGroup] = useState<Record<string, number>>({});
+  const [bizContexts, setBizContexts] = useState<
+    { conversation_id: string; buyer_id: string; listing_kind: "sell" | "service"; listing_title: string; created_at: string }[]
+  >([]);
+  const [bizDashboard, setBizDashboard] = useState<{ revenueThisMonthKes: number; ordersThisMonth: number; activeListings: number } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -97,6 +104,33 @@ export default function MessagesScreen() {
         if (cancelled) return;
         setConvos(rows);
         setGroups(groupRows);
+
+        // Business contexts (seller/provider view) + mini dashboard
+        try {
+          const [ctx, dash] = await Promise.all([
+            listMyBusinessDmContexts(user.id).catch(() => []),
+            getBusinessDashboard(user.id).catch(() => null),
+          ]);
+          if (!cancelled) {
+            setBizContexts(
+              (ctx || []).map((c) => ({
+                conversation_id: c.conversation_id,
+                buyer_id: c.buyer_id,
+                listing_kind: c.listing_kind,
+                listing_title: c.listing_title,
+                created_at: c.created_at,
+              })),
+            );
+            setBizDashboard(dash);
+            if ((dash?.activeListings || 0) > 0) {
+              // keep current selection; but ensure personal default doesn't get stuck when business exists
+            } else {
+              setActiveTab("personal");
+            }
+          }
+        } catch {
+          // ignore
+        }
 
         const [unreadDm, unreadGr] = await Promise.all([
           getMyDmUnreadCounts(user.id),
@@ -129,7 +163,8 @@ export default function MessagesScreen() {
           ),
         );
         const groupProfileIds = Array.from(new Set(memberPairs.flatMap(([, ids]) => ids)));
-        const allIds = Array.from(new Set([...dmOtherIds, ...groupProfileIds]));
+        const businessBuyerIds = (bizContexts || []).map((c) => c.buyer_id);
+        const allIds = Array.from(new Set([...dmOtherIds, ...groupProfileIds, ...businessBuyerIds]));
         if (allIds.length === 0) {
           setProfilesById({});
           return;
@@ -182,6 +217,14 @@ export default function MessagesScreen() {
     });
   }, [convos, profilesById, user]);
 
+  const businessItems = useMemo(() => {
+    if (!user) return [];
+    const byConvoId = new Map(bizContexts.map((c) => [c.conversation_id, c]));
+    return items
+      .filter((x) => byConvoId.has(x.convo.id))
+      .map((x) => ({ ...x, ctx: byConvoId.get(x.convo.id)! }));
+  }, [bizContexts, items, user]);
+
   const groupRowLabels = useMemo(() => buildGroupChatPickerLabels(groups), [groups]);
 
   return (
@@ -210,14 +253,86 @@ export default function MessagesScreen() {
         </button>
       </div>
 
+      {((bizDashboard?.activeListings || 0) > 0 || businessItems.length > 0) && (
+        <div className="relative flex bg-gray-100 rounded-2xl p-1 mb-6 mx-auto w-full max-w-[360px]">
+          <div
+            className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-transform duration-300 ease-in-out"
+            style={{ transform: activeTab === "personal" ? "translateX(0px)" : "translateX(calc(100% + 8px))" }}
+          />
+          <button
+            type="button"
+            onClick={() => setActiveTab("personal")}
+            className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "personal" ? "text-black" : "text-gray-400"}`}
+          >
+            Personal
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("business")}
+            className={`relative flex-1 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 ${activeTab === "business" ? "text-black" : "text-gray-400"}`}
+          >
+            Business
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : groups.length === 0 && items.length === 0 ? (
+      ) : activeTab === "personal" && groups.length === 0 && items.length === 0 ? (
         <div className="py-20 text-center">
           <p className="font-bold text-black text-lg">No messages yet</p>
           <p className="text-gray-400 text-sm mt-1">Tap “Message” on someone’s profile or start a group.</p>
+        </div>
+      ) : activeTab === "business" ? (
+        <div className="flex flex-col gap-6">
+          <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Business</p>
+            <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+              <div className="bg-gray-50 rounded-2xl p-3">
+                <p className="text-[11px] font-semibold text-gray-400">Revenue</p>
+                <p className="text-base font-extrabold text-black">KSH {(bizDashboard?.revenueThisMonthKes || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-3">
+                <p className="text-[11px] font-semibold text-gray-400">Orders</p>
+                <p className="text-base font-extrabold text-black">{(bizDashboard?.ordersThisMonth || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-3">
+                <p className="text-[11px] font-semibold text-gray-400">Listings</p>
+                <p className="text-base font-extrabold text-black">{(bizDashboard?.activeListings || 0).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1">Orders & bookings</p>
+            {businessItems.length === 0 ? (
+              <div className="py-10 text-center text-gray-400 font-semibold">No business messages yet</div>
+            ) : (
+              businessItems.map(({ convo, other, otherId, ctx }) => (
+                <button
+                  key={convo.id}
+                  type="button"
+                  onClick={() => navigate(`/messages/${convo.id}`, { state: { otherUserId: otherId } })}
+                  className="w-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
+                >
+                  <UserAvatar name={other?.display_name || "Customer"} avatarUrl={other?.avatar_url || null} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-black truncate">{ctx.listing_title}</p>
+                    <p className="text-sm text-gray-400 truncate">
+                      {ctx.listing_kind === "sell" ? "Sell" : "Service"} · {other?.display_name || "Customer"}
+                    </p>
+                  </div>
+                  {(unreadByConvo[convo.id] || 0) > 0 && (
+                    <span className="min-w-6 h-6 px-2 rounded-full bg-red-500 text-white text-xs font-extrabold flex items-center justify-center">
+                      {Math.min(99, unreadByConvo[convo.id])}
+                    </span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-8">

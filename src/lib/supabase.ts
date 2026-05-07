@@ -786,6 +786,41 @@ export async function sendDmShareMessage(conversationId: string, senderId: strin
   if (error) throw error;
 }
 
+export type DmBusinessContext = {
+  id: string;
+  conversation_id: string;
+  provider_id: string;
+  buyer_id: string;
+  function_id: string;
+  listing_kind: "sell" | "service";
+  listing_title: string;
+  created_at: string;
+};
+
+export async function upsertDmBusinessContext(input: {
+  conversation_id: string;
+  provider_id: string;
+  buyer_id: string;
+  function_id: string;
+  listing_kind: "sell" | "service";
+  listing_title: string;
+}) {
+  const { error } = await supabase
+    .from("dm_conversation_context")
+    .upsert(input, { onConflict: "conversation_id,function_id" });
+  if (error) throw error;
+}
+
+export async function listMyBusinessDmContexts(providerId: string) {
+  const { data, error } = await supabase
+    .from("dm_conversation_context")
+    .select("id, conversation_id, provider_id, buyer_id, function_id, listing_kind, listing_title, created_at")
+    .eq("provider_id", providerId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []) as DmBusinessContext[];
+}
+
 export async function markDmRead(conversationId: string, userId: string) {
   const now = new Date().toISOString();
   const { error } = await supabase
@@ -937,6 +972,37 @@ export async function ensureFunctionAttendeeChat(functionId: string): Promise<st
   if (error) throw error;
   if (!data || typeof data !== "string") throw new Error("Couldn't open attendee chat.");
   return data;
+}
+
+export async function getBusinessDashboard(userId: string) {
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  const monthStart = start.toISOString();
+
+  const [{ data: paidRows, error: paidErr }, { data: listingRows, error: listingErr }] = await Promise.all([
+    supabase
+      .from("function_members")
+      .select("has_paid, paid_at, functions!inner(amount_per_person, location, host_id)")
+      .eq("has_paid", true)
+      .gte("paid_at", monthStart)
+      .eq("functions.host_id", userId)
+      .in("functions.location", ["__SELL__", "__SERVICE__"]),
+    supabase
+      .from("functions")
+      .select("id, location, status, host_id")
+      .eq("host_id", userId)
+      .in("location", ["__SELL__", "__SERVICE__"])
+      .eq("status", "open"),
+  ]);
+  if (paidErr) throw paidErr;
+  if (listingErr) throw listingErr;
+
+  const rows = (paidRows || []) as { functions?: { amount_per_person?: number | null } | null }[];
+  const revenue = rows.reduce((sum, r) => sum + (r.functions?.amount_per_person || 0), 0);
+  const orders = rows.length;
+  const activeListings = (listingRows || []).length;
+  return { revenueThisMonthKes: revenue, ordersThisMonth: orders, activeListings };
 }
 
 export async function markGroupChatRead(groupId: string, userId: string) {

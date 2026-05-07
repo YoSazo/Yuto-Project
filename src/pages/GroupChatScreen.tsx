@@ -13,6 +13,7 @@ import {
   getOrCreateDmConversation,
   sendDmMessage,
   sendDmShareMessage,
+  upsertDmBusinessContext,
   sendGroupChatMessage,
   sendGroupChatShareMessage,
   setGroupChatTitle,
@@ -271,6 +272,14 @@ export default function GroupChatScreen() {
             kind: "listing",
             function_id: eventFunction.id,
             listing_kind: isSell ? "sell" : "service",
+          });
+          await upsertDmBusinessContext({
+            conversation_id: convo.id,
+            provider_id: eventFunction.host.id,
+            buyer_id: user.id,
+            function_id: eventFunction.id,
+            listing_kind: isSell ? "sell" : "service",
+            listing_title: eventFunction.title,
           });
           navigate(`/messages/${convo.id}`, { state: { otherUserId: eventFunction.host.id } });
         } catch (e) {
