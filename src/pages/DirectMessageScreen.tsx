@@ -749,7 +749,7 @@ export default function DirectMessageScreen() {
                             <button
                               type="button"
                               onClick={() => navigate(`/yuto/${listedShare.group_id}`)}
-                              className="flex-1 h-11 rounded-2xl bg-gray-100 hover:bg-gray-200 text-black font-bold transition-colors"
+                              className="flex-1 inline-flex items-center justify-center min-h-[4.25rem] px-5 py-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-black font-bold transition-colors"
                             >
                               View split
                             </button>
@@ -757,7 +757,7 @@ export default function DirectMessageScreen() {
                               <button
                                 type="button"
                                 disabled
-                                className="flex-1 h-11 rounded-2xl bg-green-500 text-white font-extrabold opacity-90 cursor-not-allowed"
+                                className="flex-1 inline-flex items-center justify-center min-h-[4.25rem] px-5 py-4 rounded-2xl bg-green-500 text-white font-extrabold opacity-90 cursor-not-allowed"
                               >
                                 Paid
                               </button>
@@ -787,7 +787,7 @@ export default function DirectMessageScreen() {
                                     setGroupPay({ groupId: listedShare.group_id, amount: perPerson });
                                   }
                                 }}
-                                className="flex-1 h-11 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors whitespace-nowrap"
+                                className="flex-1 inline-flex items-center justify-center min-h-[4.25rem] px-5 py-4 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors whitespace-nowrap"
                               >
                                 Pay now
                               </button>
