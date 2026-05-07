@@ -182,13 +182,7 @@ export function FunctionCard({
         <p className={["text-sm mb-3", isFunction ? "text-white/80" : "text-gray-600"].join(" ")}>{cleanedDescription}</p>
       )}
 
-      {isListing && fulfillment && (
-        <div className="mb-3">
-          <span className="w-full bg-green-50 text-green-800 font-bold text-sm px-3 py-2 rounded-full inline-flex items-center justify-center border border-green-200">
-            {fulfillment}
-          </span>
-        </div>
-      )}
+      {/* No contact/booking pill on listings (DM flow handles it). */}
 
       <div className="flex flex-wrap gap-2 mb-4">
         <span

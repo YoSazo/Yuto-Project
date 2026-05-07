@@ -355,7 +355,7 @@ export default function HomeScreen() {
             imageUrl = null;
           }
         }
-        const fulfillmentLine = sellFulfillment.trim() ? `\n\nFulfillment: ${sellFulfillment.trim()}` : "";
+        const fulfillmentLine = "";
         await createFunction(
           user.id,
           functionTitle.trim(),
@@ -378,7 +378,7 @@ export default function HomeScreen() {
             imageUrl = null;
           }
         }
-        const fulfillmentLine = serviceFulfillment.trim() ? `\n\nFulfillment: ${serviceFulfillment.trim()}` : "";
+        const fulfillmentLine = "";
         await createFunction(
           user.id,
           functionTitle.trim(),

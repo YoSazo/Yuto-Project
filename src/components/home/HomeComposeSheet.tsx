@@ -247,29 +247,7 @@ export function HomeComposeSheet({
               </div>
             </div>
 
-            {(composeMode === "sell" || composeMode === "service") && (
-              <div>
-                <p className="text-xs text-gray-400 mb-1 font-semibold">
-                  {composeMode === "service" ? "How to book / contact" : "Pickup / delivery / contact"}
-                </p>
-                <input
-                  type="text"
-                  value={composeMode === "service" ? serviceFulfillment : sellFulfillment}
-                  onChange={(e) =>
-                    composeMode === "service"
-                      ? onServiceFulfillmentChange(e.target.value)
-                      : onSellFulfillmentChange(e.target.value)
-                  }
-                  placeholder={
-                    composeMode === "service"
-                      ? "e.g. DM @ali · Call 07xx · Book 2 days ahead"
-                      : "e.g. Pick up Westlands · DM @ali · Delivery available"
-                  }
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
-                  maxLength={140}
-                />
-              </div>
-            )}
+            {/* Sell/Service: no contact field (DM auto-created on purchase). */}
 
             {composeMode !== "sell" && composeMode !== "service" && (
               <>
