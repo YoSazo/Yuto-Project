@@ -187,8 +187,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Auto-approve if nonce returned
-    if (initiateData.nonce && initiateData.tracking_id) {
+    // Only approve when IntaSend explicitly requires it.
+    // We set `requires_approval: "NO"`, so calling approve can 400 even if a nonce is present.
+    const statusText = String(initiateData.status || "").toLowerCase();
+    const approvalRequired =
+      statusText.includes("approve") ||
+      statusText.includes("approval") ||
+      statusText.includes("pending");
+
+    if (approvalRequired && initiateData.nonce && initiateData.tracking_id) {
       const approveRes = await fetch(`${INTASEND_BASE}/api/v1/send-money/approve/`, {
         method: "POST",
         headers: {
@@ -202,7 +209,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (!approveRes.ok) {
-        const approveData = (await approveRes.json()) as { detail?: string; message?: string };
+        const approveData = (await approveRes.json()) as Record<string, unknown>;
         await supabase.rpc("refund_payout_balance", {
           p_user_id: user_id,
           p_amount: amount,
@@ -213,9 +220,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           provider,
           body: approveData,
         });
+
+        const msg =
+          (approveData as any)?.detail ||
+          (approveData as any)?.message ||
+          ((approveData as any)?.errors?.[0]?.message as string | undefined) ||
+          "Approval failed — balance refunded";
+
         return res.status(400).json({
           success: false,
-          message: approveData.detail || approveData.message || "Approval failed — balance refunded",
+          message: msg,
+          intasend: approveData,
         });
       }
     }
