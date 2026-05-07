@@ -22,26 +22,6 @@ import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModa
 import { Wallet, History, Plus, Copy, Check } from "lucide-react";
 
 
-const cubeVariants = {
-  enter: (dir: number) => ({
-    rotateY: dir > 0 ? 90 : -90,
-    opacity: 0,
-    z: -300,
-  }),
-  center: {
-    rotateY: 0,
-    opacity: 1,
-    z: 0,
-    transition: { duration: 0.4, ease: "easeOut" },
-  },
-  exit: (dir: number) => ({
-    rotateY: dir > 0 ? -90 : 90,
-    opacity: 0,
-    z: -300,
-    transition: { duration: 0.4, ease: "easeIn" },
-  }),
-} as const;
-
 function ChevronRight() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -136,10 +116,6 @@ export default function ProfileScreen() {
   const [highlightPreviews, setHighlightPreviews] = useState<[string | null, string | null]>([null, null]);
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
-  const [activeHighlightPos, setActiveHighlightPos] = useState(0);
-  const [direction, setDirection] = useState(0); // 1 next, -1 prev
-  const suppressHighlightTapRef = useRef(false);
-
   const handleOpenHistory = async () => {
     setShowHistoryModal(true);
     setLoadingHistory(true);
@@ -597,35 +573,34 @@ export default function ProfileScreen() {
           </button>
         )}
 
-        <div className="flex items-center justify-center gap-4">
-          {highlights.slice(0, 2).map((h) => (
-            <button
-              key={h.id}
-              type="button"
-              onClick={() => {
-                const pos = highlights.slice(0, 2).findIndex((x) => x.id === h.id);
-                setActiveHighlightPos(Math.max(0, pos));
-                setActiveHighlightIdx(0);
-                setDirection(1);
-                setActiveHighlight(h);
-              }}
-              className="bg-transparent border-none p-0"
-            >
-              <motion.div
-                layoutId={`highlight-container-${h.id}`}
-                style={{ borderRadius: 9999 }}
-                className="relative w-16 h-16 shrink-0 border-2 border-gray-200 overflow-hidden bg-gray-100"
+        {highlights.length > 0 && (
+          <div className="flex items-center justify-center gap-4">
+            {highlights.slice(0, 2).map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                onClick={() => {
+                  setActiveHighlightIdx(0);
+                  setActiveHighlight(h);
+                }}
+                className="bg-transparent border-none p-0"
               >
-                {h.photos[0]?.url ? (
-                  <HighlightStillMedia
-                    url={(h.photos[0].thumb_url || h.photos[0].poster_url || h.photos[0].url) as string}
-                    className="absolute inset-0 h-full w-full object-cover pointer-events-none"
-                  />
-                ) : null}
-              </motion.div>
-            </button>
-          ))}
-        </div>
+                <motion.div
+                  layoutId={`highlight-container-${h.id}`}
+                  style={{ borderRadius: 9999 }}
+                  className="relative w-16 h-16 shrink-0 border-2 border-gray-200 overflow-hidden bg-gray-100"
+                >
+                  {h.photos[0]?.url ? (
+                    <HighlightStillMedia
+                      url={(h.photos[0].thumb_url || h.photos[0].poster_url || h.photos[0].url) as string}
+                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                    />
+                  ) : null}
+                </motion.div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* NEW: Yuto Wallet Card */}
@@ -884,56 +859,38 @@ export default function ProfileScreen() {
               {/* Progress bars */}
               <div className="absolute top-3 left-3 right-3 z-50 flex gap-2">
                 {(() => {
-                  const shown = highlights.slice(0, 2);
-                  const segs = shown.reduce((sum, h) => sum + Math.min(2, h.photos?.length || 0), 0);
-                  const total = segs > 0 ? segs : 2;
-                  const before = shown
-                    .slice(0, activeHighlightPos)
-                    .reduce((sum, h) => sum + Math.min(2, h.photos?.length || 0), 0);
-                  const segIndex = before + activeHighlightIdx;
+                  const total = Math.max(1, Math.min(2, activeHighlight.photos?.length || 0));
                   return Array.from({ length: total }).map((_, i) => (
                     <div key={i} className="flex-1 h-[3px] rounded-full bg-white/30 overflow-hidden">
-                      <div className="h-full bg-white" style={{ width: segIndex >= i ? "100%" : "0%" }} />
+                      <div className="h-full bg-white" style={{ width: activeHighlightIdx >= i ? "100%" : "0%" }} />
                     </div>
                   ));
                 })()}
               </div>
 
-              <div className="absolute inset-0" style={{ perspective: 1200 }}>
-                <AnimatePresence custom={direction} initial={false}>
-                  <motion.div
-                    key={`${activeHighlight.id}-${activeHighlightPos}-${activeHighlightIdx}`}
-                    custom={direction}
-                    variants={cubeVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    {isHighlightVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
-                      <video
-                        src={activeHighlight.photos[activeHighlightIdx]?.url}
-                        poster={
-                          activeHighlight.photos[activeHighlightIdx]?.poster_url ||
-                          activeHighlight.photos[activeHighlightIdx]?.thumb_url ||
-                          undefined
-                        }
-                        className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
-                        playsInline
-                        autoPlay
-                        muted
-                        loop
-                      />
-                    ) : (
-                      <img
-                        src={activeHighlight.photos[activeHighlightIdx]?.url}
-                        alt="Highlight"
-                        className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
-                        draggable={false}
-                      />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
+              <div className="absolute inset-0 flex items-center justify-center">
+                {isHighlightVideoUrl(activeHighlight.photos[activeHighlightIdx]?.url) ? (
+                  <video
+                    src={activeHighlight.photos[activeHighlightIdx]?.url}
+                    poster={
+                      activeHighlight.photos[activeHighlightIdx]?.poster_url ||
+                      activeHighlight.photos[activeHighlightIdx]?.thumb_url ||
+                      undefined
+                    }
+                    className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                    playsInline
+                    autoPlay
+                    muted
+                    loop
+                  />
+                ) : (
+                  <img
+                    src={activeHighlight.photos[activeHighlightIdx]?.url}
+                    alt="Highlight"
+                    className="max-w-full max-h-full w-full h-full object-contain pointer-events-none"
+                    draggable={false}
+                  />
+                )}
               </div>
 
               {/* Tap zones */}
@@ -943,20 +900,10 @@ export default function ProfileScreen() {
                 aria-label="Previous photo"
                 onClick={() => {
                   if (activeHighlightIdx === 1) {
-                    setDirection(-1);
                     setActiveHighlightIdx(0);
                     return;
                   }
-                  if (activeHighlightPos > 0) {
-                    const shown = highlights.slice(0, 2);
-                    const nextPos = activeHighlightPos - 1;
-                    const prev = shown[nextPos];
-                    if (!prev) return;
-                    setDirection(-1);
-                    setActiveHighlightPos(nextPos);
-                    setActiveHighlightIdx(1);
-                    setActiveHighlight(prev);
-                  }
+                  setActiveHighlight(null);
                 }}
               />
 
@@ -966,19 +913,7 @@ export default function ProfileScreen() {
                 aria-label="Next photo"
                 onClick={() => {
                   if (activeHighlightIdx === 0) {
-                    setDirection(1);
                     setActiveHighlightIdx(1);
-                    return;
-                  }
-                  const shown = highlights.slice(0, 2);
-                  const nextPos = activeHighlightPos + 1;
-                  if (nextPos < shown.length) {
-                    const next = shown[nextPos];
-                    if (!next) return;
-                    setDirection(1);
-                    setActiveHighlightPos(nextPos);
-                    setActiveHighlightIdx(0);
-                    setActiveHighlight(next);
                     return;
                   }
                   setActiveHighlight(null);
