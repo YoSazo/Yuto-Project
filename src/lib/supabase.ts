@@ -592,6 +592,13 @@ export async function getFunctionById(functionId: string) {
   return data;
 }
 
+export type FunctionMediaRow = {
+  id: string;
+  media_url: string;
+  media_type: string;
+  sort_index: number;
+};
+
 export type HostedFunctionItem = {
   id: string;
   title: string;
@@ -599,26 +606,32 @@ export type HostedFunctionItem = {
   location: string | null;
   amount_per_person: number;
   image_url: string | null;
+  media: FunctionMediaRow[];
 };
 
-/** Hosted *event* functions (not __SELL__/__SERVICE__) for profile “Functions” tab. */
+/** Hosted *event* functions (not __SELL__/__SERVICE__) for profile "Functions" tab. */
 export async function getUserHostedFunctions(userId: string): Promise<HostedFunctionItem[]> {
   const { data, error } = await supabase
     .from("functions")
-    .select("id, title, date, location, amount_per_person, image_url, status, is_public, host_id")
+    .select(
+      "id, title, date, location, amount_per_person, image_url, status, is_public, host_id, media:function_media(id, media_url, media_type, sort_index)",
+    )
     .eq("host_id", userId)
     .eq("status", "open")
     .neq("location", "__SELL__")
     .neq("location", "__SERVICE__")
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return ((data || []) as HostedFunctionItem[]).map((r) => ({
+  return ((data || []) as any[]).map((r) => ({
     id: r.id,
     title: r.title,
     date: r.date ?? null,
     location: r.location ?? null,
-    amount_per_person: Number((r as any).amount_per_person) || 0,
-    image_url: (r as any).image_url ?? null,
+    amount_per_person: Number(r.amount_per_person) || 0,
+    image_url: r.image_url ?? null,
+    media: ((r.media || []) as FunctionMediaRow[])
+      .slice()
+      .sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0)),
   }));
 }
 
@@ -651,7 +664,7 @@ export async function createFunction(
     .single();
   if (error) throw error;
 
-  const files = (mediaFiles || []).slice(0, 5);
+  const files = (mediaFiles || []).slice(0, 3);
   if (data?.id && files.length > 0) {
     const urls = await Promise.all(files.map((f) => uploadPlanOrFunctionMedia(hostId, "function", f)));
     const { error: mErr } = await supabase.from("function_media").insert(
@@ -821,33 +834,37 @@ export async function createHighlight(
   return highlight;
 }
 
-/** Open sell/service listings on someone’s profile storefront. */
+/** Open sell/service listings on someone's profile storefront. */
 export type StorefrontListingItem = {
   id: string;
   title: string;
   kind: "sell" | "service";
   amount_per_person: number;
   image_url: string | null;
+  media: FunctionMediaRow[];
 };
 
 export async function getUserListings(userId: string): Promise<StorefrontListingItem[]> {
   const { data, error } = await supabase
     .from("functions")
-    .select("id, title, location, amount_per_person, image_url")
+    .select(
+      "id, title, location, amount_per_person, image_url, media:function_media(id, media_url, media_type, sort_index)",
+    )
     .eq("host_id", userId)
     .eq("status", "open")
     .in("location", ["__SELL__", "__SERVICE__"])
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return ((data || []) as { id: string; title: string; location: string | null; amount_per_person: number | null; image_url: string | null }[]).map(
-    (row) => ({
-      id: row.id,
-      title: row.title,
-      kind: row.location === "__SELL__" ? ("sell" as const) : ("service" as const),
-      amount_per_person: row.amount_per_person ?? 0,
-      image_url: row.image_url ?? null,
-    }),
-  );
+  return ((data || []) as any[]).map((row) => ({
+    id: row.id,
+    title: row.title,
+    kind: row.location === "__SELL__" ? ("sell" as const) : ("service" as const),
+    amount_per_person: row.amount_per_person ?? 0,
+    image_url: row.image_url ?? null,
+    media: ((row.media || []) as FunctionMediaRow[])
+      .slice()
+      .sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0)),
+  }));
 }
 
 /** Host marks a sell/service listing inactive (schema: `cancelled`). */
@@ -920,7 +937,7 @@ export async function createPlan(
     .single();
   if (error) throw error;
 
-  const files = (mediaFiles || []).slice(0, 5);
+  const files = (mediaFiles || []).slice(0, 3);
   if (data?.id && files.length > 0) {
     const urls = await Promise.all(files.map((f) => uploadPlanOrFunctionMedia(creatorId, "plan", f)));
     const { error: mErr } = await supabase.from("plan_media").insert(

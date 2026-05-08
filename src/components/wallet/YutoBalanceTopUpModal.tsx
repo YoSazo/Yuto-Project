@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { haptics } from "../../lib/haptics";
 
 const DEFAULT_PRESETS = [100, 250, 500, 1000] as const;
 
 /**
  * Profile-style top-up: large amount, preset chips, minimal chrome.
- * Optional context line for “you’re short” flows; optional retry after STK for join/pay flows.
+ * Polls `/api/status` after STK push so the modal auto-advances when M-PESA confirms.
  */
 export function YutoBalanceTopUpModal({
   open,
@@ -26,7 +28,7 @@ export function YutoBalanceTopUpModal({
   /** When the sheet opens, seed the amount field (e.g. computed gap). */
   initialAmount?: number;
   title?: string;
-  /** Single muted line under the header (why they’re topping up). */
+  /** Single muted line under the header (why they're topping up). */
   contextLine?: string;
   minAmount?: number;
   presets?: readonly number[];
@@ -38,6 +40,8 @@ export function YutoBalanceTopUpModal({
   const [isSending, setIsSending] = useState(false);
   const [message, setMessage] = useState("");
   const [phase, setPhase] = useState<"form" | "prompt_sent">("form");
+  const [pollCount, setPollCount] = useState(0);
+  const invoiceIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -45,7 +49,61 @@ export function YutoBalanceTopUpModal({
     setMessage("");
     setPhase("form");
     setIsSending(false);
+    setPollCount(0);
+    invoiceIdRef.current = null;
   }, [open, initialAmount]);
+
+  // Poll /api/status while waiting for the STK confirmation.
+  useEffect(() => {
+    if (!open || phase !== "prompt_sent" || !invoiceIdRef.current) return;
+    const invoiceId = invoiceIdRef.current;
+    let stopped = false;
+
+    const iv = window.setInterval(async () => {
+      if (stopped) return;
+      try {
+        const res = await fetch("/api/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invoice_id: invoiceId }),
+        });
+        const data = (await res.json()) as { state?: string };
+        const state = String(data.state || "").toUpperCase();
+        setPollCount((c) => c + 1);
+
+        if (state === "COMPLETE") {
+          window.clearInterval(iv);
+          stopped = true;
+          invoiceIdRef.current = null;
+          haptics.success();
+          toast.success("Top-up confirmed");
+          if (onRetryAfterPaid) {
+            try {
+              await onRetryAfterPaid();
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Couldn't continue.");
+            }
+          }
+          onClose();
+        } else if (state === "FAILED" || state === "CANCELLED") {
+          window.clearInterval(iv);
+          stopped = true;
+          invoiceIdRef.current = null;
+          haptics.error();
+          toast.error("Payment was cancelled or failed.");
+          setPhase("form");
+          setMessage("Payment cancelled or failed. Try again.");
+        }
+      } catch {
+        /* keep polling */
+      }
+    }, 3000);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(iv);
+    };
+  }, [open, phase, onClose, onRetryAfterPaid]);
 
   const phoneOk = mpesaPhoneNumber.replace(/\D/g, "").length >= 12;
 
@@ -62,6 +120,7 @@ export function YutoBalanceTopUpModal({
 
     setIsSending(true);
     setMessage("");
+    setPollCount(0);
     try {
       const res = await fetch("/api/charge", {
         method: "POST",
@@ -75,12 +134,12 @@ export function YutoBalanceTopUpModal({
       });
       const data = await res.json();
       if (data.success) {
+        invoiceIdRef.current = typeof data.invoice_id === "string" ? data.invoice_id : null;
+        setPhase("prompt_sent");
         if (onRetryAfterPaid) {
-          setPhase("prompt_sent");
-          setMessage("Check your phone for M-PESA. Confirm the payment, then continue below.");
+          setMessage("Check your phone for M-PESA. Confirm the payment and we'll continue automatically.");
         } else {
-          setMessage("Check your phone for M-PESA! Balance updates automatically.");
-          window.setTimeout(() => onClose(), 4000);
+          setMessage("Check your phone for M-PESA. We'll close this when it lands.");
         }
       } else {
         setMessage(data.message || "Failed to start M-PESA. Try again.");
@@ -166,16 +225,46 @@ export function YutoBalanceTopUpModal({
           </>
         ) : (
           <>
-            {message && <p className="text-sm text-center text-green-600 font-medium mb-6">{message}</p>}
+            <div className="py-6 text-center">
+              <div className="relative w-16 h-16 mx-auto mb-4">
+                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-2xl">📲</div>
+                <div className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-20" />
+              </div>
+              <p className="font-bold text-base text-black mb-1">Check your phone</p>
+              <p className="text-sm text-gray-500 px-4">Enter your M-PESA PIN to confirm.</p>
+
+              <div className="flex items-center justify-center gap-1.5 mt-5">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      pollCount > i ? "bg-green-500" : "bg-gray-200"
+                    }`}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2 font-semibold">
+                {pollCount === 0
+                  ? "Waiting for PIN..."
+                  : pollCount < 4
+                  ? "Checking payment..."
+                  : "Still waiting — keep this open."}
+              </p>
+            </div>
+
+            {message && <p className="text-sm text-center text-gray-500 font-medium mb-4 px-4">{message}</p>}
+
             <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => void handleRetry()}
-                disabled={isSending}
-                className="w-full py-4 bg-black text-white rounded-full font-bold text-lg disabled:opacity-50 transition-all active:scale-[0.98]"
-              >
-                {isSending ? "Working..." : retryCtaLabel}
-              </button>
+              {onRetryAfterPaid && (
+                <button
+                  type="button"
+                  onClick={() => void handleRetry()}
+                  disabled={isSending}
+                  className="w-full py-4 bg-black text-white rounded-full font-bold text-base disabled:opacity-50 transition-all active:scale-[0.98]"
+                >
+                  {isSending ? "Working..." : retryCtaLabel}
+                </button>
+              )}
               <button type="button" onClick={onClose} className="w-full py-3 text-gray-500 text-sm font-semibold hover:text-black">
                 Close
               </button>

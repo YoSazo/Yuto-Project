@@ -255,40 +255,21 @@ export function HomeComposeSheet({
                 </div>
               )}
 
-              {/* Create mode media (up to 5) */}
+              {/* Create mode media (up to 3) */}
               <div className="mb-1">
                 {createMediaPreviews.length > 0 ? (
-                  <div className="relative rounded-2xl overflow-hidden bg-gray-100 flex items-center justify-center">
-                    {(() => {
-                      const firstFile = createMediaFiles[0];
-                      const firstUrl = createMediaPreviews[0];
-                      if (!firstFile || !firstUrl) return null;
-                      const isVid = firstFile.type.startsWith("video/");
-                      return isVid ? (
-                        <video src={firstUrl} className="w-full h-64 object-cover" muted playsInline autoPlay loop />
-                      ) : (
-                        <img src={firstUrl} alt="" className="w-full h-64 object-cover" draggable={false} />
-                      );
-                    })()}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        createMediaPreviews.forEach((u) => URL.revokeObjectURL(u));
-                        setCreateMediaFiles([]);
-                        setCreateMediaPreviews([]);
-                      }}
-                      className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white border-none"
-                    >
-                      <X size={16} />
-                    </button>
-                    {createMediaPreviews.length > 1 && (
-                      <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-1.5">
-                        {createMediaPreviews.map((_, i) => (
-                          <span key={i} className={["w-1.5 h-1.5 rounded-full", i === 0 ? "bg-white" : "bg-white/40"].join(" ")} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <ComposeMediaPreview
+                    files={createMediaFiles}
+                    previews={createMediaPreviews}
+                    onRemoveAt={(i) => {
+                      const removed = createMediaPreviews[i];
+                      if (removed) URL.revokeObjectURL(removed);
+                      setCreateMediaFiles((prev) => prev.filter((_, idx) => idx !== i));
+                      setCreateMediaPreviews((prev) => prev.filter((_, idx) => idx !== i));
+                    }}
+                    onAddMore={() => createMediaInputRef.current?.click()}
+                    maxItems={3}
+                  />
                 ) : (
                   <button
                     type="button"
@@ -296,7 +277,7 @@ export function HomeComposeSheet({
                     className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
                   >
                     <ImageIcon size={20} />
-                    <span className="text-sm font-medium">Add photos / videos</span>
+                    <span className="text-sm font-medium">Add up to 3 photos / videos</span>
                   </button>
                 )}
                 <input
@@ -306,11 +287,14 @@ export function HomeComposeSheet({
                   multiple
                   className="hidden"
                   onChange={(e) => {
-                    const files = Array.from(e.target.files || []).slice(0, 5);
-                    if (files.length === 0) return;
+                    const incoming = Array.from(e.target.files || []);
+                    if (incoming.length === 0) return;
+                    const combined = [...createMediaFiles, ...incoming].slice(0, 3);
+                    // Revoke any previews we're about to discard.
                     createMediaPreviews.forEach((u) => URL.revokeObjectURL(u));
-                    setCreateMediaFiles(files);
-                    setCreateMediaPreviews(files.map((f) => URL.createObjectURL(f)));
+                    setCreateMediaFiles(combined);
+                    setCreateMediaPreviews(combined.map((f) => URL.createObjectURL(f)));
+                    e.currentTarget.value = "";
                   }}
                 />
               </div>
@@ -415,10 +399,10 @@ export function HomeComposeSheet({
                   multiple
                   className="hidden"
                   onChange={(e) => {
-                    const files = Array.from(e.target.files || []).slice(0, 5);
+                    const files = Array.from(e.target.files || []);
                     if (files.length === 0) return;
-                    // Combine with existing, cap at 5.
-                    const combined = [...postMediaFiles, ...files].slice(0, 5);
+                    // Combine with existing, cap at 3.
+                    const combined = [...postMediaFiles, ...files].slice(0, 3);
                     postMediaPreviews.forEach((u) => URL.revokeObjectURL(u));
                     const previews = combined.map((f) => URL.createObjectURL(f));
                     setPostMediaFiles(combined);
@@ -525,6 +509,127 @@ export function HomeComposeSheet({
         selectedIds={taggedPeople.map((p) => p.id)}
         onChangeSelected={(people) => setTaggedPeople(people)}
       />
+    </div>
+  );
+}
+
+/**
+ * Swipeable preview for the up-to-3 media slots in Create mode.
+ * Mirrors the storefront/feed carousel UX (drag, dots) so what you see
+ * while composing matches what people see on your profile.
+ */
+function ComposeMediaPreview({
+  files,
+  previews,
+  onRemoveAt,
+  onAddMore,
+  maxItems,
+}: {
+  files: File[];
+  previews: string[];
+  onRemoveAt: (i: number) => void;
+  onAddMore: () => void;
+  maxItems: number;
+}) {
+  const [idx, setIdx] = useState(0);
+  const dragX = useRef<number | null>(null);
+  const total = previews.length;
+
+  // Keep idx in range when items are removed.
+  useEffect(() => {
+    if (idx > total - 1) setIdx(Math.max(0, total - 1));
+  }, [idx, total]);
+
+  const go = (next: number) => {
+    setIdx(Math.max(0, Math.min(total - 1, next)));
+  };
+
+  const active = previews[idx];
+  const activeFile = files[idx];
+  if (!active || !activeFile) return null;
+  const isVid = activeFile.type.startsWith("video/");
+  const canAddMore = total < maxItems;
+
+  return (
+    <div
+      className="relative rounded-2xl overflow-hidden bg-gray-100"
+      onPointerDown={(e) => {
+        dragX.current = e.clientX;
+      }}
+      onPointerUp={(e) => {
+        if (dragX.current == null) return;
+        const dx = e.clientX - dragX.current;
+        dragX.current = null;
+        if (Math.abs(dx) < 40) return;
+        if (dx < 0) go(idx + 1);
+        else go(idx - 1);
+      }}
+    >
+      <div className="relative w-full aspect-[4/5] bg-black select-none">
+        {isVid ? (
+          <video
+            key={active}
+            src={active}
+            className="absolute inset-0 w-full h-full object-cover"
+            muted
+            playsInline
+            autoPlay
+            loop
+          />
+        ) : (
+          <img
+            src={active}
+            alt=""
+            draggable={false}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemoveAt(idx);
+          }}
+          className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white border-none"
+          aria-label="Remove this media"
+        >
+          <X size={16} />
+        </button>
+
+        <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-black/60 text-white text-[11px] font-bold">
+          {idx + 1}/{total}
+        </div>
+
+        {canAddMore && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAddMore();
+            }}
+            className="absolute bottom-2 right-2 px-3 h-8 rounded-full bg-white/95 text-black text-xs font-extrabold flex items-center gap-1 border-none shadow"
+          >
+            <ImageIcon size={14} /> Add
+          </button>
+        )}
+      </div>
+
+      {total > 1 && (
+        <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-1.5 pointer-events-none">
+          {previews.map((_, i) => (
+            <span
+              key={i}
+              className={[
+                "w-1.5 h-1.5 rounded-full transition-colors",
+                i === idx ? "bg-white" : "bg-white/40",
+              ].join(" ")}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

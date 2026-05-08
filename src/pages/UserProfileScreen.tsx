@@ -31,6 +31,7 @@ import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeT
 import type { FunctionListing } from "../lib/types";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
+import { FixedMediaCarousel, type CarouselMediaItem } from "../components/media/FixedMediaCarousel";
 import { toast } from "sonner";
 
 const STAT_POSITIONS = [
@@ -536,25 +537,42 @@ export default function UserProfileScreen() {
               </div>
             ) : (
               <div className="flex flex-col gap-5 w-full max-w-md mx-auto pb-4">
-                {(showcaseTab === "sell" ? sellListings : serviceListings).map((listing) => (
+                {(showcaseTab === "sell" ? sellListings : serviceListings).map((listing) => {
+                  const carouselItems: CarouselMediaItem[] = (listing.media || []).map((m) => ({
+                    url: m.media_url,
+                    type: (m.media_type || "").startsWith("video/") ? "video" : "image",
+                  }));
+                  if (carouselItems.length === 0 && listing.image_url) {
+                    carouselItems.push({ url: listing.image_url, type: "image" });
+                  }
+                  return (
                   <div
                     key={listing.id}
                     className="rounded-3xl border border-gray-100 bg-white shadow-md overflow-hidden text-left"
                   >
-                    <button
-                      type="button"
-                      className="w-full relative tap-scale bg-transparent border-none p-0 block"
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="w-full relative tap-scale bg-transparent border-none p-0 block cursor-pointer"
                       onClick={() => navigate("/home", { state: { focus: { kind: "function", id: listing.id } } })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate("/home", { state: { focus: { kind: "function", id: listing.id } } });
+                        }
+                      }}
                     >
-                      <div className="aspect-[4/5] bg-gray-100 relative max-h-[min(52vh,28rem)]">
-                        {listing.image_url ? (
-                          <img src={listing.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="relative max-h-[min(52vh,28rem)] overflow-hidden">
+                        {carouselItems.length > 0 ? (
+                          <FixedMediaCarousel items={carouselItems} />
                         ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                            <Store size={34} />
+                          <div className="aspect-[4/5] bg-gray-100 relative">
+                            <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+                              <Store size={34} />
+                            </div>
                           </div>
                         )}
-                        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-black/80 text-white">
+                        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-black/80 text-white z-10">
                           {listing.kind === "sell" ? "Sell" : "Service"}
                         </span>
                         {user && (
@@ -573,7 +591,7 @@ export default function UserProfileScreen() {
                           </button>
                         )}
                       </div>
-                    </button>
+                    </div>
                     <div className="p-4 pb-5">
                       <p className="font-extrabold text-black text-base leading-snug line-clamp-2">{listing.title}</p>
                       <p className="text-sm text-gray-600 mt-2 font-bold">KSH {listing.amount_per_person.toLocaleString()}</p>
@@ -605,7 +623,8 @@ export default function UserProfileScreen() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
