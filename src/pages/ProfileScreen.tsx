@@ -228,7 +228,7 @@ export default function ProfileScreen() {
   const [myListings, setMyListings] = useState<Array<{ id: string; title: string; kind: "sell" | "service"; amount_per_person: number }>>([]);
   const [ownListings, setOwnListings] = useState<StorefrontListingItem[]>([]);
   const [ownFunctions, setOwnHostedFunctions] = useState<HostedFunctionItem[]>([]);
-  const [ownShowcaseTab, setOwnShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
+  const [ownShowcaseTab, setOwnShowcaseTab] = useState<"profile" | "functions" | "sell" | "service">("profile");
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
   const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
   const animatedBalance = useCountUp(points, 1100);
@@ -638,66 +638,69 @@ export default function ProfileScreen() {
   const nodeRadius = 125;
 
   // --- Compute Available Showcase Tabs ---
-  const sellListings = ownListings.filter(l => l.kind === "sell");
-  const serviceListings = ownListings.filter(l => l.kind === "service");
-  const hasFns = ownFunctions.length > 0;
-  
-  const availableTabs: Array<{ id: "functions" | "sell" | "service"; label: string }> = [];
-  if (hasFns) availableTabs.push({ id: "functions", label: "My Functions" });
-  if (sellListings.length > 0) availableTabs.push({ id: "sell", label: "Storefront" });
-  if (serviceListings.length > 0) availableTabs.push({ id: "service", label: "Services" });
+// --- Compute Available Showcase Tabs ---
+const sellListings = ownListings.filter(l => l.kind === "sell");
+const serviceListings = ownListings.filter(l => l.kind === "service");
+const hasFns = ownFunctions.length > 0;
 
-  return (
-    <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
-      <div className="flex items-center justify-between mb-6 relative z-50">
-        {availableTabs.length > 0 ? (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsHeaderDropdownOpen(!isHeaderDropdownOpen)}
-              className="flex items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer"
-            >
-              <span className="text-2xl font-bold text-black">
-                {ownShowcaseTab === "functions" && hasFns ? "My Functions" :
-                 ownShowcaseTab === "sell" && sellListings.length > 0 ? "Storefront" :
-                 ownShowcaseTab === "service" && serviceListings.length > 0 ? "Services" : "Profile"}
-              </span>
-              <ChevronDown size={22} className={`text-black transition-transform duration-200 ${isHeaderDropdownOpen ? "rotate-180" : ""}`} />
-            </button>
+const availableTabs: Array<{ id: "profile" | "functions" | "sell" | "service"; label: string }> = [
+  { id: "profile", label: "Profile" }
+];
+if (hasFns) availableTabs.push({ id: "functions", label: "My Functions" });
+if (sellListings.length > 0) availableTabs.push({ id: "sell", label: "My Marketplace" });
+if (serviceListings.length > 0) availableTabs.push({ id: "service", label: "My Services" });
 
-            {/* The Dropdown Menu */}
-            {isHeaderDropdownOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsHeaderDropdownOpen(false)} />
-                <div className="absolute top-8 left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 py-2 animate-in fade-in slide-in-from-top-2">
-                  <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                    Switch View
-                  </div>
-                  {availableTabs.map(t => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => {
-                        setOwnShowcaseTab(t.id);
-                        setIsHeaderDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-sm font-extrabold transition-colors border-none ${
-                        ownShowcaseTab === t.id ? "bg-gray-50 text-black" : "bg-white text-gray-500 hover:bg-gray-50 hover:text-black"
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
+return (
+  <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
+    <div className="flex items-center justify-between mb-6 relative z-50">
+      {availableTabs.length > 1 ? (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsHeaderDropdownOpen(!isHeaderDropdownOpen)}
+            className="flex items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer"
+          >
+            <span className="text-2xl font-bold text-black">
+              {availableTabs.find(t => t.id === ownShowcaseTab)?.label || "Profile"}
+            </span>
+            <ChevronDown size={22} className={`text-black transition-transform duration-200 ${isHeaderDropdownOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {/* The Dropdown Menu */}
+          {isHeaderDropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsHeaderDropdownOpen(false)} />
+              <div className="absolute top-8 left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 py-2 animate-in fade-in slide-in-from-top-2">
+                <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Switch View
                 </div>
-              </>
-            )}
-          </div>
-        ) : (
-          <span className="text-2xl font-bold text-black">Profile</span>
-        )}
-      </div>
+                {availableTabs.map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setOwnShowcaseTab(t.id);
+                      setIsHeaderDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 text-sm font-extrabold transition-colors border-none ${
+                      ownShowcaseTab === t.id ? "bg-gray-50 text-black" : "bg-white text-gray-500 hover:bg-gray-50 hover:text-black"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <span className="text-2xl font-bold text-black">Profile</span>
+      )}
+    </div>
 
-      {/* Radial graph — YutoGroupScreen inspired */}
+    {ownShowcaseTab === "profile" ? (
+      <>
+        {/* Radial graph — YutoGroupScreen inspired */}
       <div className="relative w-full max-w-[380px] mx-auto flex-shrink-0" style={{ height: 380 }}>
         <svg
           className="absolute inset-0 w-full h-full"
@@ -1109,6 +1112,129 @@ export default function ProfileScreen() {
           onClick={handleLogout}
         />
       </div>
+      </>
+      ) : (
+        /* ── Back Office Views (Functions, Sell, Service) ── */
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+          {ownShowcaseTab === "functions" && (
+            <div className="space-y-4">
+              {ownFunctions.map(fn => (
+                <div key={fn.id} className="flex flex-col p-4 rounded-3xl border border-gray-100 bg-white shadow-sm">
+                  <div className="flex gap-4">
+                    <div className="w-24 h-24 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
+                      {fn.image_url ? (
+                        <img src={fn.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+                          <Store size={26} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 py-1">
+                      <p className="font-extrabold text-lg text-black truncate">{fn.title}</p>
+                      <p className="text-sm text-gray-400 font-semibold truncate mt-0.5">
+                        {fn.date ? new Date(fn.date).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" }) : "Anytime"}
+                        {fn.location ? ` · ${fn.location}` : ""}
+                      </p>
+                      <p className="text-base font-black mt-2">KSH {fn.amount_per_person.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-50 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate("/home", { state: { focus: { kind: "function", id: fn.id }, forcePublicTab: true } })}
+                      className="flex-1 h-10 rounded-xl bg-gray-100 text-black border-none font-extrabold text-sm hover:bg-gray-200 transition-colors"
+                    >
+                      View Post
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!user) return;
+                        try {
+                          await duplicateFunction(user.id, fn.id, 7);
+                          toast.success("Duplicated for next week!");
+                          const rows = await getUserHostedFunctions(user.id);
+                          setOwnHostedFunctions(rows as HostedFunctionItem[]);
+                        } catch (e: any) {
+                          toast.error(e?.message || "Couldn't duplicate");
+                        }
+                      }}
+                      className="flex-1 h-10 rounded-xl bg-black border-none text-white font-extrabold text-sm hover:bg-gray-800 transition-colors"
+                    >
+                      Run again
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(ownShowcaseTab === "sell" || ownShowcaseTab === "service") && (() => {
+            const listings = ownShowcaseTab === "sell" ? sellListings : serviceListings;
+            return (
+              <div className="flex flex-col gap-6">
+                {listings.map(listing => (
+                  <div key={listing.id} className="rounded-3xl border border-gray-100 bg-white shadow-md overflow-hidden relative">
+                    {/* Media Block */}
+                    <div className="relative">
+                      {listing.media.length > 0 || listing.image_url ? (
+                        <FixedMediaCarousel
+                          items={(listing.media.length > 0 ? listing.media : [{ id: "", media_url: listing.image_url!, media_type: "image", sort_index: 0 }])
+                            .map(m => ({ url: m.media_url, type: String(m.media_type || "").startsWith("video") ? "video" as const : "image" as const }))}
+                        />
+                      ) : (
+                        <div className="aspect-[4/5] bg-gray-100 flex items-center justify-center text-gray-300">
+                          <Store size={34} />
+                        </div>
+                      )}
+                      
+                      {listing.listing_status && listing.listing_status !== "active" && (
+                        <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-[2px]">
+                          <span className="px-4 py-2 bg-white text-black font-extrabold text-lg uppercase tracking-widest rounded-xl -rotate-6">
+                            {listing.listing_status === "sold" ? "SOLD" : "PAUSED"}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* 3-dot menu */}
+                      <button
+                        type="button"
+                        onClick={() => setOwnListingOptionsOpen(ownListingOptionsOpen === listing.id ? null : listing.id)}
+                        className="absolute top-3 right-3 z-20 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center border-none"
+                      >
+                        <span className="text-xl font-bold mb-1.5">...</span>
+                      </button>
+                      
+                      {ownListingOptionsOpen === listing.id && (
+                        <div className="absolute top-14 right-3 z-30 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col py-1">
+                          {listing.listing_status !== "active" && (
+                            <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "active"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "active" } : l)); setOwnListingOptionsOpen(null); toast.success("Re-listed!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Re-list</button>
+                          )}
+                          {listing.listing_status !== "sold" && (
+                            <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "sold"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "sold" } : l)); setOwnListingOptionsOpen(null); toast.success("Marked sold!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Mark Sold</button>
+                          )}
+                          {listing.listing_status !== "paused" && (
+                            <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "paused"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "paused" } : l)); setOwnListingOptionsOpen(null); toast.success("Paused!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Pause</button>
+                          )}
+                          <div className="h-px bg-gray-100 my-1 mx-2" />
+                          <button type="button" onClick={async () => { if (!window.confirm("Delete this listing?")) return; await cancelHostListing(user!.id, listing.id); setOwnListings(prev => prev.filter(l => l.id !== listing.id)); setOwnListingOptionsOpen(null); toast.success("Deleted"); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">Delete</button>
+                        </div>
+                      )}
+                    </div>
+                    {/* Text Block */}
+                    <div className="p-4">
+                      <p className="font-extrabold text-black text-lg">{listing.title}</p>
+                      <p className="text-base font-black mt-1">KSH {listing.amount_per_person.toLocaleString()}</p>
+                      <p className="text-sm text-gray-400 mt-1 font-semibold">{listing.kind === "sell" ? "Storefront Listing" : "Service Booking"}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {showTopUpModal && user && (
         <YutoBalanceTopUpModal open={showTopUpModal} onClose={() => setShowTopUpModal(false)} userId={user.id} mpesaPhoneNumber={phoneNumber} />
@@ -1409,142 +1535,6 @@ export default function ProfileScreen() {
           </>
         )}
       </AnimatePresence>
-
-      {/* ── Own Storefront / Functions ── */}
-      {(() => {
-        const sellListings = ownListings.filter(l => l.kind === "sell");
-        const serviceListings = ownListings.filter(l => l.kind === "service");
-        const hasFns = ownFunctions.length > 0;
-        const available: Array<{ id: "functions" | "sell" | "service"; label: string }> = [];
-        if (hasFns) available.push({ id: "functions", label: "Functions" });
-        if (sellListings.length > 0) available.push({ id: "sell", label: "Storefront" });
-        if (serviceListings.length > 0) available.push({ id: "service", label: "Services" });
-        if (available.length === 0) return null;
-        
-        return (
-          <div className="mb-6">
-            {available.length === 1 && (
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 text-center">
-                {available[0]!.label}
-              </p>
-            )}
-            
-            {ownShowcaseTab === "functions" && (
-              <div className="space-y-3">
-                {ownFunctions.map(fn => (
-                  <div key={fn.id} className="flex gap-3 p-3 rounded-2xl border border-gray-100 bg-white shadow-sm">
-                    <div className="w-20 h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
-                      {fn.image_url ? (
-                        <img src={fn.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                          <Store size={22} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-extrabold text-black truncate">{fn.title}</p>
-                      <p className="text-sm text-gray-400 font-semibold truncate">
-                        {fn.date ? new Date(fn.date).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" }) : "Anytime"}
-                        {fn.location ? ` · ${fn.location}` : ""}
-                      </p>
-                      <p className="text-sm font-extrabold mt-1">KSH {fn.amount_per_person.toLocaleString()}</p>
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => navigate("/home", { state: { focus: { kind: "function", id: fn.id }, forcePublicTab: true } })}
-                          className="h-9 px-4 rounded-xl bg-gray-100 text-black border-none font-extrabold text-sm"
-                        >
-                          View on Home
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!user) return;
-                            try {
-                              await duplicateFunction(user.id, fn.id, 7);
-                              toast.success("Duplicated for next week!");
-                              const rows = await getUserHostedFunctions(user.id);
-                              setOwnHostedFunctions(rows as HostedFunctionItem[]);
-                            } catch (e: any) {
-                              toast.error(e?.message || "Couldn't duplicate");
-                            }
-                          }}
-                          className="h-9 px-4 rounded-xl bg-black border-none text-white font-extrabold text-sm"
-                        >
-                          Run again
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {(ownShowcaseTab === "sell" || ownShowcaseTab === "service") && (() => {
-              const listings = ownShowcaseTab === "sell" ? sellListings : serviceListings;
-              return (
-                <div className="flex flex-col gap-5">
-                  {listings.map(listing => (
-                    <div key={listing.id} className="rounded-3xl border border-gray-100 bg-white shadow-md overflow-hidden">
-                      <div className="relative">
-                        {listing.media.length > 0 || listing.image_url ? (
-                          <FixedMediaCarousel
-                            items={(listing.media.length > 0 ? listing.media : [{ id: "", media_url: listing.image_url!, media_type: "image", sort_index: 0 }])
-                              .map(m => ({ url: m.media_url, type: String(m.media_type || "").startsWith("video") ? "video" as const : "image" as const }))}
-                          />
-                        ) : (
-                          <div className="aspect-[4/5] bg-gray-100 flex items-center justify-center text-gray-300">
-                            <Store size={34} />
-                          </div>
-                        )}
-                        
-                        {listing.listing_status && listing.listing_status !== "active" && (
-                          <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-[2px]">
-                            <span className="px-4 py-2 bg-white text-black font-extrabold text-lg uppercase tracking-widest rounded-xl -rotate-6">
-                              {listing.listing_status === "sold" ? "SOLD" : "PAUSED"}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {/* 3-dot menu */}
-                        <button
-                          type="button"
-                          onClick={() => setOwnListingOptionsOpen(ownListingOptionsOpen === listing.id ? null : listing.id)}
-                          className="absolute top-3 right-3 z-20 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center border-none"
-                        >
-                          <span className="text-xl font-bold mb-1.5">...</span>
-                        </button>
-                        
-                        {ownListingOptionsOpen === listing.id && (
-                          <div className="absolute top-14 right-3 z-30 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col py-1">
-                            {listing.listing_status !== "active" && (
-                              <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "active"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "active" } : l)); setOwnListingOptionsOpen(null); toast.success("Re-listed!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Re-list</button>
-                            )}
-                            {listing.listing_status !== "sold" && (
-                              <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "sold"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "sold" } : l)); setOwnListingOptionsOpen(null); toast.success("Marked sold!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Mark Sold</button>
-                            )}
-                            {listing.listing_status !== "paused" && (
-                              <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "paused"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "paused" } : l)); setOwnListingOptionsOpen(null); toast.success("Paused!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Pause</button>
-                            )}
-                            <div className="h-px bg-gray-100 my-1 mx-2" />
-                            <button type="button" onClick={async () => { if (!window.confirm("Delete this listing?")) return; await cancelHostListing(user!.id, listing.id); setOwnListings(prev => prev.filter(l => l.id !== listing.id)); setOwnListingOptionsOpen(null); toast.success("Deleted"); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">Delete</button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-4">
-                        <p className="font-extrabold text-black text-base">{listing.title}</p>
-                        <p className="text-sm font-bold mt-1">KSH {listing.amount_per_person.toLocaleString()}</p>
-                        <p className="text-xs text-gray-400 mt-1 font-semibold">{listing.kind === "sell" ? "Sell" : "Service"}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
-        );
-      })()}
 
       {/* NEW: Yuto Wallet Card */}
       <div className="bg-black rounded-3xl p-6 text-white mb-6 relative overflow-hidden shadow-lg">
