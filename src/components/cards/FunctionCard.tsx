@@ -157,21 +157,28 @@ export function FunctionCard({
       </div>
 
       <div className="flex items-start justify-between gap-3 mb-1">
-        <p className={[
-          "font-bold text-lg flex-1 min-w-0", 
-          isFunction ? "text-white" : "text-black",
-          (isListing && eventFunction.listing_status && eventFunction.listing_status !== "active") || (isFunction && (eventFunction as any).status === "cancelled") ? "opacity-60 line-through" : ""
-        ].join(" ")}>
+        <p 
+          className={`font-bold text-lg flex-1 min-w-0 ${isFunction ? "text-white" : "text-black"} ${
+            (isListing && eventFunction.listing_status && eventFunction.listing_status !== "active") || 
+            (isFunction && (eventFunction as any).status === "cancelled") 
+              ? "opacity-60 line-through" 
+              : ""
+          }`}
+        >
           {eventFunction.title}
         </p>
         {onShareInMessages && (
-                isSell
-                  ? { kind: "listing", function_id: eventFunction.id, listing_kind: "sell" }
-                  : isService
-                    ? { kind: "listing", function_id: eventFunction.id, listing_kind: "service" }
-                    : { kind: "function", function_id: eventFunction.id },
-              )
-            }
+          <button
+            type="button"
+            onClick={() => {
+              const payload = isSell 
+                ? { kind: "listing" as const, function_id: eventFunction.id, listing_kind: "sell" as const }
+                : isService 
+                  ? { kind: "listing" as const, function_id: eventFunction.id, listing_kind: "service" as const }
+                  : { kind: "function" as const, function_id: eventFunction.id };
+              
+              onShareInMessages(payload);
+            }}
             className={[
               "shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors tap-scale border",
               isFunction
