@@ -207,10 +207,6 @@ export default function ProfileScreen() {
   const [sendNote, setSendNote] = useState("");
   const [sendBusy, setSendBusy] = useState(false);
   const [sendError, setSendError] = useState("");
-  const [ownListings, setOwnListings] = useState<StorefrontListingItem[]>([]);
-  const [ownFunctions, setOwnHostedFunctions] = useState<HostedFunctionItem[]>([]);
-  const [ownShowcaseTab, setOwnShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
-  const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
 
   // Highlights (max 2, 2 photos each)
   const [highlights, setHighlights] = useState<Highlight[]>([]);
@@ -233,6 +229,7 @@ export default function ProfileScreen() {
   const [ownListings, setOwnListings] = useState<StorefrontListingItem[]>([]);
   const [ownFunctions, setOwnHostedFunctions] = useState<HostedFunctionItem[]>([]);
   const [ownShowcaseTab, setOwnShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
+  const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
   const animatedBalance = useCountUp(points, 1100);
   const prevBalanceRef = useRef<number | null>(null);
   const [balancePulse, setBalancePulse] = useState(false);
@@ -1513,10 +1510,126 @@ export default function ProfileScreen() {
         );
       })()}
 
-
       {/* NEW: Yuto Wallet Card */}
       <div className="bg-black rounded-3xl p-6 text-white mb-6 relative overflow-hidden shadow-lg">
-      
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 mb-5">
+          <div className="absolute left-0 top-0">
+            <Wallet size={16} className="text-white/70" />
+          </div>
+          <div className="flex items-center justify-center gap-6 text-base font-extrabold">
+            <button
+              type="button"
+              onClick={() => setWalletTab("balance")}
+              className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${
+                walletTab === "balance" ? "text-white" : "text-white/40"
+              }`}
+            >
+              Balance
+            </button>
+            <button
+              type="button"
+              onClick={() => setWalletTab("points")}
+              className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${
+                walletTab === "points" ? "text-white" : "text-white/40"
+              }`}
+            >
+              Points
+            </button>
+          </div>
+        </div>
+
+        {walletTab === "balance" ? (
+          <div className="relative z-10">
+            <div className="flex items-end justify-center">
+              <div className={`text-center transition-all duration-300 ${balancePulse ? "scale-105" : "scale-100"}`}>
+                <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
+                <span
+                  className={`text-5xl font-bold tracking-tight transition-colors duration-500 ${
+                    balancePulse ? "text-green-400" : "text-white"
+                  }`}
+                >
+                  {animatedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowTopUpModal(true)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-md"
+              aria-label="Top up"
+            >
+              <Plus size={20} strokeWidth={3} />
+            </button>
+          </div>
+        ) : (
+          <div className="relative z-10">
+            <div className="text-center">
+              <span className="text-white/70 text-sm font-semibold">Earned</span>
+              <div className="mt-1">
+                <span className="text-white/60 text-lg font-medium mr-1">KSH</span>
+                <span className="text-5xl font-bold tracking-tight">{referralEarned.toLocaleString()}</span>
+              </div>
+              <p className="text-xs text-white/55 mt-2">
+                {referralCount} converted
+              </p>
+            </div>
+
+            <p className="text-xs text-white/60 mt-4">
+              Earn <span className="text-white font-semibold">KSH 10</span> when a new user signs up with your link and tops up for the first time.
+            </p>
+
+            {profile?.username && (
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyInvite}
+                  className="flex-1 flex justify-center items-center gap-1.5 bg-white text-black py-3 rounded-xl text-sm font-bold transition-colors active:bg-gray-200"
+                >
+                  {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+                  {copiedLink ? "Copied!" : "Copy Link"}
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="flex-1 bg-white/10 text-white/60 py-3 rounded-xl text-sm font-bold cursor-not-allowed"
+                >
+                  Redeem (Soon)
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {walletTab === "balance" && (
+          <div className="relative z-10 mt-5">
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowWithdrawModal(true)}
+                className="text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm"
+              >
+                Cash Out
+              </button>
+              <button
+                onClick={handleOpenHistory}
+                className="text-sm font-bold bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5"
+              >
+                <History size={12} />
+                History
+              </button>
+            </div>
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowSendModal(true)}
+                className="w-full max-w-[360px] h-12 rounded-2xl bg-white text-black font-extrabold shadow-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+              >
+                <Send size={14} /> Send
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Transaction History Modal */}
       {showHistoryModal && (
