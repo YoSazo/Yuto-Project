@@ -112,7 +112,17 @@ export function DmChargeInline({
           </button>
         )}
         {pending && isSeller && <p className="text-sm font-semibold text-amber-800">Waiting for payment</p>}
-        {paidHeld && (isBuyer || isSeller) && (
+        {pending && isSeller && <p className="text-sm font-semibold text-amber-800">Waiting for payment</p>}
+        
+        {/* NEW: The Seller Nudge */}
+        {paidHeld && isSeller && (
+          <p className="text-xs text-sky-700 font-semibold mb-2 text-center">
+            Waiting for buyer to confirm receipt, or tap below after handoff
+          </p>
+        )}
+
+        {/* UPDATED: Smarter Button Text */}
+        {paidHeld && (isBuyer || isSeller) && effective && (
           <button
             type="button"
             onClick={async () => {
@@ -128,9 +138,14 @@ export function DmChargeInline({
             }}
             className="w-full py-3.5 rounded-2xl bg-sky-600 text-white font-extrabold text-base"
           >
-            {isBuyer ? "I received it — release to seller" : "Confirm handoff — release"}
+            {isBuyer
+              ? effective.note?.toLowerCase().includes("service") || effective.function_id
+                ? "Done — release payment to seller"
+                : "I received it — release to seller"
+              : "Confirm handoff — release payment"}
           </button>
         )}
+        
         {!effective && <p className="text-sm text-gray-400 font-semibold">Loading…</p>}
       </div>
 

@@ -99,6 +99,7 @@ function PayOutModal({
   const [accountNo, setAccountNo] = useState("");
   const [step, setStep] = useState<"input" | "sending" | "done" | "error">("input");
   const [error, setError] = useState("");
+  const isRetryingRef = useRef(false);
 
   const isValid = () => {
     if (tab === "phone") return phone.length >= 12;
@@ -487,34 +488,42 @@ export default function YutoGroupScreen() {
   /** After STK completes: reload share amount, retry paying from wallet */
   const handleBalanceTopUpRefresh = async () => {
     if (!groupId || !user) return;
-    const data = await reloadGroupSnapshot();
-    if (!data) return;
-    const shareAmt = Number(data.per_person) || perPersonAmount;
-    setShowBalanceTopUpModal(false);
-    setIsPayingShare(true);
+    isRetryingRef.current = true;
     try {
+      const data = await reloadGroupSnapshot();
+      if (!data) return;
+      const shareAmt = Number(data.per_person) || perPersonAmount;
+      setShowBalanceTopUpModal(false);
+      setIsPayingShare(true);
       try {
-        await payForPlanWithLedger(groupId, shareAmt);
-      } catch (rpcErr: any) {
-        const msg = rpcErr?.message || "";
-        if (rpcErrorIsInsufficientBalance(msg)) {
-          setBalanceTopUpAmount(inferTopUpKes(msg, shareAmt));
-          setShowBalanceTopUpModal(true);
-        } else {
-          toast.error(msg || "Couldn't pay share after topping up.");
+        try {
+          await payForPlanWithLedger(groupId, shareAmt);
+        } catch (rpcErr: any) {
+          const msg = rpcErr?.message || "";
+          if (rpcErrorIsInsufficientBalance(msg)) {
+            setBalanceTopUpAmount(inferTopUpKes(msg, shareAmt));
+            setShowBalanceTopUpModal(true);
+          } else {
+            toast.error(msg || "Couldn't pay share after topping up.");
+          }
+          return;
         }
-        return;
+        setMembers((prev) =>
+          prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: true } : m)),
+        );
+      } finally {
+        setIsPayingShare(false);
       }
-      setMembers((prev) =>
-        prev.map((m) => (m.user_id === user.id ? { ...m, isPaid: true } : m)),
-      );
     } finally {
-      setIsPayingShare(false);
+      isRetryingRef.current = false;
     }
   };
 
   // iOS/PWA can drop realtime while backgrounded during STK push.
+  const isRetryingRef = useRef(false);
+
   useAppResume(() => {
+    if (isRetryingRef.current) return; // don't double-fire if top-up modal retry is in flight
     void reloadGroupSnapshot();
     void refetchPaymentStatus();
   });

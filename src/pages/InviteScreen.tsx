@@ -37,30 +37,31 @@ export default function InviteScreen() {
   };
 
   const handleAddFriend = async () => {
-    if (!user) {
-      sessionStorage.setItem("joinAfterAuth", `/invite/${username}`);
-      // Pass the state to default to signup
-      navigate("/auth", { state: { defaultMode: "signup" } });
-      return;
-    }
-    if (!profile?.id) {
-      setError("Profile not loaded. Try refreshing.");
-      return;
-    }
+    if (!user || !profile?.id) return;
     setAdding(true);
     try {
       await sendFriendRequest(user.id, profile.id);
-      // Also log referral if they were already logged in when visiting /invite/:username
-      // (signup flow already handles this via signUp()).
-      try {
-        await supabase.from("referrals").insert({
-          referrer_id: profile.id,
-          referred_id: user.id,
-        });
-      } catch (e) {
-        // Ignore duplicates / RLS issues; this should never block adding a friend.
-        console.warn("referral insert:", e);
+
+      // Only try to record referral if user is newly registered (account < 5 min old)
+      // to avoid double-inserting with the signUp() referral capture
+      const accountAge = Date.now() - new Date(user.created_at || 0).getTime();
+      const isNewUser = accountAge < 5 * 60 * 1000; // 5 minutes
+
+      if (isNewUser) {
+        try {
+          const { error } = await supabase.from("referrals").insert({
+            referrer_id: profile.id,
+            referred_id: user.id,
+          });
+          // Ignore duplicate key errors — signUp likely already successfully inserted this!
+          if (error && !error.message.includes('duplicate') && !error.code?.includes('23505')) {
+            console.warn("referral insert:", error);
+          }
+        } catch (e) {
+          console.warn("referral insert:", e);
+        }
       }
+
       setAdded(true);
     } catch (err: any) {
       setError(err.message || "Failed to send request.");

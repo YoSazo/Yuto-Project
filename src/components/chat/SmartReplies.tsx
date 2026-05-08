@@ -2,7 +2,18 @@ import type { DmMessage } from "../../lib/supabase";
 import { haptics } from "../../lib/haptics";
 
 function getSmartReplies(lastMessage: DmMessage | null): string[] {
-  if (!lastMessage || lastMessage.message_type === "share") return [];
+  if (!lastMessage) return [];
+  
+  // Charge bubble — contextual payment replies
+  if (lastMessage.message_type === "charge") {
+    const payload = lastMessage.payload as { charge_id?: string } | null;
+    if (payload?.charge_id) {
+      return ["On my way!", "Just paid!", "Can we negotiate?"];
+    }
+    return [];
+  }
+  
+  if (lastMessage.message_type === "share") return [];
 
   const content = lastMessage.content.toLowerCase();
 
@@ -14,6 +25,9 @@ function getSmartReplies(lastMessage: DmMessage | null): string[] {
   }
   if (/join|coming|event|function|plan/i.test(content)) {
     return ["I'm in!", "Can't make it", "What time?"];
+  }
+  if (/how much|price|cost|ksh/i.test(content)) {
+    return ["That works!", "Can you do less?", "I'll take it"];
   }
   if (/^hey\b|^hi\b|^hello\b|^sup\b|^hii\b/i.test(content.trim())) {
     return ["Hey!", "What's up?", "Heyy"];

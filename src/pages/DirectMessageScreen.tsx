@@ -593,17 +593,37 @@ export default function DirectMessageScreen() {
       ),
     );
     if (offerIds.length === 0) return;
-    const channel = supabase
-      .channel(`dm-wallet-offers-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "wallet_offers" }, (payload) => {
-        const row = payload.new as any;
-        const id = String(row?.id || "");
-        if (!id || !offerIds.includes(id)) return;
-        setWalletOfferCache((prev) => ({ ...prev, [id]: row }));
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
+    const offerIdsRef = useRef<string[]>([]);
+
+useEffect(() => {
+  if (!user) return;
+  const offerIds = Array.from(
+    new Set(
+      messages
+        .map((m) => parseShare(m))
+        .filter((p): p is Extract<DmSharePayload, { kind: "wallet_offer" }> => p?.kind === "wallet_offer")
+        .map((p) => p.offer_id),
+    ),
+  );
+  
+  // Only re-subscribe if the offer IDs actually changed
+  const prev = offerIdsRef.current;
+  const same = offerIds.length === prev.length && offerIds.every((id, i) => id === prev[i]);
+  if (same || offerIds.length === 0) return;
+  
+  offerIdsRef.current = offerIds;
+  
+  const channel = supabase
+    .channel(`dm-wallet-offers-${user.id}-${offerIds.length}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "wallet_offers" }, (payload) => {
+      const row = payload.new as any;
+      const id = String(row?.id || "");
+      if (!id || !offerIds.includes(id)) return;
+      setWalletOfferCache((prev) => ({ ...prev, [id]: row }));
+    })
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [messages.length, user]);
     };
   }, [messages, user]);
 

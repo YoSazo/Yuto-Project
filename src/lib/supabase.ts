@@ -2507,12 +2507,14 @@ export async function getMoneyInbox(userId: string): Promise<MoneyInbox> {
     .eq("user_id", userId)
     .then((r) => (r.data || []).map((x) => x.group_id as string));
 
-  const orFilters = [
-    `recipient_user_id.eq.${userId}`,
-    myGroupChatIds.length > 0 ? `group_chat_id.in.(${myGroupChatIds.join(",")})` : null,
-  ]
-    .filter(Boolean)
-    .join(",");
+  // Build the filter safely — Supabase's .or() with .in() needs the format:
+// group_chat_id.in.(id1,id2) — confirmed working, but let's be defensive
+const orParts: string[] = [`recipient_user_id.eq.${userId}`];
+if (myGroupChatIds.length > 0) {
+  // Supabase PostgREST handles UUID arrays fine with this format
+  orParts.push(`group_chat_id.in.(${myGroupChatIds.join(",")})`);
+}
+const orFilters = orParts.join(",");
 
   let pendingOffersForMe: MoneyInboxOffer[] = [];
   if (orFilters) {

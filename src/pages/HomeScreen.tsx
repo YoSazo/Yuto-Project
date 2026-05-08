@@ -56,7 +56,7 @@ import { toast } from "sonner";
 import { haptics } from "../lib/haptics";
 import { analytics } from "../lib/analytics";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
-
+import { ComposeAnywhereSheet } from "../components/messages/ComposeAnywhereSheet";
 export default function HomeScreen() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -892,12 +892,34 @@ export default function HomeScreen() {
       />
 
       {/* Floating compose button */}
-      <button
-        onClick={() => setShowCompose(true)}
-        className="fixed bottom-24 left-1/2 -translate-x-1/2 px-8 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm z-40 hover:bg-gray-800 transition-colors"
-      >
-        <Send size={16} /> Post
-      </button>
+      // Add state near top of HomeScreen:
+const [showComposeAnywhere, setShowComposeAnywhere] = useState(false);
+
+// Replace the single button:
+<div className="fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-3 z-40">
+  <button
+    onClick={() => setShowCompose(true)}
+    className="px-6 py-3.5 bg-black text-white rounded-full shadow-lg flex items-center gap-2 font-bold text-sm hover:bg-gray-800 transition-colors"
+  >
+    <Send size={16} /> Post
+  </button>
+  <button
+    onClick={() => setShowComposeAnywhere(true)}
+    className="w-12 h-12 bg-white border border-gray-200 text-black rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+    aria-label="Message someone"
+    title="Start a conversation"
+  >
+    <MessageCircle size={18} />
+  </button>
+</div>
+
+{/* After the other modals: */}
+{showComposeAnywhere && user && (
+  <ComposeAnywhereSheet
+    currentUserId={user.id}
+    onClose={() => setShowComposeAnywhere(false)}
+  />
+)}
       {showFunctionTopUp && user && pendingJoinFunction && (
         <YutoBalanceTopUpModal
           open
