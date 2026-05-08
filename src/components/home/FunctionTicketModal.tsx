@@ -98,7 +98,7 @@ export function FunctionTicketModal({
             </span>
           </div>
 
-          <div className="relative z-10 p-6">
+          <div className="relative z-10 p-6 max-h-[85vh] overflow-y-auto overscroll-contain pb-8">
             <div className="flex justify-between items-start gap-3 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center">

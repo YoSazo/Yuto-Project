@@ -60,7 +60,8 @@ export default function UserProfileScreen() {
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null);
   const [activeHighlightIdx, setActiveHighlightIdx] = useState<0 | 1>(0);
   const [activeHighlightMediaReady, setActiveHighlightMediaReady] = useState(false);
-
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
   const activeHighlightMediaKey =
     activeHighlight?.photos?.[activeHighlightIdx]?.url ? `${activeHighlight.id}:${activeHighlightIdx}:${activeHighlight.photos[activeHighlightIdx]!.url}` : "";
 
@@ -84,12 +85,12 @@ export default function UserProfileScreen() {
   const [listingOptionsOpen, setListingOptionsOpen] = useState<string | null>(null);
 
   const handleReportUser = async () => {
-    if (!targetUserId) return;
-    const reason = window.prompt("Why are you reporting this user? (Spam, scam, inappropriate behavior, etc.)");
-    if (!reason) return;
+    if (!targetUserId || !reportReason.trim()) return;
     try {
-      await submitUserReport(targetUserId, reason);
+      await submitUserReport(targetUserId, reportReason.trim());
       toast.success("User reported. Our team will review this profile.");
+      setReportModalOpen(false);
+      setReportReason("");
     } catch (e) {
       toast.error("Couldn't submit report. Try again.");
     }
@@ -367,7 +368,7 @@ export default function UserProfileScreen() {
             <>
               <button
                 type="button"
-                onClick={handleReportUser}
+                onClick={() => setReportModalOpen(true)}
                 className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 aria-label="Report user"
                 title="Report user"
@@ -1030,6 +1031,48 @@ export default function UserProfileScreen() {
           </>
         )}
       </AnimatePresence>
+
+
+      {/* Custom Report Modal */}
+      {reportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setReportModalOpen(false)}>
+          <div 
+            className="w-full max-w-md bg-white rounded-t-3xl p-6 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-black">Report User</h3>
+                <p className="text-xs text-gray-500 mt-1">This will be sent securely to our review team.</p>
+              </div>
+              <button onClick={() => setReportModalOpen(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+            </div>
+            
+            <textarea
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              placeholder="Why are you reporting this user? (Spam, inappropriate behavior, etc.)"
+              className="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-2xl resize-none text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black"
+            />
+            
+            <div className="mt-4 flex gap-3">
+              <button 
+                onClick={() => setReportModalOpen(false)}
+                className="flex-1 py-3.5 rounded-2xl bg-gray-100 text-black font-bold text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleReportUser}
+                disabled={!reportReason.trim()}
+                className="flex-1 py-3.5 rounded-2xl bg-red-600 text-white font-bold text-sm disabled:opacity-50"
+              >
+                Submit Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

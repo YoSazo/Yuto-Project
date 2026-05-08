@@ -136,7 +136,6 @@ export function ComposeAnywhereSheet({
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
             />
             <input
-              autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search a friend, plan or function..."
