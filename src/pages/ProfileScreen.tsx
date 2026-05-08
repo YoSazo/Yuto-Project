@@ -30,9 +30,15 @@ import { TransactionReceiptModal } from "../components/profile/TransactionReceip
 import { useCountUp } from "../hooks/useCountUp";
 import { toast } from "sonner";
 import { haptics } from "../lib/haptics";
-import { getUserListings, getUserHostedFunctions, type StorefrontListingItem, type HostedFunctionItem } from "../lib/supabase";
+import { 
+  getUserHostedFunctions, 
+  updateFunctionListingStatus, 
+  cancelHostListing, 
+  duplicateFunction,
+  type StorefrontListingItem, 
+  type HostedFunctionItem 
+} from "../lib/supabase";
 import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
-import { Store } from "lucide-react";
 
 function ChevronRight() {
   return (
