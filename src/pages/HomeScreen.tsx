@@ -411,6 +411,14 @@ export default function HomeScreen() {
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
     if (!user) return;
+
+    const isSell = eventFunction.location === "__SELL__";
+    const isService = eventFunction.location === "__SERVICE__";
+    if (isSell || isService) {
+      await handleMessageListing(eventFunction);
+      return;
+    }
+
     const members = eventFunction.function_members ?? [];
     const isMember = members.some((m) => m.user_id === user.id);
     const cap = eventFunction.max_capacity;
@@ -446,40 +454,40 @@ export default function HomeScreen() {
   
       await refreshFunctionById(eventFunction.id);
 
-      // Sell/Service: after a successful pay, jump into a DM with the provider.
-      const isSell = eventFunction.location === "__SELL__";
-      const isService = eventFunction.location === "__SERVICE__";
-      if (isSell || isService) {
-        try {
-          const convo = await getOrCreateDmConversation(user.id, eventFunction.host.id);
-          const kindLabel = isSell ? "Sell" : "Service";
-          const verb = isSell ? "bought" : "booked";
-          await sendDmMessage(convo.id, user.id, `Hey! I just ${verb} “${eventFunction.title}”.`);
-          await sendDmShareMessage(convo.id, user.id, {
-            kind: "listing",
-            function_id: eventFunction.id,
-            listing_kind: isSell ? "sell" : "service",
-          });
-          await upsertDmBusinessContext({
-            conversation_id: convo.id,
-            provider_id: eventFunction.host.id,
-            buyer_id: user.id,
-            function_id: eventFunction.id,
-            listing_kind: isSell ? "sell" : "service",
-            listing_title: eventFunction.title,
-          });
-          navigate(`/messages/${convo.id}`, { state: { otherUserId: eventFunction.host.id } });
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
       if (autoShownTicketFnIdRef.current !== eventFunction.id) {
         autoShownTicketFnIdRef.current = eventFunction.id;
         setFunctionTicket(eventFunction);
       }
     } catch (err) {
       console.error("Error joining function", err);
+    }
+  };
+
+  const handleMessageListing = async (eventFunction: FunctionListing) => {
+    if (!user) return;
+    const isSell = eventFunction.location === "__SELL__";
+    const isService = eventFunction.location === "__SERVICE__";
+    if (!isSell && !isService) return;
+    try {
+      const convo = await getOrCreateDmConversation(user.id, eventFunction.host.id);
+      await sendDmShareMessage(convo.id, user.id, {
+        kind: "listing",
+        function_id: eventFunction.id,
+        listing_kind: isSell ? "sell" : "service",
+      });
+      await upsertDmBusinessContext({
+        conversation_id: convo.id,
+        provider_id: eventFunction.host.id,
+        buyer_id: user.id,
+        function_id: eventFunction.id,
+        listing_kind: isSell ? "sell" : "service",
+        listing_title: eventFunction.title,
+      });
+      navigate(`/messages/${convo.id}`, { state: { otherUserId: eventFunction.host.id } });
+      haptics.light();
+    } catch (e) {
+      console.error(e);
+      toast.error("Couldn't open messages.");
     }
   };
 
@@ -763,6 +771,7 @@ export default function HomeScreen() {
             onJoinFunction={handleJoinFunction}
             onOpenTicket={(f) => setFunctionTicket(f)}
             onShareInMessages={user ? (payload) => setShareFeedPayload(payload) : undefined}
+            onMessageListing={user ? handleMessageListing : undefined}
             currentUserId={user?.id}
             taggedProfilesById={taggedProfilesById}
             onDeletePost={(postId) => {
@@ -788,6 +797,7 @@ export default function HomeScreen() {
               user ? (payload) => setShareFeedPayload(payload) : undefined
             }
             onDuplicateFunction={user ? handleDuplicateFunction : undefined}
+            onMessageListing={user ? handleMessageListing : undefined}
           />
         </>
       )}

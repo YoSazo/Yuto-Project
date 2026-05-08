@@ -36,6 +36,7 @@ export function PostsFeedSection({
   currentUserId,
   onDeletePost,
   taggedProfilesById,
+  onMessageListing,
 }: {
   posts: PublicPost[];
   onNavigateToTag: (tag: any) => void;
@@ -48,6 +49,7 @@ export function PostsFeedSection({
   currentUserId?: string;
   onDeletePost?: (postId: string) => void;
   taggedProfilesById?: Record<string, { id: string; username: string; display_name: string; avatar_url: string | null }>;
+  onMessageListing?: (f: FunctionListing) => void;
 }) {
   const visiblePosts = useMemo(() => posts.filter((p) => !!p.content_text?.trim()), [posts]);
   const legacyVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
@@ -153,6 +155,7 @@ export function PostsFeedSection({
                             onJoinFunction={onJoinFunction}
                             onOpenTicket={onOpenTicket}
                             onShareInMessages={onShareInMessages}
+                            onMessageListing={onMessageListing}
                           />
                         </div>
                       </div>

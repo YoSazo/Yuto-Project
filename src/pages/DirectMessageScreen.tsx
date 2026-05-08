@@ -12,11 +12,9 @@ import {
   joinPlan,
   leavePlan,
   markDmRead,
-  getOrCreateDmConversation,
   sendDmMessage,
   sendDmShareMessage,
   deleteDmMessage,
-  upsertDmBusinessContext,
   getHighlightById,
   ensureFunctionAttendeeChat,
   createWalletOffer,
@@ -24,11 +22,20 @@ import {
   getWalletOfferById,
   fetchYutoBalance,
   supabase,
+  createListingDmCharge,
+  sendDmChargeMessage,
+  getListingDmCharge,
+  getUserListings,
+  getDmConversationContexts,
   type DmMessage,
   type DmSharePayload,
   type Highlight,
+  type ListingDmChargeRow,
+  type StorefrontListingItem,
 } from "../lib/supabase";
 import { DmPlusModal } from "../components/dm/DmPlusModal";
+import { DmChargeModal } from "../components/dm/DmChargeModal";
+import { DmChargeInline } from "../components/dm/DmChargeInline";
 import { DmSharedProfileCard } from "../components/dm/DmSharedProfileCard";
 import { DmSharedHighlightCard } from "../components/dm/DmSharedHighlightCard";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
@@ -79,6 +86,10 @@ export default function DirectMessageScreen() {
   const [walletOfferCache, setWalletOfferCache] = useState<Record<string, any | null>>({});
   const [composerYutoBalance, setComposerYutoBalance] = useState<number | null>(null);
   const [composerBalanceLoading, setComposerBalanceLoading] = useState(false);
+  const [chargeCache, setChargeCache] = useState<Record<string, ListingDmChargeRow>>({});
+  const [showChargeModal, setShowChargeModal] = useState(false);
+  const [sellerListingsForCharge, setSellerListingsForCharge] = useState<StorefrontListingItem[]>([]);
+  const [dmContexts, setDmContexts] = useState<Awaited<ReturnType<typeof getDmConversationContexts>>>([]);
 
   const parseShare = (m: DmMessage): DmSharePayload | null => {
     if (m.message_type !== "share") return null;
@@ -125,6 +136,62 @@ export default function DirectMessageScreen() {
       cancelled = true;
     };
   }, [showSharePicker, user?.id]);
+
+  useEffect(() => {
+    if (!showChargeModal || !user?.id) return;
+    void getUserListings(user.id, user.id)
+      .then(setSellerListingsForCharge)
+      .catch((e) => console.error(e));
+  }, [showChargeModal, user?.id]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    let cancelled = false;
+    void getDmConversationContexts(conversationId)
+      .then((rows) => {
+        if (!cancelled) setDmContexts(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setDmContexts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId]);
+
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const m of messages) {
+      if (m.message_type !== "charge") continue;
+      const id = (m.payload as { charge_id?: string } | null)?.charge_id;
+      if (id) ids.add(id);
+    }
+    if (ids.size === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const patch: Record<string, ListingDmChargeRow> = {};
+      for (const id of ids) {
+        try {
+          const row = await getListingDmCharge(id);
+          if (row) patch[id] = row;
+        } catch {
+          /* ignore */
+        }
+        if (cancelled) return;
+      }
+      if (cancelled || Object.keys(patch).length === 0) return;
+      setChargeCache((prev) => {
+        const next = { ...prev };
+        for (const [k, v] of Object.entries(patch)) {
+          if (!next[k]) next[k] = v;
+        }
+        return next;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages]);
 
   useEffect(() => {
     if (!user || !conversationId) return;
@@ -281,6 +348,11 @@ export default function DirectMessageScreen() {
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
     if (!user) return;
+    const isListingLoc = eventFunction.location === "__SELL__" || eventFunction.location === "__SERVICE__";
+    if (isListingLoc) {
+      toast.info("Pay in this chat — tap + then Charge when you agree on the price.");
+      return;
+    }
     const members = eventFunction.function_members ?? [];
     const isMember = members.some((m) => m.user_id === user.id);
     const cap = eventFunction.max_capacity;
@@ -324,32 +396,6 @@ export default function DirectMessageScreen() {
         .eq("id", eventFunction.id)
         .single();
       setShareCache((prev) => ({ ...prev, [`fn:${eventFunction.id}`]: data as any }));
-
-      const isSell = eventFunction.location === "__SELL__";
-      const isService = eventFunction.location === "__SERVICE__";
-      if (isSell || isService) {
-        try {
-          const convo = await getOrCreateDmConversation(user.id, eventFunction.host.id);
-          const verb = isSell ? "bought" : "booked";
-          await sendDmMessage(convo.id, user.id, `Hey! I just ${verb} “${eventFunction.title}”.`);
-          await sendDmShareMessage(convo.id, user.id, {
-            kind: "listing",
-            function_id: eventFunction.id,
-            listing_kind: isSell ? "sell" : "service",
-          });
-          await upsertDmBusinessContext({
-            conversation_id: convo.id,
-            provider_id: eventFunction.host.id,
-            buyer_id: user.id,
-            function_id: eventFunction.id,
-            listing_kind: isSell ? "sell" : "service",
-            listing_title: eventFunction.title,
-          });
-          // In-message purchase should not kick you out of your current conversation.
-        } catch (e) {
-          console.error(e);
-        }
-      }
 
       // After successful pay, show proof/ticket in-place.
       setTicketFunction(data as FunctionListing);
@@ -602,6 +648,11 @@ export default function DirectMessageScreen() {
           <div className="min-w-0">
             <p className="font-extrabold text-black truncate">{title}</p>
             {other?.username && <p className="text-xs text-gray-400 truncate">@{other.username}</p>}
+            {dmContexts[0] ? (
+              <p className="text-[11px] font-semibold text-gray-500 truncate max-w-[min(100vw-8rem,18rem)]">
+                {dmContexts[0].listing_title} · {dmContexts[0].listing_kind === "sell" ? "Sell" : "Service"}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -637,6 +688,12 @@ export default function DirectMessageScreen() {
               const hlPack = hlKey ? highlightShareCache[hlKey] : null;
               const sharedGroup = listedShare?.kind === "group" ? groupShareCache[listedShare.group_id] : null;
               const groupPaid = listedShare?.kind === "group" ? !!groupPaidById[listedShare.group_id] : false;
+              const sharedFn = sharedItem as FunctionListing | null;
+              const isListingInDm =
+                !!sharedFn &&
+                (listedShare?.kind === "listing" ||
+                  sharedFn.location === "__SELL__" ||
+                  sharedFn.location === "__SERVICE__");
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   {mine && (
@@ -678,6 +735,17 @@ export default function DirectMessageScreen() {
                         </div>
                       )}
                     </div>
+                  ) : m.message_type === "charge" ? (
+                    <DmChargeInline
+                      message={m}
+                      currentUserId={user?.id}
+                      otherUserId={otherUserId}
+                      chargeCache={chargeCache}
+                      onRefreshCharge={async (id) => {
+                        const row = await getListingDmCharge(id);
+                        if (row) setChargeCache((prev) => ({ ...prev, [id]: row }));
+                      }}
+                    />
                   ) : listedShare ? (
                     <div className="max-w-[99%] w-[99%] md:w-[760px]">
                       {listedShare.kind === "wallet_offer" ? (
@@ -869,6 +937,7 @@ export default function DirectMessageScreen() {
                             eventFunction={sharedItem as FunctionListing}
                             currentUserId={user?.id}
                             unreadCount={0}
+                            suppressListingPay={isListingInDm}
                             onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
                             onJoinFunction={(f) => void handleJoinFunction(f)}
                             onOpenTicket={(f) => setTicketFunction(f)}
@@ -1030,7 +1099,45 @@ export default function DirectMessageScreen() {
         }}
         sendAvailableBalanceKes={composerYutoBalance}
         sendBalanceLoading={composerBalanceLoading}
+        onOpenCharge={
+          user?.id && otherUserId && conversationId
+            ? () => {
+                setShowSharePicker(false);
+                setShowChargeModal(true);
+              }
+            : undefined
+        }
       />
+
+      {showChargeModal && user && otherUserId && conversationId && (
+        <DmChargeModal
+          open={showChargeModal}
+          onClose={() => setShowChargeModal(false)}
+          buyerUserId={otherUserId}
+          sellerUserId={user.id}
+          conversationId={conversationId}
+          listings={sellerListingsForCharge}
+          onSubmit={async (args) => {
+            const chargeId = await createListingDmCharge({
+              conversationId,
+              buyerId: otherUserId,
+              amountKes: args.amountKes,
+              releaseMode: args.releaseMode,
+              functionId: args.functionId,
+              note: args.note || null,
+            });
+            await sendDmChargeMessage(conversationId, user.id, chargeId);
+            try {
+              const row = await getListingDmCharge(chargeId);
+              if (row) setChargeCache((prev) => ({ ...prev, [chargeId]: row }));
+            } catch {
+              /* ignore */
+            }
+            haptics.success();
+            toast.success("Charge sent");
+          }}
+        />
+      )}
 
       {previewShare && (
         <div className="fixed inset-x-0 bottom-[calc(100px+env(safe-area-inset-bottom))] z-50 flex justify-center px-5 pointer-events-none">

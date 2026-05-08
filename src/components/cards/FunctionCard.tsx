@@ -42,6 +42,8 @@ export function FunctionCard({
   onOpenPeople,
   onShareInMessages,
   onDuplicate,
+  suppressListingPay,
+  onMessageListing,
 }: {
   eventFunction: FunctionListing;
   currentUserId?: string;
@@ -55,6 +57,10 @@ export function FunctionCard({
   onShareInMessages?: (payload: DmSharePayload) => void;
   /** Host-only: re-run this function next week with a fresh roster. */
   onDuplicate?: (f: FunctionListing) => void;
+  /** When true, listing cards hide Buy/Pay (e.g. embedded inside an existing DM). */
+  suppressListingPay?: boolean;
+  /** Listing (sell/service) primary CTA: open DM — used on home / profile instead of instant pay. */
+  onMessageListing?: (f: FunctionListing) => void;
 }) {
   const fm = eventFunction.function_members ?? [];
   const isHost = eventFunction.host_id === currentUserId;
@@ -346,6 +352,21 @@ export function FunctionCard({
                   </button>
                 )}
               </div>
+            ) : suppressListingPay && isListing ? (
+              <span className={["text-xs font-semibold text-center max-w-[11rem]", isFunction ? "text-white/55" : "text-gray-400"].join(" ")}>
+                Pay in chat when ready
+              </span>
+            ) : isListing && onMessageListing ? (
+              <button
+                type="button"
+                onClick={() => onMessageListing(eventFunction)}
+                className={[
+                  "px-5 py-2.5 rounded-xl font-bold text-sm transition-colors",
+                  isFunction ? "bg-white text-black hover:bg-white/90" : "bg-black text-white hover:bg-gray-800",
+                ].join(" ")}
+              >
+                Message
+              </button>
             ) : isMember && me?.has_paid ? (
               <span className={["text-sm font-semibold", isFunction ? "text-emerald-300" : "text-green-600"].join(" ")}>You&apos;re in</span>
             ) : canPay ? (

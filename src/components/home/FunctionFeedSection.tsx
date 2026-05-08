@@ -17,6 +17,7 @@ export function FunctionFeedSection({
   onOpenTicket,
   onShareInMessages,
   onDuplicateFunction,
+  onMessageListing,
 }: {
   functionsFeed: FunctionListing[];
   loading?: boolean;
@@ -29,6 +30,7 @@ export function FunctionFeedSection({
   onOpenTicket: (f: FunctionListing) => void;
   onShareInMessages?: (payload: DmSharePayload) => void;
   onDuplicateFunction?: (f: FunctionListing) => void;
+  onMessageListing?: (f: FunctionListing) => void;
 }) {
   const [peopleModal, setPeopleModal] = useState<{ functionId: string; title: string } | null>(null);
 
@@ -67,7 +69,7 @@ export function FunctionFeedSection({
           <>
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Marketplace</p>
-              <span className="text-xs text-gray-400">Buy &amp; book</span>
+              <span className="text-xs text-gray-400">Message to buy</span>
             </div>
             {marketplace.map((eventFunction) => (
               <FunctionCard
@@ -83,6 +85,7 @@ export function FunctionFeedSection({
                 onOpenPeople={(functionId, title) => setPeopleModal({ functionId, title })}
                 onShareInMessages={onShareInMessages}
                 onDuplicate={onDuplicateFunction}
+                onMessageListing={onMessageListing}
               />
             ))}
           </>

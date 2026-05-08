@@ -913,29 +913,44 @@ export type StorefrontListingItem = {
   amount_per_person: number;
   image_url: string | null;
   media: FunctionMediaRow[];
+  listing_status?: "active" | "sold" | "paused" | null;
 };
 
-export async function getUserListings(userId: string): Promise<StorefrontListingItem[]> {
-  const { data, error } = await supabase
+export async function getUserListings(userId: string, viewerId?: string | null): Promise<StorefrontListingItem[]> {
+  let q = supabase
     .from("functions")
     .select(
-      "id, title, location, amount_per_person, image_url, media:function_media(id, media_url, media_type, sort_index)",
+      "id, title, location, amount_per_person, image_url, listing_status, media:function_media(id, media_url, media_type, sort_index)",
     )
     .eq("host_id", userId)
     .eq("status", "open")
-    .in("location", ["__SELL__", "__SERVICE__"])
-    .order("created_at", { ascending: false });
+    .in("location", ["__SELL__", "__SERVICE__"]);
+
+  const { data, error } = await q.order("created_at", { ascending: false });
   if (error) throw error;
-  return ((data || []) as any[]).map((row) => ({
+  const rows = ((data || []) as any[]).map((row) => ({
     id: row.id,
     title: row.title,
     kind: row.location === "__SELL__" ? ("sell" as const) : ("service" as const),
     amount_per_person: row.amount_per_person ?? 0,
     image_url: row.image_url ?? null,
+    listing_status: (row.listing_status as StorefrontListingItem["listing_status"]) ?? "active",
     media: ((row.media || []) as FunctionMediaRow[])
       .slice()
       .sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0)),
   }));
+  if (viewerId && viewerId !== userId) {
+    return rows.filter((r) => (r.listing_status ?? "active") === "active");
+  }
+  return rows;
+}
+
+export async function updateFunctionListingStatus(hostId: string, functionId: string, listingStatus: "active" | "sold" | "paused") {
+  const { error } = await supabase.rpc("update_function_listing_status", {
+    p_function_id: functionId,
+    p_listing_status: listingStatus,
+  });
+  if (error) throw error;
 }
 
 /** Host marks a sell/service listing inactive (schema: `cancelled`). */
@@ -1228,7 +1243,7 @@ export type DmMessage = {
   sender_id: string;
   content: string;
   created_at: string;
-  message_type?: "text" | "share";
+  message_type?: "text" | "share" | "charge";
   payload?: unknown;
   sender?: { id: string; username: string; display_name: string; avatar_url: string | null };
 };
@@ -1528,6 +1543,150 @@ export async function sendDmShareMessage(conversationId: string, senderId: strin
     payload,
   });
   if (error) throw error;
+}
+
+export type ListingDmChargeRow = {
+  id: string;
+  conversation_id: string;
+  seller_id: string;
+  buyer_id: string;
+  amount_kes: number;
+  release_mode: "trust" | "held";
+  function_id: string | null;
+  note: string | null;
+  status: "pending" | "paid" | "released" | "cancelled";
+  created_at: string;
+  paid_at: string | null;
+  released_at: string | null;
+};
+
+export async function createListingDmCharge(args: {
+  conversationId: string;
+  buyerId: string;
+  amountKes: number;
+  releaseMode: "trust" | "held";
+  functionId?: string | null;
+  note?: string | null;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc("create_listing_dm_charge", {
+    p_conversation_id: args.conversationId,
+    p_buyer_id: args.buyerId,
+    p_amount_kes: Math.round(args.amountKes),
+    p_release_mode: args.releaseMode,
+    p_function_id: args.functionId ?? null,
+    p_note: args.note ?? null,
+  });
+  if (error) throw error;
+  return String(data);
+}
+
+export async function sendDmChargeMessage(conversationId: string, senderId: string, chargeId: string) {
+  const { error } = await supabase.from("dm_messages").insert({
+    conversation_id: conversationId,
+    sender_id: senderId,
+    content: "",
+    message_type: "charge",
+    payload: { charge_id: chargeId },
+  });
+  if (error) throw error;
+}
+
+export async function getListingDmCharge(chargeId: string): Promise<ListingDmChargeRow | null> {
+  const { data, error } = await supabase.from("listing_dm_charges").select("*").eq("id", chargeId).maybeSingle();
+  if (error) throw error;
+  return data as ListingDmChargeRow | null;
+}
+
+export async function payListingDmCharge(chargeId: string) {
+  const { error } = await supabase.rpc("pay_listing_dm_charge", { p_charge_id: chargeId });
+  if (error) throw error;
+}
+
+export async function releaseListingDmCharge(chargeId: string) {
+  const { error } = await supabase.rpc("release_listing_dm_charge", { p_charge_id: chargeId });
+  if (error) throw error;
+}
+
+export async function cancelListingDmCharge(chargeId: string) {
+  const { error } = await supabase.rpc("cancel_listing_dm_charge", { p_charge_id: chargeId });
+  if (error) throw error;
+}
+
+export async function getDmConversationContexts(conversationId: string) {
+  const { data, error } = await supabase
+    .from("dm_conversation_context")
+    .select("id, conversation_id, provider_id, buyer_id, function_id, listing_kind, listing_title, created_at")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  if (error) throw error;
+  return (data || []) as Array<{
+    id: string;
+    conversation_id: string;
+    provider_id: string;
+    buyer_id: string;
+    function_id: string;
+    listing_kind: "sell" | "service";
+    listing_title: string;
+    created_at: string;
+  }>;
+}
+
+export async function countMutualFriends(userId: string, otherUserId: string): Promise<number> {
+  const [a, b] = await Promise.all([getFriends(userId), getFriends(otherUserId)]);
+  const setA = new Set<string>();
+  for (const row of a as { requester_id: string; addressee_id: string }[]) {
+    setA.add(row.requester_id === userId ? row.addressee_id : row.requester_id);
+  }
+  let n = 0;
+  for (const row of b as { requester_id: string; addressee_id: string }[]) {
+    const oid = row.requester_id === otherUserId ? row.addressee_id : row.requester_id;
+    if (setA.has(oid)) n++;
+  }
+  return n;
+}
+
+/** Rough sold signal: settled purchase/booking received txs for this host. */
+export async function countListingSalesForHost(hostId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", hostId)
+    .in("kind", ["purchase_received", "booking_received"]);
+  if (error) return 0;
+  return count ?? 0;
+}
+
+export async function submitUserReport(targetUserId: string | null, reason: string, context?: string) {
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u?.user?.id;
+  if (!uid) throw new Error("Not signed in");
+  const { error } = await supabase.from("user_reports").insert({
+    reporter_id: uid,
+    target_user_id: targetUserId,
+    reason: reason.slice(0, 500),
+    context: context?.slice(0, 2000) ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function blockUser(blockedId: string) {
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u?.user?.id;
+  if (!uid) throw new Error("Not signed in");
+  const { error } = await supabase.from("user_blocks").insert({ blocker_id: uid, blocked_id: blockedId });
+  if (error) throw error;
+}
+
+export async function isUserBlockedEitherWay(userId: string, otherUserId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("user_blocks")
+    .select("blocker_id")
+    .or(
+      `and(blocker_id.eq.${userId},blocked_id.eq.${otherUserId}),and(blocker_id.eq.${otherUserId},blocked_id.eq.${userId})`,
+    )
+    .maybeSingle();
+  return !!data;
 }
 
 export type DmBusinessContext = {

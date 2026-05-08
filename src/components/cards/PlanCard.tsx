@@ -92,23 +92,7 @@ export function PlanCard({
         );
       })()}
 
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <p className="font-bold text-black text-lg flex-1 min-w-0">{plan.title}</p>
-        {onSharePlan && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSharePlan(plan);
-            }}
-            className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors tap-scale border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
-            aria-label={`Send ${plan.title} in messages`}
-            title="Share in messages"
-          >
-            <Send size={15} strokeWidth={2} />
-          </button>
-        )}
-      </div>
+      <p className="font-bold text-black text-lg mb-2">{plan.title}</p>
 
       <div className="flex items-center gap-3 mb-2 flex-wrap">
         {plan.amount && (

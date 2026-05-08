@@ -12,6 +12,7 @@ export function DmPlusModal({
   onSendMoney,
   sendAvailableBalanceKes = null,
   sendBalanceLoading = false,
+  onOpenCharge,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,8 +23,11 @@ export function DmPlusModal({
   /** Same as Profile wallet Send: spendable balance; null before first load */
   sendAvailableBalanceKes?: number | null;
   sendBalanceLoading?: boolean;
+  /** DM-only: opens seller charge flow (+ menu). Omit in group chats. */
+  onOpenCharge?: () => void;
 }) {
-  const [topTab, setTopTab] = useState<"share" | "split" | "send">("share");
+  const [topTab, setTopTab] = useState<"share" | "split" | "send" | "charge">("share");
+  const showChargeTab = typeof onOpenCharge === "function";
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -109,32 +113,49 @@ export function DmPlusModal({
 
       <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-2xl p-6 md:p-7 modal-slide-up">
         <div className="flex items-center justify-between mb-4">
-          <p className="font-extrabold text-black text-lg">{topTab === "share" ? "Send…" : topTab === "split" ? "Split" : "Send"}</p>
+          <p className="font-extrabold text-black text-lg">
+            {topTab === "share"
+              ? "Send…"
+              : topTab === "charge"
+                ? "Charge"
+                : topTab === "split"
+                  ? "Split"
+                  : "Send"}
+          </p>
           <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">
             ✕
           </button>
         </div>
 
         <div className="mb-4">
-          <div className="bg-gray-100 rounded-full p-1 flex">
+          <div className={`bg-gray-100 rounded-full p-1 grid gap-1 ${showChargeTab ? "grid-cols-4" : "grid-cols-3"}`}>
             <button
               type="button"
               onClick={() => setTopTab("share")}
-              className={`flex-1 h-11 rounded-full font-bold text-sm transition-colors ${topTab === "share" ? "bg-black text-white" : "bg-transparent text-gray-500"}`}
+              className={`h-11 rounded-full font-bold text-xs sm:text-sm transition-colors ${topTab === "share" ? "bg-black text-white" : "bg-transparent text-gray-500"}`}
             >
               Share
             </button>
+            {showChargeTab ? (
+              <button
+                type="button"
+                onClick={() => setTopTab("charge")}
+                className={`h-11 rounded-full font-bold text-xs sm:text-sm transition-colors ${topTab === "charge" ? "bg-black text-white" : "bg-transparent text-gray-500"}`}
+              >
+                Charge
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => setTopTab("split")}
-              className={`flex-1 h-11 rounded-full font-bold text-sm transition-colors ${topTab === "split" ? "bg-black text-white" : "bg-transparent text-gray-500"}`}
+              className={`h-11 rounded-full font-bold text-xs sm:text-sm transition-colors ${topTab === "split" ? "bg-black text-white" : "bg-transparent text-gray-500"}`}
             >
               Split
             </button>
             <button
               type="button"
               onClick={() => setTopTab("send")}
-              className={`flex-1 h-11 rounded-full font-bold text-sm transition-colors ${topTab === "send" ? "bg-black text-white" : "bg-transparent text-gray-500"}`}
+              className={`h-11 rounded-full font-bold text-xs sm:text-sm transition-colors ${topTab === "send" ? "bg-black text-white" : "bg-transparent text-gray-500"}`}
             >
               Send
             </button>
@@ -143,6 +164,21 @@ export function DmPlusModal({
 
         {topTab === "share" ? (
           <DmSharePickerModal open onClose={onClose} onPickPlan={onPickPlan} onPickFunction={onPickFunction} embedded />
+        ) : topTab === "charge" ? (
+          <div className="rounded-3xl border border-gray-200 p-6">
+            <p className="text-sm font-semibold text-gray-600 leading-relaxed">
+              Request payment for a listing or a custom amount. The buyer pays from their Yuto Balance (held until handoff or instant, depending on what you pick).
+            </p>
+            <button
+              type="button"
+              className="w-full mt-5 py-4 rounded-2xl bg-black text-white font-extrabold text-base active:scale-[0.99] transition-transform"
+              onClick={() => {
+                onOpenCharge?.();
+              }}
+            >
+              Create charge
+            </button>
+          </div>
         ) : topTab === "split" ? (
           <div>
             <div className="rounded-3xl border border-gray-200 p-5">
