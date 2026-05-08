@@ -78,11 +78,11 @@ export default function HomeScreen() {
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
+  const [showComposeAnywhere, setShowComposeAnywhere] = useState(false);
   const activeTabRef = useRef(activeTab);
   /** Auto-show entry ticket once per function per mount (manual “Ticket” still works). */
   const autoShownTicketFnIdRef = useRef<string | null>(null);
   const [shareFeedPayload, setShareFeedPayload] = useState<DmSharePayload | null>(null);
-
   // Function payment state
   // functionPayTarget (direct STK to a function invoice) intentionally removed.
   // Joining a paid function uses Yuto Balance via the same handlers used for
@@ -893,7 +893,7 @@ export default function HomeScreen() {
 
       {/* Floating compose button */}
       // Add state near top of HomeScreen:
-const [showComposeAnywhere, setShowComposeAnywhere] = useState(false);
+
 
 // Replace the single button:
 <div className="fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-3 z-40">
