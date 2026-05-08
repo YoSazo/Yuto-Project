@@ -90,7 +90,7 @@ export default function DirectMessageScreen() {
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [sellerListingsForCharge, setSellerListingsForCharge] = useState<StorefrontListingItem[]>([]);
   const [dmContexts, setDmContexts] = useState<Awaited<ReturnType<typeof getDmConversationContexts>>>([]);
-
+  const offerIdsRef = useRef<string[]>([]);
   const parseShare = (m: DmMessage): DmSharePayload | null => {
     if (m.message_type !== "share") return null;
     const p = m.payload as any;
@@ -582,19 +582,7 @@ export default function DirectMessageScreen() {
   }, [messages, user]);
 
   // Live accept-state for wallet offer cards.
-  useEffect(() => {
-    if (!user) return;
-    const offerIds = Array.from(
-      new Set(
-        messages
-          .map((m) => parseShare(m))
-          .filter((p): p is Extract<DmSharePayload, { kind: "wallet_offer" }> => p?.kind === "wallet_offer")
-          .map((p) => p.offer_id),
-      ),
-    );
-    if (offerIds.length === 0) return;
-    const offerIdsRef = useRef<string[]>([]);
-
+// Live accept-state for wallet offer cards.
 useEffect(() => {
   if (!user) return;
   const offerIds = Array.from(
@@ -624,8 +612,6 @@ useEffect(() => {
     .subscribe();
   return () => { supabase.removeChannel(channel); };
 }, [messages.length, user]);
-    };
-  }, [messages, user]);
 
   useEffect(() => {
     if (!conversationId) return;
