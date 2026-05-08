@@ -24,7 +24,7 @@ import {
 import UserAvatar from "../components/UserAvatar";
 import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
-import { Wallet, History, Plus, Copy, Check, Send, Volume2, VolumeX } from "lucide-react";
+import { Wallet, History, Plus, Copy, Check, Send, Volume2, VolumeX, Store, ChevronDown } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 import { TransactionReceiptModal } from "../components/profile/TransactionReceiptModal";
 import { useCountUp } from "../hooks/useCountUp";
@@ -229,6 +229,7 @@ export default function ProfileScreen() {
   const [ownListings, setOwnListings] = useState<StorefrontListingItem[]>([]);
   const [ownFunctions, setOwnHostedFunctions] = useState<HostedFunctionItem[]>([]);
   const [ownShowcaseTab, setOwnShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
+  const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
   const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
   const animatedBalance = useCountUp(points, 1100);
   const prevBalanceRef = useRef<number | null>(null);
@@ -636,10 +637,63 @@ export default function ProfileScreen() {
   const cy = 190;
   const nodeRadius = 125;
 
+  // --- Compute Available Showcase Tabs ---
+  const sellListings = ownListings.filter(l => l.kind === "sell");
+  const serviceListings = ownListings.filter(l => l.kind === "service");
+  const hasFns = ownFunctions.length > 0;
+  
+  const availableTabs: Array<{ id: "functions" | "sell" | "service"; label: string }> = [];
+  if (hasFns) availableTabs.push({ id: "functions", label: "My Functions" });
+  if (sellListings.length > 0) availableTabs.push({ id: "sell", label: "Storefront" });
+  if (serviceListings.length > 0) availableTabs.push({ id: "service", label: "Services" });
+
   return (
-    <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
-      <div className="flex items-center justify-between mb-6">
-        <span className="text-2xl font-bold text-black">Profile</span>
+    <div className="flex items-center justify-between mb-6 relative z-50">
+        {availableTabs.length > 0 ? (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsHeaderDropdownOpen(!isHeaderDropdownOpen)}
+              className="flex items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer"
+            >
+              <span className="text-2xl font-bold text-black">
+                {ownShowcaseTab === "functions" && hasFns ? "My Functions" :
+                 ownShowcaseTab === "sell" && sellListings.length > 0 ? "Storefront" :
+                 ownShowcaseTab === "service" && serviceListings.length > 0 ? "Services" : "Profile"}
+              </span>
+              <ChevronDown size={22} className={`text-black transition-transform duration-200 ${isHeaderDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {/* The Dropdown Menu */}
+            {isHeaderDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsHeaderDropdownOpen(false)} />
+                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 py-2 animate-in fade-in slide-in-from-top-2">
+                  <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Switch View
+                  </div>
+                  {availableTabs.map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setOwnShowcaseTab(t.id);
+                        setIsHeaderDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-sm font-extrabold transition-colors border-none ${
+                        ownShowcaseTab === t.id ? "bg-gray-50 text-black" : "bg-white text-gray-500 hover:bg-gray-50 hover:text-black"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <span className="text-2xl font-bold text-black">Profile</span>
+        )}
       </div>
 
       {/* Radial graph — YutoGroupScreen inspired */}
@@ -1368,25 +1422,6 @@ export default function ProfileScreen() {
         
         return (
           <div className="mb-6">
-            {available.length > 1 && (
-              <div className="flex justify-center mb-4">
-                <div className="inline-flex rounded-full bg-gray-100 p-1">
-                  {available.map(t => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setOwnShowcaseTab(t.id)}
-                      className={[
-                        "px-4 py-2 rounded-full text-sm font-extrabold transition-colors border-none",
-                        ownShowcaseTab === t.id ? "bg-black text-white" : "bg-transparent text-gray-400",
-                      ].join(" ")}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             {available.length === 1 && (
               <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 text-center">
                 {available[0]!.label}
