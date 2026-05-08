@@ -1197,8 +1197,8 @@ return (
                         </div>
                       )}
                       
-                      {/* 3-dot menu */}
-                      <button
+{/* 3-dot menu */}
+<button
                         type="button"
                         onClick={() => setOwnListingOptionsOpen(ownListingOptionsOpen === listing.id ? null : listing.id)}
                         className="absolute top-3 right-3 z-20 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center border-none"
@@ -1207,8 +1207,19 @@ return (
                       </button>
                       
                       {ownListingOptionsOpen === listing.id && (
-                        <div className="absolute top-14 right-3 z-30 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col py-1">
-                          {listing.listing_status !== "active" && (
+                        <>
+                          {/* Invisible backdrop to catch clicks outside the menu */}
+                          <div 
+                            className="fixed inset-0 z-20 cursor-default" 
+                            onClick={(e) => { 
+                              e.preventDefault(); 
+                              e.stopPropagation(); 
+                              setOwnListingOptionsOpen(null); 
+                            }} 
+                          />
+                          
+                          <div className="absolute top-14 right-3 z-30 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col py-1">
+                            {listing.listing_status !== "active" && (
                             <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "active"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "active" } : l)); setOwnListingOptionsOpen(null); toast.success("Re-listed!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Re-list</button>
                           )}
                           {listing.listing_status !== "sold" && (
