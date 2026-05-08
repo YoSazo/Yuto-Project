@@ -275,6 +275,12 @@ export default function DirectMessageScreen() {
     if (!content) return;
     setText("");
 
+    // Anti-leakage soft warning (only fires if there is listing context in this DM)
+    const offPlatformRegex = /(?:07\d{2}|01\d{2})\s?\d{3}\s?\d{3}|send to my number|till number|paybill|mpesa|m-pesa|send to \d+/i;
+    if (offPlatformRegex.test(content) && dmContexts.length > 0) {
+      toast.info("Pay with Yuto Balance to keep this transaction protected.", { duration: 5000 });
+    }
+
     const optimisticId = globalThis.crypto.randomUUID();
     const optimisticMsg: DmMessage = {
       id: optimisticId,

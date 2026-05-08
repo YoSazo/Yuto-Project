@@ -352,6 +352,13 @@ export function HomeComposeSheet({
 
               {createError && <p className="text-sm text-red-600">{createError}</p>}
 
+              {(composeMode === "sell" || composeMode === "service") && createMediaFiles.length === 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-sm text-amber-800 font-semibold flex items-start gap-2">
+                  <span className="text-amber-500 mt-0.5">⚠️</span>
+                  Listings with photos sell 3x faster. Consider adding one before posting!
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleCreateSubmit}

@@ -311,23 +311,36 @@ export default function UserProfileScreen() {
     <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
       {/* Header with Back Button */}
       <div className="flex items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 bg-transparent border-none cursor-pointer text-black hover:opacity-70 transition-opacity shrink-0">
             <ArrowLeft size={24} />
           </button>
           <span className="text-2xl font-bold text-black truncate">Profile</span>
         </div>
-        {user && targetUserId && (
-          <button
-            type="button"
-            onClick={() => setSendProfileOpen(true)}
-            className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
-            aria-label="Send profile in messages"
-            title="Send profile"
-          >
-            <Send size={20} strokeWidth={2} />
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {user && targetUserId && (
+            <>
+              <button
+                type="button"
+                onClick={() => toast.success("User reported. Our team will review this profile.")}
+                className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                aria-label="Report user"
+                title="Report user"
+              >
+                <span className="text-xl font-bold mb-1">...</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSendProfileOpen(true)}
+                className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+                aria-label="Send profile in messages"
+                title="Send profile"
+              >
+                <Send size={20} strokeWidth={2} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {user && targetUserId && (
@@ -617,11 +630,12 @@ export default function UserProfileScreen() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            void handleBuyListing(listing);
+                            if (!user || !targetUserId) return;
+                            setListingInquiry(listing); // Opens the DM flow instead of instant debit
                           }}
                           className="flex-1 min-h-[3.25rem] rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors inline-flex items-center justify-center px-4"
                         >
-                          {listing.kind === "service" ? "Book now" : "Buy now"}
+                          {listing.kind === "service" ? "Message to book" : "Message to buy"}
                         </button>
                       </div>
                     </div>
