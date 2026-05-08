@@ -157,12 +157,14 @@ export function FunctionCard({
       </div>
 
       <div className="flex items-start justify-between gap-3 mb-1">
-        <p className={["font-bold text-lg flex-1 min-w-0", isFunction ? "text-white" : "text-black"].join(" ")}>{eventFunction.title}</p>
+        <p className={[
+          "font-bold text-lg flex-1 min-w-0", 
+          isFunction ? "text-white" : "text-black",
+          (isListing && eventFunction.listing_status && eventFunction.listing_status !== "active") || (isFunction && (eventFunction as any).status === "cancelled") ? "opacity-60 line-through" : ""
+        ].join(" ")}>
+          {eventFunction.title}
+        </p>
         {onShareInMessages && (
-          <button
-            type="button"
-            onClick={() =>
-              onShareInMessages(
                 isSell
                   ? { kind: "listing", function_id: eventFunction.id, listing_kind: "sell" }
                   : isService
@@ -195,8 +197,22 @@ export function FunctionCard({
         const items = media.length > 0 ? media : fallback;
         if (items.length === 0) return null;
         return (
-          <div className="mb-3 rounded-xl overflow-hidden bg-gray-100">
+          <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 relative">
             <FixedMediaCarousel items={items} />
+            {isListing && eventFunction.listing_status && eventFunction.listing_status !== "active" && (
+              <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-[2px] pointer-events-none">
+                <span className="px-4 py-2 bg-white text-black font-extrabold text-lg uppercase tracking-widest rounded-xl -rotate-6 shadow-sm">
+                  {eventFunction.listing_status === "sold" ? "SOLD" : "PAUSED"}
+                </span>
+              </div>
+            )}
+            {isFunction && (eventFunction as any).status === "cancelled" && (
+              <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center backdrop-blur-[2px] pointer-events-none">
+                <span className="px-4 py-2 bg-white text-black font-extrabold text-lg uppercase tracking-widest rounded-xl -rotate-6 shadow-sm">
+                  CANCELLED
+                </span>
+              </div>
+            )}
           </div>
         );
       })()}
@@ -340,13 +356,18 @@ export function FunctionCard({
             ) : isListing && onMessageListing ? (
               <button
                 type="button"
+                disabled={eventFunction.listing_status === "sold" || eventFunction.listing_status === "paused"}
                 onClick={() => onMessageListing(eventFunction)}
                 className={[
                   "px-5 py-2.5 rounded-xl font-bold text-sm transition-colors",
-                  isFunction ? "bg-white text-black hover:bg-white/90" : "bg-black text-white hover:bg-gray-800",
+                  eventFunction.listing_status && eventFunction.listing_status !== "active"
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                    : isFunction 
+                      ? "bg-white text-black hover:bg-white/90" 
+                      : "bg-black text-white hover:bg-gray-800",
                 ].join(" ")}
               >
-                Message
+                {eventFunction.listing_status === "sold" ? "Sold Out" : eventFunction.listing_status === "paused" ? "Paused" : "Message"}
               </button>
             ) : isMember && me?.has_paid ? (
               <span className={["text-sm font-semibold", isFunction ? "text-emerald-300" : "text-green-600"].join(" ")}>You&apos;re in</span>
@@ -364,17 +385,22 @@ export function FunctionCard({
             ) : canJoin ? (
               <button
                 type="button"
+                disabled={isFunction && (eventFunction as any).status === "cancelled"}
                 onClick={() => onJoinFunction?.(eventFunction)}
                 className={[
                   "px-4 py-2 rounded-xl font-bold text-sm transition-colors",
-                  isFunction ? "bg-white text-black hover:bg-white/90" : "bg-black text-white hover:bg-gray-800",
+                  isFunction && (eventFunction as any).status === "cancelled"
+                    ? "bg-white/10 text-white/40 cursor-not-allowed"
+                    : isFunction 
+                      ? "bg-white text-black hover:bg-white/90" 
+                      : "bg-black text-white hover:bg-gray-800",
                 ].join(" ")}
               >
-                {isSell ? "Purchase" : isService ? "Book" : "Join Function"}
+                {isFunction && (eventFunction as any).status === "cancelled" ? "Cancelled" : isSell ? "Purchase" : isService ? "Book" : "Join Function"}
               </button>
             ) : (
               <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>
-                {isFull ? "Full" : "Joined"}
+                {isFunction && (eventFunction as any).status === "cancelled" ? "Cancelled" : isFull ? "Full" : "Joined"}
               </span>
             )}
           </div>
