@@ -648,7 +648,8 @@ export default function ProfileScreen() {
   if (serviceListings.length > 0) availableTabs.push({ id: "service", label: "Services" });
 
   return (
-    <div className="flex items-center justify-between mb-6 relative z-50">
+    <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
+      <div className="flex items-center justify-between mb-6 relative z-50">
         {availableTabs.length > 0 ? (
           <div className="relative">
             <button
@@ -668,7 +669,7 @@ export default function ProfileScreen() {
             {isHeaderDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsHeaderDropdownOpen(false)} />
-                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 py-2 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute top-8 left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 py-2 animate-in fade-in slide-in-from-top-2">
                   <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
                     Switch View
                   </div>
