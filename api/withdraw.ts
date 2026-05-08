@@ -37,9 +37,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const data = await response.json();
 
     if (response.ok && data.status === "Success") {
-      // Update the transaction description to show it worked
-      await supabase.from("transactions").update({ description: "Withdrawal to M-PESA (Sent)" }).eq("id", transaction_id);
-      
+      // Mark the existing pending tx row as settled and enrich it so the
+      // receipt modal shows a real M-Pesa send-out (phone, IntaSend id, etc.)
+      // instead of a vague "Money out" line.
+      const { error: updErr } = await supabase
+        .from("transactions")
+        .update({
+          status: "settled",
+          method: "mpesa_b2c",
+          kind: "withdrawal",
+          note: `Withdrawal to M-PESA · KSH ${Math.round(Number(amount)).toLocaleString("en-KE")}`,
+          metadata: {
+            provider: "intasend",
+            phone: phone_number,
+            tracking_id: data?.tracking_id ?? data?.id ?? null,
+            file_id: data?.file_id ?? null,
+            requires_approval: "NO",
+          },
+        })
+        .eq("id", transaction_id);
+      if (updErr) console.error("[withdraw] tx update error:", updErr);
+
       return res.status(200).json({ success: true, message: "Funds sent to M-PESA!" });
     }
 

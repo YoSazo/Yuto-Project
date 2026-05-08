@@ -163,12 +163,21 @@ async function maybeConvertReferralOnFirstTopUp(supabase: any, referredUserId: s
     }
     // Mark referral converted
     await supabase.from("referrals").update({ converted: true }).eq("id", ref.id);
-    // Ledger entry (best-effort; some DBs use an enum for type)
+    // Canonical ledger entry — kind/note are the live columns; the DB trigger
+    // back-fills the legacy type/description so old code paths still work.
     const { error: txErr } = await supabase.from("transactions").insert({
       user_id: ref.referrer_id,
       amount: REFERRAL_BONUS_KES,
-      type: "deposit",
-      description: `Referral bonus (+KSH ${REFERRAL_BONUS_KES})`,
+      kind: "referral_bonus",
+      note: `Friend's first top-up earned you KSH ${REFERRAL_BONUS_KES}`,
+      method: "system",
+      status: "settled",
+      counterparty_id: ref.referred_id ?? null,
+      metadata: {
+        bonus_kes: REFERRAL_BONUS_KES,
+        referral_id: ref.id,
+        referred_user_id: ref.referred_id ?? null,
+      },
     });
     if (txErr) console.error("[webhook] referral_bonus transaction insert error:", txErr);
 
@@ -239,12 +248,25 @@ async function processIntaSendWebhook(payload: {
         console.error("[webhook] wallet credit failed:", credited);
         return;
       }
-      // Ledger entry for wallet history (best-effort; enum-safe)
+      // Canonical ledger entry — kind/note are the live columns, plus rich
+      // metadata so the receipt modal can show the M-Pesa invoice id and the
+      // exact provider used. Without this, the wallet history was silently
+      // dropping every top-up because the legacy (type, description) columns
+      // didn't match the schema.
       const { error: topupTxErr } = await supabase.from("transactions").insert({
         user_id: uid,
         amount,
-        type: "deposit",
-        description: `Top up (+KSH ${Math.round(amount)})`,
+        kind: "topup",
+        note: `Top-up via M-PESA · KSH ${Math.round(amount).toLocaleString("en-KE")}`,
+        method: "mpesa_stk",
+        status: "settled",
+        metadata: {
+          provider: "intasend",
+          invoice_id: payload.invoice_id ?? null,
+          api_ref: apiref || null,
+          mpesa_receipt: (payload as any)?.mpesa_reference ?? (payload as any)?.account ?? null,
+          phone: (payload as any)?.account ?? (payload as any)?.account_number ?? null,
+        },
       });
       if (topupTxErr) console.error("[webhook] topup transaction insert error:", topupTxErr);
       // If this is their first ever top-up conversion, reward referrer.

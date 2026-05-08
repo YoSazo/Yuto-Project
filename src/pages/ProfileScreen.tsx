@@ -48,6 +48,9 @@ type TransactionRow = {
   note: string | null;
   counterparty_id: string | null;
   kind: string | null;
+  status?: string | null;
+  method?: string | null;
+  metadata?: Record<string, any> | null;
   counterparty?: {
     id: string;
     username: string | null;
@@ -60,6 +63,9 @@ function describeTransaction(tx: TransactionRow): { title: string; subtitle: str
   const cp = tx.counterparty;
   const name = cp ? (cp.display_name?.trim() || cp.username || "someone") : null;
   const note = tx.note?.trim() || null;
+  const meta = tx.metadata || {};
+  const fnTitle = (meta as any).function_title || (meta as any).plan_title || (meta as any).group_name || null;
+
   switch (tx.kind) {
     case "transfer_sent":
       return { title: name ? `Sent to ${name}` : "Sent", subtitle: note };
@@ -71,22 +77,40 @@ function describeTransaction(tx: TransactionRow): { title: string; subtitle: str
       return { title: name ? `Claimed from ${name}` : "Offer claimed", subtitle: note };
     case "topup":
     case "topup_completed":
+    case "deposit":
       return { title: "Top-up via M-PESA", subtitle: note };
     case "withdrawal":
     case "withdraw":
       return { title: "Withdrawal to M-PESA", subtitle: note };
     case "split_paid":
     case "split_payment_sent":
-      return { title: name ? `Paid split to ${name}` : "Split payment", subtitle: note };
+      return { title: fnTitle ? `Paid split: ${fnTitle}` : (name ? `Paid split to ${name}` : "Split payment"), subtitle: note };
     case "split_received":
     case "split_payment_received":
-      return { title: name ? `Split paid by ${name}` : "Split received", subtitle: note };
+      return { title: fnTitle ? `Split received: ${fnTitle}` : (name ? `Split paid by ${name}` : "Split received"), subtitle: note };
     case "function_payment_sent":
-      return { title: "Function paid", subtitle: note };
+      return { title: fnTitle ? `Paid: ${fnTitle}` : "Function paid", subtitle: note };
     case "function_payment_received":
-      return { title: name ? `Booking from ${name}` : "Booking received", subtitle: note };
+      return { title: fnTitle ? `Ticket sold: ${fnTitle}` : (name ? `Booking from ${name}` : "Booking received"), subtitle: note };
+    case "function_group_payment_sent":
+      return {
+        title: fnTitle ? `Group buy: ${fnTitle}` : "Group ticket purchase",
+        subtitle: (meta as any).ticket_count ? `${(meta as any).ticket_count} tickets` : note,
+      };
+    case "function_ticket_gifted":
+      return { title: fnTitle ? `Gifted ticket: ${fnTitle}` : "Ticket gifted to you", subtitle: name ? `From ${name}` : note };
+    case "purchase_sent":
+      return { title: fnTitle ? `Bought: ${fnTitle}` : "Purchase", subtitle: note };
+    case "purchase_received":
+      return { title: fnTitle ? `Sale: ${fnTitle}` : (name ? `Sale to ${name}` : "Sale"), subtitle: note };
+    case "booking_sent":
+      return { title: fnTitle ? `Booked: ${fnTitle}` : "Booking", subtitle: note };
+    case "booking_received":
+      return { title: fnTitle ? `Booking: ${fnTitle}` : (name ? `Booking from ${name}` : "Booking received"), subtitle: note };
     case "referral_bonus":
-      return { title: "Referral bonus", subtitle: note };
+      return { title: "Referral bonus", subtitle: note ?? (name ? `From ${name}'s first top-up` : null) };
+    case "cancellation_refund":
+      return { title: fnTitle ? `Refund: ${fnTitle}` : "Refund", subtitle: note ?? "Function was cancelled" };
     default:
       return {
         title: note || (Number(tx.amount) > 0 ? "Money in" : "Money out"),
@@ -239,7 +263,7 @@ export default function ProfileScreen() {
     try {
       const { data, error } = await supabase
         .from("transactions")
-        .select("id, user_id, amount, created_at, note, counterparty_id, kind")
+        .select("id, user_id, amount, created_at, note, counterparty_id, kind, status, method, metadata")
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false })
         .limit(50);

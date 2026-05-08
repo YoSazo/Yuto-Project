@@ -7,6 +7,8 @@ import {
   getSavedPhoneNumber,
   getDmMessages,
   joinFunction,
+  payForFunctionWithLedger,
+  payForPlanWithLedger,
   joinPlan,
   leavePlan,
   markDmRead,
@@ -291,9 +293,9 @@ export default function DirectMessageScreen() {
     try {
       if (!isMember) await joinFunction(eventFunction.id, user.id);
 
-      const { error } = await supabase.rpc("pay_for_function", { p_function_id: eventFunction.id });
-
-      if (error) {
+      try {
+        await payForFunctionWithLedger(eventFunction.id);
+      } catch (rpcErr: any) {
         await supabase
           .from("function_members")
           .delete()
@@ -304,7 +306,7 @@ export default function DirectMessageScreen() {
         const cachedBal = await fetchYutoBalance(user.id);
         const topUp = await computeFunctionTopUpGapKes({
           shareKes: eventFunction.amount_per_person,
-          rpcErrorMessage: error.message,
+          rpcErrorMessage: rpcErr?.message ?? "",
           userId: user.id,
           cachedBalance: cachedBal,
         });
@@ -812,24 +814,15 @@ export default function DirectMessageScreen() {
                                   if (!user) return;
                                   const perPerson = Number(sharedGroup?.per_person || listedShare.amount_kes || 0) || 0;
                                   try {
-                                    const { error } = await supabase.rpc("pay_for_plan", {
-                                      p_group_id: listedShare.group_id,
-                                      p_amount: perPerson,
-                                    });
-                                    if (error) {
-                                      const msg = error.message || "";
-                                      if (/insufficient|not enough balance|balance too low/i.test(msg)) {
-                                        setQuickSplitTopUp({ groupId: listedShare.group_id, amount: perPerson, perPerson });
-                                        return;
-                                      }
-                                      toast.error(msg || "Payment failed.");
+                                    await payForPlanWithLedger(listedShare.group_id, perPerson);
+                                  } catch (rpcErr: any) {
+                                    const msg = rpcErr?.message || "";
+                                    if (/insufficient|not enough balance|balance too low/i.test(msg)) {
+                                      setQuickSplitTopUp({ groupId: listedShare.group_id, amount: perPerson, perPerson });
                                       return;
                                     }
-                                  } catch (e) {
-                                    // No more direct-to-invoice STK fallback.
-                                    // Every payment routes through Yuto Balance.
-                                    console.error(e);
-                                    toast.error("Couldn't reach the wallet — try again.");
+                                    console.error(rpcErr);
+                                    toast.error(msg || "Couldn't reach the wallet — try again.");
                                   }
                                 }}
                                 className="flex-1 inline-flex items-center justify-center min-h-[4.25rem] px-5 py-4 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors whitespace-nowrap"
@@ -1105,9 +1098,10 @@ export default function DirectMessageScreen() {
             const g = quickSplitTopUp;
             if (!g) return;
             setQuickSplitTopUp(null);
-            const { error } = await supabase.rpc("pay_for_plan", { p_group_id: g.groupId, p_amount: g.perPerson });
-            if (error) {
-              toast.error(error.message || "Couldn't pay share yet.");
+            try {
+              await payForPlanWithLedger(g.groupId, g.perPerson);
+            } catch (e: any) {
+              toast.error(e?.message || "Couldn't pay share yet.");
             }
           }}
         />

@@ -32,9 +32,13 @@ async function sendPush(supabase: any, userId: string, title: string, body: stri
   }
 }
 
-async function creditWallet(supabase: any, userId: string, amountKes: number, desc: string) {
+async function creditWallet(
+  supabase: any,
+  userId: string,
+  amountKes: number,
+  fn: { id: string; title: string; host_id: string },
+) {
   if (!Number.isFinite(amountKes) || amountKes <= 0) return;
-  // Read current
   const { data: w } = await supabase.from("wallets").select("id, balance").eq("user_id", userId).maybeSingle();
   const current = Number(w?.balance ?? 0) || 0;
   const next = current + amountKes;
@@ -43,12 +47,21 @@ async function creditWallet(supabase: any, userId: string, amountKes: number, de
   } else {
     await supabase.from("wallets").update({ balance: next }).eq("id", w.id);
   }
-  // Best-effort transaction row
+  // Canonical refund ledger entry — receipts can now show "Refunded — Function
+  // cancelled" with a deep-link to the original function.
   await supabase.from("transactions").insert({
     user_id: userId,
     amount: amountKes,
-    type: "deposit",
-    description: desc,
+    kind: "cancellation_refund",
+    note: `Refund: ${fn.title} was cancelled by host`,
+    method: "system",
+    status: "settled",
+    counterparty_id: fn.host_id,
+    metadata: {
+      reason: "host_cancelled_function",
+      function_id: fn.id,
+      function_title: fn.title,
+    },
   });
 }
 
@@ -87,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let refunded = 0;
     for (const uid of userIds) {
       try {
-        await creditWallet(supabase, uid, refundKes, `Refund: ${fn.title}`);
+        await creditWallet(supabase, uid, refundKes, { id: fn.id, title: fn.title, host_id: fn.host_id });
         refunded += 1;
         await sendPush(supabase, uid, "Refund issued", `“${fn.title}” was cancelled. Refunded KSH ${refundKes.toLocaleString("en-KE")} to your Yuto Balance.`);
       } catch (e) {

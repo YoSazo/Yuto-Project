@@ -951,6 +951,217 @@ export async function payForFunctionGroup(functionId: string, coveredFriendUserI
     p_covered_user_ids: coveredFriendUserIds,
   });
   if (error) throw error;
+
+  // Best-effort ledger entries — the production RPC doesn't write transaction
+  // rows itself, so without this the buyer + each covered friend would have
+  // zero proof of the payment in their wallet history. We do this client-side
+  // because we can't safely redefine the RPC without seeing its source.
+  const { data: u } = await supabase.auth.getUser();
+  const buyerId = u?.user?.id;
+  if (!buyerId) return;
+  try {
+    const { data: fn } = await supabase
+      .from("functions")
+      .select("id, title, host_id, amount_per_person")
+      .eq("id", functionId)
+      .single();
+    if (!fn) return;
+    const perTicket = Number((fn as any).amount_per_person || 0) || 0;
+    const allCoveredIds = Array.from(new Set([buyerId, ...coveredFriendUserIds]));
+    const total = perTicket * allCoveredIds.length;
+
+    // Buyer's outflow (single row covering the whole group purchase).
+    await supabase.from("transactions").insert({
+      user_id: buyerId,
+      amount: -total,
+      kind: "function_group_payment_sent",
+      note: `Bought ${allCoveredIds.length} ticket${allCoveredIds.length === 1 ? "" : "s"} for ${(fn as any).title}`,
+      method: "yuto_balance",
+      status: "settled",
+      counterparty_id: (fn as any).host_id ?? null,
+      metadata: {
+        function_id: (fn as any).id,
+        function_title: (fn as any).title,
+        host_id: (fn as any).host_id,
+        per_person_kes: perTicket,
+        ticket_count: allCoveredIds.length,
+        covered_user_ids: allCoveredIds,
+        total_kes: total,
+      },
+    });
+
+    // One "ticket gifted" row per covered friend (not the buyer themselves).
+    const giftedRows = coveredFriendUserIds.map((uid) => ({
+      user_id: uid,
+      amount: 0,
+      kind: "function_ticket_gifted",
+      note: `Ticket to ${(fn as any).title} bought for you`,
+      method: "yuto_balance",
+      status: "settled",
+      counterparty_id: buyerId,
+      metadata: {
+        function_id: (fn as any).id,
+        function_title: (fn as any).title,
+        host_id: (fn as any).host_id,
+        per_person_kes: perTicket,
+      },
+    }));
+    if (giftedRows.length > 0) {
+      await supabase.from("transactions").insert(giftedRows);
+    }
+  } catch (err) {
+    console.error("payForFunctionGroup ledger insert error:", err);
+  }
+}
+
+/**
+ * Wrapper around the production `pay_for_function` RPC that ALSO writes a
+ * canonical transaction row on success. Without this wrapper, paying for a
+ * single function ticket via Yuto Balance produces no entry in wallet history
+ * (the RPC itself only debits the wallet and flips function_members.has_paid).
+ *
+ * Use this everywhere instead of calling supabase.rpc("pay_for_function") directly.
+ */
+export async function payForFunctionWithLedger(functionId: string): Promise<void> {
+  const { error } = await supabase.rpc("pay_for_function", { p_function_id: functionId });
+  if (error) throw error;
+
+  const { data: u } = await supabase.auth.getUser();
+  const userId = u?.user?.id;
+  if (!userId) return;
+  try {
+    const { data: fn } = await supabase
+      .from("functions")
+      .select("id, title, host_id, amount_per_person, location, mode")
+      .eq("id", functionId)
+      .single();
+    if (!fn) return;
+
+    const amt = Number((fn as any).amount_per_person || 0) || 0;
+    const isSell = (fn as any).location === "__SELL__";
+    const isService = (fn as any).location === "__SERVICE__";
+    const kindForBuyer = isSell
+      ? "purchase_sent"
+      : isService
+        ? "booking_sent"
+        : "function_payment_sent";
+    const kindForHost = isSell
+      ? "purchase_received"
+      : isService
+        ? "booking_received"
+        : "function_payment_received";
+    const verb = isSell ? "Bought" : isService ? "Booked" : "Paid for";
+
+    // Buyer outflow.
+    await supabase.from("transactions").insert({
+      user_id: userId,
+      amount: -amt,
+      kind: kindForBuyer,
+      note: `${verb}: ${(fn as any).title}`,
+      method: "yuto_balance",
+      status: "settled",
+      counterparty_id: (fn as any).host_id ?? null,
+      metadata: {
+        function_id: (fn as any).id,
+        function_title: (fn as any).title,
+        host_id: (fn as any).host_id,
+        listing_kind: isSell ? "sell" : isService ? "service" : "function",
+      },
+    });
+
+    // Host inflow — separate row so the host's history shows revenue, not a
+    // debit. The RPC may already credit the host's wallet; we just record it.
+    if ((fn as any).host_id && (fn as any).host_id !== userId) {
+      await supabase.from("transactions").insert({
+        user_id: (fn as any).host_id,
+        amount: amt,
+        kind: kindForHost,
+        note: `${isSell ? "Sale" : isService ? "Booking" : "Ticket sold"}: ${(fn as any).title}`,
+        method: "yuto_balance",
+        status: "settled",
+        counterparty_id: userId,
+        metadata: {
+          function_id: (fn as any).id,
+          function_title: (fn as any).title,
+          buyer_id: userId,
+          listing_kind: isSell ? "sell" : isService ? "service" : "function",
+        },
+      });
+    }
+  } catch (err) {
+    console.error("payForFunctionWithLedger ledger insert error:", err);
+  }
+}
+
+/**
+ * Wrapper around `pay_for_plan` that also writes a transaction row + a
+ * counterpart row on the recipient (group host / payee). Same rationale as
+ * `payForFunctionWithLedger`: the production RPC doesn't journal the move.
+ */
+export async function payForPlanWithLedger(
+  groupId: string,
+  amount: number,
+  ctx?: { planId?: string | null; planTitle?: string | null },
+): Promise<void> {
+  const { error } = await supabase.rpc("pay_for_plan", {
+    p_group_id: groupId,
+    p_amount: amount,
+  });
+  if (error) throw error;
+
+  const { data: u } = await supabase.auth.getUser();
+  const userId = u?.user?.id;
+  if (!userId) return;
+  try {
+    // Find the group's host / counterparty so we can credit their history too.
+    const { data: g } = await supabase
+      .from("groups")
+      .select("id, name, owner_id, plan_id")
+      .eq("id", groupId)
+      .single();
+    if (!g) return;
+
+    const recipientId = (g as any).owner_id ?? null;
+    const groupName = (g as any).name ?? "Split";
+
+    await supabase.from("transactions").insert({
+      user_id: userId,
+      amount: -Math.abs(amount),
+      kind: "split_payment_sent",
+      note: ctx?.planTitle ? `Paid split: ${ctx.planTitle}` : `Paid split: ${groupName}`,
+      method: "yuto_balance",
+      status: "settled",
+      counterparty_id: recipientId,
+      metadata: {
+        group_id: groupId,
+        group_name: groupName,
+        plan_id: ctx?.planId ?? (g as any).plan_id ?? null,
+        plan_title: ctx?.planTitle ?? null,
+        per_person_kes: amount,
+      },
+    });
+
+    if (recipientId && recipientId !== userId) {
+      await supabase.from("transactions").insert({
+        user_id: recipientId,
+        amount: Math.abs(amount),
+        kind: "split_payment_received",
+        note: ctx?.planTitle ? `Split paid for: ${ctx.planTitle}` : `Split paid: ${groupName}`,
+        method: "yuto_balance",
+        status: "settled",
+        counterparty_id: userId,
+        metadata: {
+          group_id: groupId,
+          group_name: groupName,
+          plan_id: ctx?.planId ?? (g as any).plan_id ?? null,
+          plan_title: ctx?.planTitle ?? null,
+          per_person_kes: amount,
+        },
+      });
+    }
+  } catch (err) {
+    console.error("payForPlanWithLedger ledger insert error:", err);
+  }
 }
 
 // ─── Plans ───────────────────────────────────────────

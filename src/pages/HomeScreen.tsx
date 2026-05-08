@@ -32,6 +32,7 @@ import {
   createGroup,
   createGroupChat,
   payForFunctionGroup,
+  payForFunctionWithLedger,
   createPublicPost,
   getPublicPosts,
   deletePublicPost,
@@ -422,17 +423,18 @@ export default function HomeScreen() {
   
     try {
       if (!isMember) await joinFunction(eventFunction.id, user.id);
-  
-      const { error } = await supabase.rpc("pay_for_function", { p_function_id: eventFunction.id });
-  
-      if (error) {
-        // ✅ Roll back provisional member row, compute top-up gap (not always full ticket price)
+
+      try {
+        await payForFunctionWithLedger(eventFunction.id);
+      } catch (rpcErr: any) {
+        // Insufficient balance / RPC failure: roll back the provisional member
+        // row, compute the top-up gap, and pop the top-up modal.
         await supabase.from("function_members").delete()
           .eq("function_id", eventFunction.id).eq("user_id", user.id).eq("has_paid", false);
         const cachedBal = await fetchYutoBalance(user.id);
         const topUp = await computeFunctionTopUpGapKes({
           shareKes: eventFunction.amount_per_person,
-          rpcErrorMessage: error.message,
+          rpcErrorMessage: rpcErr?.message ?? "",
           userId: user.id,
           cachedBalance: cachedBal,
         });

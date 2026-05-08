@@ -12,6 +12,7 @@ import {
   getUserHostedFunctions,
   getOrCreateDmConversation,
   joinFunction,
+  payForFunctionWithLedger,
   getFunctionById,
   sendDmMessage,
   sendDmShareMessage,
@@ -193,8 +194,9 @@ export default function UserProfileScreen() {
     try {
       await joinFunction(fn.id, user.id);
 
-      const { error } = await supabase.rpc("pay_for_function", { p_function_id: fn.id });
-      if (error) {
+      try {
+        await payForFunctionWithLedger(fn.id);
+      } catch (rpcErr: any) {
         await supabase
           .from("function_members")
           .delete()
@@ -205,7 +207,7 @@ export default function UserProfileScreen() {
         const cachedBal = await fetchYutoBalance(user.id);
         const topUp = await computeFunctionTopUpGapKes({
           shareKes: Number(fn.amount_per_person) || 0,
-          rpcErrorMessage: error.message,
+          rpcErrorMessage: rpcErr?.message ?? "",
           userId: user.id,
           cachedBalance: cachedBal,
         });
@@ -259,8 +261,9 @@ export default function UserProfileScreen() {
     if (!user) return;
     try {
       await joinFunction(hosted.id, user.id);
-      const { error } = await supabase.rpc("pay_for_function", { p_function_id: hosted.id });
-      if (error) {
+      try {
+        await payForFunctionWithLedger(hosted.id);
+      } catch (rpcErr: any) {
         await supabase
           .from("function_members")
           .delete()
@@ -271,7 +274,7 @@ export default function UserProfileScreen() {
         const cachedBal = await fetchYutoBalance(user.id);
         const topUp = await computeFunctionTopUpGapKes({
           shareKes: Number(hosted.amount_per_person) || 0,
-          rpcErrorMessage: error.message,
+          rpcErrorMessage: rpcErr?.message ?? "",
           userId: user.id,
           cachedBalance: cachedBal,
         });

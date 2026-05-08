@@ -10,6 +10,7 @@ import {
   submitRideAmount,
   getSavedPhoneNumber,
   ensureWalletGroupChat,
+  payForPlanWithLedger,
 } from "../lib/supabase";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { useAppResume } from "../hooks/useAppResume";
@@ -492,9 +493,10 @@ export default function YutoGroupScreen() {
     setShowBalanceTopUpModal(false);
     setIsPayingShare(true);
     try {
-      const { error } = await supabase.rpc("pay_for_plan", { p_group_id: groupId, p_amount: shareAmt });
-      if (error) {
-        const msg = error.message || "";
+      try {
+        await payForPlanWithLedger(groupId, shareAmt);
+      } catch (rpcErr: any) {
+        const msg = rpcErr?.message || "";
         if (rpcErrorIsInsufficientBalance(msg)) {
           setBalanceTopUpAmount(inferTopUpKes(msg, shareAmt));
           setShowBalanceTopUpModal(true);
@@ -525,10 +527,10 @@ export default function YutoGroupScreen() {
     if (!groupId || !user) return;
     setIsPayingShare(true);
     try {
-      const { error } = await supabase.rpc("pay_for_plan", { p_group_id: groupId, p_amount: perPersonAmount });
-
-      if (error) {
-        const msg = error.message || "";
+      try {
+        await payForPlanWithLedger(groupId, perPersonAmount);
+      } catch (rpcErr: any) {
+        const msg = rpcErr?.message || "";
         if (rpcErrorIsInsufficientBalance(msg)) {
           setBalanceTopUpAmount(inferTopUpKes(msg, perPersonAmount));
           setShowBalanceTopUpModal(true);
