@@ -20,8 +20,6 @@ export default function SplitScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
-  const [splitMode, setSplitMode] = useState<"equal" | "custom">("equal");
-  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -49,10 +47,6 @@ export default function SplitScreen() {
 
   const handleSplit = async () => {
     if (!isValid || !user) return;
-    if (splitMode === "custom") {
-      setError("Custom split isn’t wired to your group yet — use Equal split.");
-      return;
-    }
     setIsCreating(true);
     setError("");
     try {
@@ -116,32 +110,6 @@ export default function SplitScreen() {
         />
       </div>
 
-      {/* Split mode toggle */}
-      {selectedFriends.length > 0 && totalAmount > 0 && (
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <button
-            onClick={() => setSplitMode("equal")}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-              splitMode === "equal"
-                ? "bg-black text-white border-black"
-                : "bg-white text-gray-400 border-gray-200"
-            }`}
-          >
-            Equal split
-          </button>
-          <button
-            onClick={() => setSplitMode("custom")}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-              splitMode === "custom"
-                ? "bg-black text-white border-black"
-                : "bg-white text-gray-400 border-gray-200"
-            }`}
-          >
-            Custom amounts
-          </button>
-        </div>
-      )}
-
       {/* Friends */}
       <div className="mt-2">
         <p className="font-semibold text-sm text-gray-500 mb-3">Split with</p>
@@ -178,59 +146,9 @@ export default function SplitScreen() {
         )}
       </div>
 
-      {/* Custom amounts */}
-      {splitMode === "custom" && selectedFriends.length > 0 && totalAmount > 0 && (
-        <div className="mt-6">
-          <p className="font-semibold text-sm text-gray-500 mb-3">Custom amounts</p>
-          <div className="flex flex-col gap-3">
-            {/* My amount */}
-            <div className="flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3">
-              <span className="text-sm font-semibold text-black">You</span>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-gray-400">KSH</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={customAmounts["me"] || ""}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    setCustomAmounts((prev) => ({ ...prev, me: val }));
-                  }}
-                  placeholder={String(equalShare)}
-                  className="w-20 text-right text-sm font-bold text-black bg-transparent border-none outline-none"
-                />
-              </div>
-            </div>
-            {/* Friends amounts */}
-            {selectedFriends.map((id) => {
-              const friend = friends.find((f) => f.id === id);
-              if (!friend) return null;
-              return (
-                <div key={id} className="flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3">
-                  <span className="text-sm font-semibold text-black">{friend.display_name}</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-400">KSH</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={customAmounts[id] || ""}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        setCustomAmounts((prev) => ({ ...prev, [id]: val }));
-                      }}
-                      placeholder={String(equalShare)}
-                      className="w-20 text-right text-sm font-bold text-black bg-transparent border-none outline-none"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Per person summary */}
-      {isValid && splitMode === "equal" && (
+      {isValid && (
         <div className="mt-6 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full">
             <span className="text-sm text-gray-500">Each person pays</span>

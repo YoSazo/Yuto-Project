@@ -84,25 +84,14 @@ export async function getProfile(userId: string) {
 
 /** Spendable ledger: reads `wallets` first (`user_id`, then row `id`); falls back to legacy `profiles.balance`. */
 export async function fetchYutoBalance(userId: string): Promise<number> {
-  const byFk = await supabase.from("wallets").select("balance").eq("user_id", userId).maybeSingle();
-  let raw = byFk.data?.balance;
-  if (!byFk.error && raw !== null && raw !== undefined) {
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : 0;
-  }
-  const byId = await supabase.from("wallets").select("balance").eq("id", userId).maybeSingle();
-  raw = byId.data?.balance;
-  if (!byId.error && raw !== null && raw !== undefined) {
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : 0;
-  }
-  const profile = await supabase.from("profiles").select("balance").eq("id", userId).maybeSingle();
-  raw = profile.data?.balance;
-  if (raw !== null && raw !== undefined) {
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
+  const { data, error } = await supabase
+    .from("wallets")
+    .select("balance")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) console.error("[fetchYutoBalance]", error);
+  const n = Number(data?.balance ?? 0);
+  return Number.isFinite(n) ? n : 0;
 }
 
 const PHONE_STORAGE_PREFIX = "yuto_phone_number:";
