@@ -3,6 +3,7 @@ import {
   BadgeDollarSign,
   Briefcase,
   CalendarDays,
+  Copy,
   MapPin,
   MessageCircle,
   Send,
@@ -40,6 +41,7 @@ export function FunctionCard({
   onOpenTicket,
   onOpenPeople,
   onShareInMessages,
+  onDuplicate,
 }: {
   eventFunction: FunctionListing;
   currentUserId?: string;
@@ -51,6 +53,8 @@ export function FunctionCard({
   onOpenTicket?: (f: FunctionListing) => void;
   onOpenPeople?: (functionId: string, title: string) => void;
   onShareInMessages?: (payload: DmSharePayload) => void;
+  /** Host-only: re-run this function next week with a fresh roster. */
+  onDuplicate?: (f: FunctionListing) => void;
 }) {
   const fm = eventFunction.function_members ?? [];
   const isHost = eventFunction.host_id === currentUserId;
@@ -320,7 +324,28 @@ export function FunctionCard({
             )}
 
             {isHost ? (
-              <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>Hosting</span>
+              <div className="flex items-center gap-2">
+                <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>Hosting</span>
+                {onDuplicate && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDuplicate(eventFunction);
+                    }}
+                    className={[
+                      "inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-bold transition-colors",
+                      isFunction
+                        ? "bg-white/15 text-white hover:bg-white/25"
+                        : "bg-gray-100 text-black hover:bg-gray-200",
+                    ].join(" ")}
+                    title="Run this again next week"
+                  >
+                    <Copy size={11} />
+                    Run again
+                  </button>
+                )}
+              </div>
             ) : isMember && me?.has_paid ? (
               <span className={["text-sm font-semibold", isFunction ? "text-emerald-300" : "text-green-600"].join(" ")}>You&apos;re in</span>
             ) : canPay ? (

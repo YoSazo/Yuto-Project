@@ -132,18 +132,33 @@ export default function NotificationsScreen() {
                 type="button"
                 onClick={async () => {
                   if (user && !n.is_read) await markNotificationRead(n.id, user.id).catch(() => {});
-                  // basic deep-links
+
+                  // Routing intentionally maps each notification class to the
+                  // surface a user is most likely to act on:
+                  //  - Plan/function MESSAGES → open the chat directly
+                  //    (openChat: true), not just scroll to the card.
+                  //  - Plan/function activity (joins, ticket, host posts)
+                  //    → focus the card on Home so they can see context.
+                  //  - Wallet activity (offers, transfers, top-ups) → Money
+                  //    Inbox, where the action lives. /profile was a dead end.
+                  const isMsg = /message|chat|reply|comment|update/i.test(n.type);
+                  const isWallet = /wallet|offer|transfer|topup|payout|withdraw/i.test(n.type);
+
                   if (n.reference_kind === "group" && n.reference_id) {
                     const autoPay = /split_invited|split_invite|split_payment_required|split_request/i.test(n.type);
                     navigate(`/yuto/${n.reference_id}`, { state: autoPay ? { autoPay: true } : undefined });
                   } else if (n.reference_kind === "function" && n.reference_id) {
-                    navigate("/home", { state: { focus: { kind: "function", id: n.reference_id } } });
+                    navigate("/home", {
+                      state: { focus: { kind: "function", id: n.reference_id, openChat: isMsg } },
+                    });
                   } else if (n.reference_kind === "plan" && n.reference_id) {
-                    navigate("/home", { state: { focus: { kind: "plan", id: n.reference_id } } });
+                    navigate("/home", {
+                      state: { focus: { kind: "plan", id: n.reference_id, openChat: isMsg } },
+                    });
                   } else if (n.reference_kind === "user" && n.reference_id) {
                     navigate(`/user/${n.reference_id}`);
-                  } else if (n.reference_kind === "wallet_transfer") {
-                    navigate("/profile");
+                  } else if (n.reference_kind === "wallet_transfer" || n.reference_kind === "wallet_offer" || isWallet) {
+                    navigate("/messages?tab=money");
                   } else if (n.reference_kind === "dm_conversation" && n.reference_id) {
                     const otherUserId = n.actor_id || undefined;
                     navigate(`/messages/${n.reference_id}`, { state: otherUserId ? { otherUserId } : undefined });

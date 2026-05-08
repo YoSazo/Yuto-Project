@@ -26,6 +26,7 @@ import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highligh
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { Wallet, History, Plus, Copy, Check, Send, Volume2, VolumeX } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
+import { TransactionReceiptModal } from "../components/profile/TransactionReceiptModal";
 import { useCountUp } from "../hooks/useCountUp";
 import { toast } from "sonner";
 import { haptics } from "../lib/haptics";
@@ -168,6 +169,7 @@ export default function ProfileScreen() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [receiptTx, setReceiptTx] = useState<TransactionRow | null>(null);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
@@ -1346,7 +1348,12 @@ export default function ProfileScreen() {
                     const { title, subtitle } = describeTransaction(tx);
                     const cp = tx.counterparty;
                     return (
-                      <div key={tx.id} className="flex justify-between items-center">
+                      <button
+                        key={tx.id}
+                        type="button"
+                        onClick={() => setReceiptTx(tx)}
+                        className="w-full flex justify-between items-center text-left bg-transparent border-none p-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      >
                         <div className="flex items-center gap-3 min-w-0">
                           {cp ? (
                             <UserAvatar
@@ -1370,7 +1377,7 @@ export default function ProfileScreen() {
                         <span className={`font-bold text-sm shrink-0 ml-3 ${isPositive ? 'text-green-600' : 'text-black'}`}>
                           {isPositive ? '+' : '-'}KSH {Math.abs(Number(tx.amount)).toLocaleString()}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -1380,6 +1387,15 @@ export default function ProfileScreen() {
         </div>
       )}
 
+
+      {receiptTx && (
+        <TransactionReceiptModal
+          tx={receiptTx}
+          describe={(tx) => describeTransaction(tx as TransactionRow)}
+          ownerName={profile?.display_name?.trim() || profile?.username?.trim() || "Yuto user"}
+          onClose={() => setReceiptTx(null)}
+        />
+      )}
 
       {/* Withdraw Modal */}
       {user && activeHighlight && (

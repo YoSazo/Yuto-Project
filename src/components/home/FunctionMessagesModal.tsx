@@ -4,6 +4,7 @@ import {
   ensureFunctionAttendeeChat,
   getFunctionMessages,
   getOrCreateDmConversation,
+  markFunctionRead,
   sendFunctionMessage,
   sendGroupChatMessage,
 } from "../../lib/supabase";
@@ -11,7 +12,6 @@ import UserAvatar from "../UserAvatar";
 import { MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { FunctionListing, FunctionMessage } from "../../pages/home/types";
-import { setFunctionThreadSeenAt } from "../../pages/home/threadStorage";
 import { RosterStrip, type RosterMember } from "../chat/RosterStrip";
 
 export function FunctionMessagesModal({
@@ -54,13 +54,8 @@ export function FunctionMessagesModal({
     try {
       const data = await getFunctionMessages(functionItem.id);
       setMessages((data as FunctionMessage[]) || []);
-      const latest = (data as FunctionMessage[]).reduce((max, message) => {
-        const current = new Date(message.created_at).getTime();
-        return current > max ? current : max;
-      }, 0);
-      if (latest > 0) {
-        setFunctionThreadSeenAt(currentUserId, functionItem.id, new Date(latest).toISOString());
-      }
+      // Server-side read receipt — clears the unread dot on every device.
+      void markFunctionRead(functionItem.id, currentUserId).catch(() => {});
       onMessagesRead?.(functionItem.id);
     } catch (err) {
       console.error("load function messages error:", err);

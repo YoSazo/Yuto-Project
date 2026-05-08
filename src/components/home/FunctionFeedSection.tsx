@@ -16,6 +16,7 @@ export function FunctionFeedSection({
   onJoinFunction,
   onOpenTicket,
   onShareInMessages,
+  onDuplicateFunction,
 }: {
   functionsFeed: FunctionListing[];
   loading?: boolean;
@@ -27,6 +28,7 @@ export function FunctionFeedSection({
   onJoinFunction: (f: FunctionListing) => void;
   onOpenTicket: (f: FunctionListing) => void;
   onShareInMessages?: (payload: DmSharePayload) => void;
+  onDuplicateFunction?: (f: FunctionListing) => void;
 }) {
   const [peopleModal, setPeopleModal] = useState<{ functionId: string; title: string } | null>(null);
 
@@ -80,6 +82,7 @@ export function FunctionFeedSection({
                 onOpenTicket={onOpenTicket}
                 onOpenPeople={(functionId, title) => setPeopleModal({ functionId, title })}
                 onShareInMessages={onShareInMessages}
+                onDuplicate={onDuplicateFunction}
               />
             ))}
           </>
@@ -104,6 +107,7 @@ export function FunctionFeedSection({
                 onOpenTicket={onOpenTicket}
                 onOpenPeople={(functionId, title) => setPeopleModal({ functionId, title })}
                 onShareInMessages={onShareInMessages}
+                onDuplicate={onDuplicateFunction}
               />
             ))}
           </>

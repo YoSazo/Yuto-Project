@@ -17,6 +17,7 @@ import {
   uploadPlanImage,
   getFunctionsPublic,
   createFunction,
+  duplicateFunction,
   joinFunction,
   leaveFunction,
   ensureFunctionAttendeeChat,
@@ -48,7 +49,6 @@ import { PlansFeedSection } from "../components/home/PlansFeedSection";
 import { PostsFeedSection } from "../components/home/PostsFeedSection";
 import { type Plan, type PlanUpdate, type FunctionListing } from "./home/types";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
-import { getUnreadFunctionMessageCount } from "./home/threadStorage";
 import { Users, Globe, MessageCircle, Bell, Send } from "lucide-react";
 import { SegmentedTabsBar } from "../components/ui/SegmentedTabsBar";
 import { toast } from "sonner";
@@ -73,6 +73,7 @@ export default function HomeScreen() {
   const focusAttemptRef = useRef<"none" | "public" | "friends">("none");
   const [loading, setLoading] = useState(true);
   const [joiningPlanId, setJoiningPlanId] = useState<string | null>(null);
+  const [duplicatingFnId, setDuplicatingFnId] = useState<string | null>(null);
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
@@ -302,19 +303,40 @@ export default function HomeScreen() {
       }
       const updatesMap: Record<string, PlanUpdate[]> = {};
       if (tab === "public" && functionList.length > 0) {
-        const { data: messageRows, error: messageError } = await supabase
-          .from("function_messages")
-          .select("function_id, user_id, created_at")
-          .in("function_id", functionList.map((item) => item.id));
-        if (messageError) {
-          console.error("loadFeed function unread error:", messageError);
+        // Server-side unread per function card: pull last_read_at from
+        // function_reads and count messages newer than that. Same source of
+        // truth as the unified inbox so the per-card badge and the inbox
+        // never disagree.
+        const fnIds = functionList.map((item) => item.id);
+        const [messagesRes, readsRes] = await Promise.all([
+          supabase
+            .from("function_messages")
+            .select("function_id, user_id, created_at")
+            .in("function_id", fnIds),
+          supabase
+            .from("function_reads")
+            .select("function_id, last_read_at")
+            .eq("user_id", user.id)
+            .in("function_id", fnIds),
+        ]);
+        if (messagesRes.error) {
+          console.error("loadFeed function unread error:", messagesRes.error);
           setFunctionUnreadCounts({});
         } else {
+          const lastReadByFn: Record<string, number> = {};
+          ((readsRes.data || []) as any[]).forEach((r) => {
+            lastReadByFn[r.function_id] = new Date(r.last_read_at).getTime();
+          });
           const counts: Record<string, number> = {};
-          const groupedMessages = (messageRows || []) as Array<{ function_id: string; user_id: string; created_at: string }>;
-          for (const functionItem of functionList) {
-            counts[functionItem.id] = getUnreadFunctionMessageCount(user.id, functionItem.id, groupedMessages.filter((message) => message.function_id === functionItem.id));
-          }
+          ((messagesRes.data || []) as Array<{ function_id: string; user_id: string; created_at: string }>).forEach(
+            (m) => {
+              if (m.user_id === user.id) return;
+              const lastRead = lastReadByFn[m.function_id] ?? 0;
+              if (new Date(m.created_at).getTime() > lastRead) {
+                counts[m.function_id] = (counts[m.function_id] || 0) + 1;
+              }
+            },
+          );
           setFunctionUnreadCounts(counts);
         }
       } else {
@@ -456,6 +478,30 @@ export default function HomeScreen() {
       }
     } catch (err) {
       console.error("Error joining function", err);
+    }
+  };
+
+  // Host-only: re-run a function next week with the same metadata + media.
+  // Optimistic toast → run RPC → reload feed so the duplicate appears at the
+  // top of "Hosted now". Rate-limited via a busy state so taps don't spam.
+  const handleDuplicateFunction = async (eventFunction: FunctionListing) => {
+    if (!user || duplicatingFnId) return;
+    if (eventFunction.host_id !== user.id) {
+      toast.error("Only the host can run a function again.");
+      return;
+    }
+    setDuplicatingFnId(eventFunction.id);
+    haptics.medium();
+    try {
+      await duplicateFunction(user.id, eventFunction.id, 7);
+      toast.success("Duplicated for next week — edit the date if needed.");
+      await loadFeed();
+    } catch (e: any) {
+      console.error("duplicate function:", e);
+      toast.error(e?.message || "Couldn't duplicate the function.");
+      haptics.error();
+    } finally {
+      setDuplicatingFnId(null);
     }
   };
 
@@ -739,6 +785,7 @@ export default function HomeScreen() {
             onShareInMessages={
               user ? (payload) => setShareFeedPayload(payload) : undefined
             }
+            onDuplicateFunction={user ? handleDuplicateFunction : undefined}
           />
         </>
       )}

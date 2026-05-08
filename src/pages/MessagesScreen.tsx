@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Briefcase, SquarePen, Users, Wallet } from "lucide-react";
+import { ArrowLeft, Briefcase, Search, SquarePen, Users, Wallet, X } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import { SegmentedTabsBar } from "../components/ui/SegmentedTabsBar";
@@ -115,6 +115,7 @@ export default function MessagesScreen() {
   const [bizTab, setBizTab] = useState<"revenue" | "orders" | "listings">("revenue");
   const [listingBusyId, setListingBusyId] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -251,6 +252,29 @@ export default function MessagesScreen() {
       .map((x) => ({ ...x, ctx: byConvoId.get(x.convo.id)! }));
   }, [bizContexts, items, user]);
 
+  // Conversation search: matches against thread title, last message preview,
+  // peer/member names, and usernames. All client-side over already-loaded
+  // threads so it stays instant. The result still passes through ThreadRow,
+  // so context chips and unread dots render the same way as the full list.
+  const filteredThreads = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return threads;
+    return threads.filter((t) => {
+      if (t.title.toLowerCase().includes(q)) return true;
+      if (t.subtitle.toLowerCase().includes(q)) return true;
+      if (t.lastMessagePreview && t.lastMessagePreview.toLowerCase().includes(q)) return true;
+      if (t.peerName && t.peerName.toLowerCase().includes(q)) return true;
+      // For groups/plans/functions, search any member's name/username too.
+      for (const id of t.memberIds) {
+        const p = profilesById[id];
+        if (!p) continue;
+        if (p.display_name?.toLowerCase().includes(q)) return true;
+        if (p.username?.toLowerCase().includes(q)) return true;
+      }
+      return false;
+    });
+  }, [threads, searchQuery, profilesById]);
+
   return (
     <div className="flex flex-col overflow-y-auto pb-28 px-4 pt-6">
       <div className="flex items-center justify-between gap-3 mb-6">
@@ -285,8 +309,34 @@ export default function MessagesScreen() {
           { id: "money", label: "Money", icon: <Wallet size={18} /> },
           { id: "business", label: "Business", icon: <Briefcase size={18} /> },
         ]}
-        className="mb-6"
+        className="mb-4"
       />
+
+      {activeTab === "personal" && threads.length > 0 && (
+        <div className="relative mb-4">
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+          />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search messages, plans, functions, friends..."
+            className="w-full h-11 pl-9 pr-9 bg-gray-100 rounded-xl text-sm font-medium text-black placeholder:text-gray-400 outline-none"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center hover:bg-gray-300"
+              aria-label="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
@@ -454,16 +504,24 @@ export default function MessagesScreen() {
           </div>
         </div>
       ) : user ? (
-        <div className="flex flex-col gap-2">
-          {threads.map((t) => (
-            <ThreadRow
-              key={`${t.kind}:${t.id}`}
-              thread={t}
-              currentUserId={user.id}
-              profilesById={profilesById}
-            />
-          ))}
-        </div>
+        filteredThreads.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-gray-400 font-semibold text-sm">
+              No matches for "{searchQuery}".
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {filteredThreads.map((t) => (
+              <ThreadRow
+                key={`${t.kind}:${t.id}`}
+                thread={t}
+                currentUserId={user.id}
+                profilesById={profilesById}
+              />
+            ))}
+          </div>
+        )
       ) : null}
 
       {showCompose && user && (

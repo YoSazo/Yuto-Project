@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { analytics } from "./analytics";
-import { getPlanThreadSeenAt, getFunctionThreadSeenAt } from "../pages/home/threadStorage";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "placeholder-key";
@@ -686,6 +685,75 @@ export async function createFunction(
     (data as any).media = urls.map((u, i) => ({ id: "", media_url: u, media_type: files[i]!.type, sort_index: i }));
   }
   return data;
+}
+
+/**
+ * Host tooling: re-run a Function with one tap.
+ *
+ * Most successful hosts run the same function weekly (Sunday lunch, Friday
+ * football, Wednesday game night). Re-typing the title, description, capacity,
+ * price, and re-uploading media every time was creating real drop-off — hosts
+ * are *supply*, and supply that quits is the most expensive churn.
+ *
+ * This copies the source row's metadata and reuses the existing media URLs
+ * (no re-upload, no extra storage cost). Date is bumped by `daysFromNow`
+ * (default +7 = next week) and members reset; the new function is published
+ * fresh so RSVP/payment state starts clean.
+ */
+export async function duplicateFunction(
+  hostId: string,
+  sourceFunctionId: string,
+  daysFromNow = 7,
+): Promise<{ id: string }> {
+  const { data: src, error: srcErr } = await supabase
+    .from("functions")
+    .select(
+      `id, host_id, title, description, location, amount_per_person, max_capacity, image_url, mode, is_public, date,
+       media:function_media(media_url, media_type, sort_index)`,
+    )
+    .eq("id", sourceFunctionId)
+    .single();
+  if (srcErr) throw srcErr;
+  if (!src) throw new Error("Function not found.");
+  if (src.host_id !== hostId) throw new Error("Only the host can duplicate this function.");
+
+  const newDate = src.date
+    ? new Date(new Date(src.date).getTime() + daysFromNow * 24 * 60 * 60 * 1000).toISOString()
+    : null;
+
+  const { data: created, error: insErr } = await supabase
+    .from("functions")
+    .insert({
+      host_id: hostId,
+      title: src.title,
+      description: src.description,
+      date: newDate,
+      location: src.location,
+      amount_per_person: src.amount_per_person,
+      max_capacity: src.max_capacity,
+      image_url: src.image_url,
+      mode: (src as any).mode || "pay",
+      is_public: (src as any).is_public ?? true,
+    })
+    .select("id")
+    .single();
+  if (insErr) throw insErr;
+
+  const media = ((src as any).media || []) as Array<{ media_url: string; media_type: string | null; sort_index: number }>;
+  if (created?.id && media.length > 0) {
+    const rows = media
+      .slice(0, 3)
+      .map((m, i) => ({
+        function_id: created.id,
+        media_url: m.media_url,
+        media_type: m.media_type || "application/octet-stream",
+        sort_index: m.sort_index ?? i,
+      }));
+    const { error: mErr } = await supabase.from("function_media").insert(rows);
+    if (mErr) throw mErr;
+  }
+
+  return { id: created.id };
 }
 
 export async function joinFunction(functionId: string, userId: string) {
@@ -1472,6 +1540,37 @@ export async function markDmRead(conversationId: string, userId: string) {
   if (error) throw error;
 }
 
+/**
+ * Mark a plan chat as read up to "now" for the current user. Mirrors markDmRead;
+ * the inbox + bottom-nav badge consume `plan_reads.last_read_at` to decide
+ * whether to show the unread dot, so this call is what dismisses it across
+ * every device.
+ */
+export async function markPlanRead(planId: string, userId: string) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("plan_reads")
+    .upsert(
+      { plan_id: planId, user_id: userId, last_read_at: now, updated_at: now },
+      { onConflict: "plan_id,user_id" },
+    );
+  if (error) throw error;
+}
+
+/**
+ * Function-chat counterpart of markPlanRead. Same shape, same semantics.
+ */
+export async function markFunctionRead(functionId: string, userId: string) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("function_reads")
+    .upsert(
+      { function_id: functionId, user_id: userId, last_read_at: now, updated_at: now },
+      { onConflict: "function_id,user_id" },
+    );
+  if (error) throw error;
+}
+
 export async function getMyDmUnreadCounts(userId: string) {
   const convos = await listMyDmConversations(userId);
   if (convos.length === 0) return { total: 0, byConversationId: {} as Record<string, number> };
@@ -2037,13 +2136,46 @@ export async function listMyThreads(userId: string): Promise<UnifiedThreadRow[]>
     });
   }
 
+  // Server-side read state for plan + function chats. We pull both maps in
+  // parallel so the inbox can compute unread the same way as DMs/groups —
+  // every device sees the same truth, no more "I read it on my phone but my
+  // laptop still shows the dot."
+  const planIdsList = plans.map((p) => p.id);
+  const fnIdsList = functions.map((f) => f.id);
+  const [planReadsRes, fnReadsRes] = await Promise.all([
+    planIdsList.length === 0
+      ? Promise.resolve({ data: [] as any[] })
+      : supabase
+          .from("plan_reads")
+          .select("plan_id, last_read_at")
+          .eq("user_id", userId)
+          .in("plan_id", planIdsList),
+    fnIdsList.length === 0
+      ? Promise.resolve({ data: [] as any[] })
+      : supabase
+          .from("function_reads")
+          .select("function_id, last_read_at")
+          .eq("user_id", userId)
+          .in("function_id", fnIdsList),
+  ]);
+  const planLastReadByPlan: Record<string, string> = {};
+  ((planReadsRes.data || []) as any[]).forEach((r) => {
+    planLastReadByPlan[r.plan_id] = r.last_read_at;
+  });
+  const fnLastReadByFn: Record<string, string> = {};
+  ((fnReadsRes.data || []) as any[]).forEach((r) => {
+    fnLastReadByFn[r.function_id] = r.last_read_at;
+  });
+
   // Plan chats
   for (const p of plans) {
     const last = latestPlanMsgByPlan[p.id];
-    const seenAt = getPlanThreadSeenAt(userId, p.id);
+    const lastReadAt = planLastReadByPlan[p.id];
     const lastAt = last?.created_at || p.created_at;
     const unread =
-      !!last && last.user_id !== userId && new Date(last.created_at).getTime() > seenAt;
+      !!last &&
+      last.user_id !== userId &&
+      (!lastReadAt || new Date(last.created_at).getTime() > new Date(lastReadAt).getTime());
     const host = profilesById[p.creator_id];
     const memberIds = (p.plan_members || []).map((m) => m.user_id);
     rows.push({
@@ -2066,10 +2198,12 @@ export async function listMyThreads(userId: string): Promise<UnifiedThreadRow[]>
   // Function chats
   for (const f of functions) {
     const last = latestFnMsgByFn[f.id];
-    const seenAt = getFunctionThreadSeenAt(userId, f.id);
+    const lastReadAt = fnLastReadByFn[f.id];
     const lastAt = last?.created_at || f.created_at;
     const unread =
-      !!last && last.user_id !== userId && new Date(last.created_at).getTime() > seenAt;
+      !!last &&
+      last.user_id !== userId &&
+      (!lastReadAt || new Date(last.created_at).getTime() > new Date(lastReadAt).getTime());
     const host = profilesById[f.host_id];
     const memberIds = (f.function_members || []).map((m) => m.user_id);
     rows.push({

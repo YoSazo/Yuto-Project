@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { supabase, getPlanMessages, sendPlanMessage, getOrCreateDmConversation } from "../../lib/supabase";
+import {
+  supabase,
+  getPlanMessages,
+  sendPlanMessage,
+  getOrCreateDmConversation,
+  markPlanRead,
+} from "../../lib/supabase";
 import UserAvatar from "../UserAvatar";
 import { MessageCircle, Send, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Plan, PlanMessage } from "../../pages/home/types";
 import { RosterStrip, type RosterMember } from "../chat/RosterStrip";
-import { setPlanThreadSeenAt } from "../../pages/home/threadStorage";
 
 export function PlanMessagesModal({
   plan,
@@ -50,13 +55,8 @@ export function PlanMessagesModal({
       const data = await getPlanMessages(plan.id);
       const arr = (data as PlanMessage[]) || [];
       setMessages(arr);
-      const latest = arr.reduce((max, m) => {
-        const t = new Date(m.created_at).getTime();
-        return t > max ? t : max;
-      }, 0);
-      if (latest > 0) {
-        setPlanThreadSeenAt(currentUserId, plan.id, new Date(latest).toISOString());
-      }
+      // Server-side read receipt — every device clears the unread dot.
+      void markPlanRead(plan.id, currentUserId).catch(() => {});
     } catch (err) {
       console.error("load plan messages error:", err);
     }
