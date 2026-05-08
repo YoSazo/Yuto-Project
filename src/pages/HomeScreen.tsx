@@ -163,6 +163,16 @@ export default function HomeScreen() {
     }
   }, [location.state]);
 
+  // NEW: Listen for the "openCompose" intent from the ComposeAnywhereSheet
+  useEffect(() => {
+    const state = location.state as { openCompose?: boolean } | null;
+    if (state?.openCompose) {
+      setShowCompose(true);
+      // Clear the state from the router history so it doesn't pop open again on back-navigation
+      navigate(location.pathname, { replace: true, state: { ...state, openCompose: undefined } });
+    }
+  }, [location.state, navigate, location.pathname]);
+
   useEffect(() => {
     const focus = (location.state as any)?.focus as
       | { kind?: string; id?: string; openChat?: boolean }

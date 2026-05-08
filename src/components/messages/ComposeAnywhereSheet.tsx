@@ -163,7 +163,7 @@ export function ComposeAnywhereSheet({
               type="button"
               onClick={() => {
                 onClose();
-                navigate("/home");
+                navigate("/home", { state: { openCompose: true } });
               }}
               className="bg-gray-100 text-black rounded-2xl p-4 text-left flex flex-col gap-1 hover:bg-gray-200 transition-colors"
             >
