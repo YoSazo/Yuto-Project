@@ -83,6 +83,7 @@ export default function DirectMessageScreen() {
   const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
   const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout>>();
   const [walletOfferCache, setWalletOfferCache] = useState<Record<string, any | null>>({});
   const [composerYutoBalance, setComposerYutoBalance] = useState<number | null>(null);
   const [composerBalanceLoading, setComposerBalanceLoading] = useState(false);
@@ -706,20 +707,26 @@ useEffect(() => {
                 (listedShare?.kind === "listing" ||
                   sharedFn.location === "__SELL__" ||
                   sharedFn.location === "__SERVICE__");
-              return (
-                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  {mine && (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeleteMessageId(m.id)}
-                      className="mr-2 mt-2 w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center shrink-0"
-                      aria-label="Delete message"
-                      title="Delete"
+                  return (
+                    <div 
+                      key={m.id} 
+                      className={`flex ${mine ? "justify-end" : "justify-start"} transition-opacity duration-200 active:opacity-90`}
+                      onPointerDown={() => {
+                        if (mine) {
+                          longPressTimer.current = setTimeout(() => {
+                            haptics.medium();
+                            setConfirmDeleteMessageId(m.id);
+                          }, 500); // 500ms hold to trigger delete modal
+                        }
+                      }}
+                      onPointerUp={() => clearTimeout(longPressTimer.current)}
+                      onPointerLeave={() => clearTimeout(longPressTimer.current)}
+                      onPointerCancel={() => clearTimeout(longPressTimer.current)}
+                      onContextMenu={(e) => {
+                        if (mine) e.preventDefault(); // Prevents the browser's default right-click menu on mobile
+                      }}
                     >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                  {profileShare ? (
+                      {profileShare ? (
                     <div className="max-w-[95%] w-[95%] md:w-[268px]">
                       {user?.id ? (
                         <DmSharedProfileCard viewerUserId={user.id} sharedUserId={profileShare.user_id} />

@@ -892,10 +892,6 @@ export default function HomeScreen() {
       />
 
       {/* Floating compose button */}
-      // Add state near top of HomeScreen:
-
-
-// Replace the single button:
 <div className="fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-3 z-40">
   <button
     onClick={() => setShowCompose(true)}

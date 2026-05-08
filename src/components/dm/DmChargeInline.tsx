@@ -112,7 +112,6 @@ export function DmChargeInline({
           </button>
         )}
         {pending && isSeller && <p className="text-sm font-semibold text-amber-800">Waiting for payment</p>}
-        {pending && isSeller && <p className="text-sm font-semibold text-amber-800">Waiting for payment</p>}
         
         {/* NEW: The Seller Nudge */}
         {paidHeld && isSeller && (
