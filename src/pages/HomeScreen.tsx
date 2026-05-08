@@ -38,7 +38,6 @@ import {
   type DmSharePayload,
 } from "../lib/supabase";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
-import { FunctionPayModal } from "../components/home/FunctionPayModal";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { FunctionMessagesModal } from "../components/home/FunctionMessagesModal";
@@ -83,7 +82,9 @@ export default function HomeScreen() {
   const [shareFeedPayload, setShareFeedPayload] = useState<DmSharePayload | null>(null);
 
   // Function payment state
-  const [functionPayTarget, setFunctionPayTarget] = useState<FunctionListing | null>(null);
+  // functionPayTarget (direct STK to a function invoice) intentionally removed.
+  // Joining a paid function uses Yuto Balance via the same handlers used for
+  // splits; if you're short, the top-up modal pops with the missing amount.
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
@@ -213,17 +214,12 @@ export default function HomeScreen() {
   }, [loading, plans, functionsFeed, activeTab, location.state, navigate, location.pathname]);
 
   useEffect(() => {
-    if (!user || !functionPayTarget) return;
-    const refreshed = functionsFeed.find((f) => f.id === functionPayTarget.id);
-    const hasPaid = refreshed?.function_members?.some((m) => m.user_id === user.id && m.has_paid);
-    if (hasPaid) {
-      if (autoShownTicketFnIdRef.current !== functionPayTarget.id) {
-        autoShownTicketFnIdRef.current = functionPayTarget.id;
-        setFunctionTicket(refreshed ?? functionPayTarget);
-      }
-      setFunctionPayTarget(null);
-    }
-  }, [functionsFeed, functionPayTarget, user]);
+    // Previously: when functionPayTarget was set, this watched function_members
+    // until has_paid flipped, then auto-popped the ticket. With the direct STK
+    // modal removed, paid-state is reflected through loadFeed() refreshes
+    // triggered by the wallet RPC path, and the ticket is shown by
+    // handleJoinFunction directly.
+  }, [functionsFeed, user]);
 
   useEffect(() => {
     setGroupBuyError("");
@@ -531,10 +527,6 @@ export default function HomeScreen() {
       console.error(e);
       toast.error("Couldn't open the attendee chat yet. Make sure the latest migrations are applied.");
     }
-  };
-
-  const refreshFunctionPaymentStatus = async () => {
-    await loadFeed();
   };
 
   const handleJoinOrLeavePlan = async (plan: Plan) => {
@@ -873,18 +865,6 @@ export default function HomeScreen() {
             setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
             await handleJoinFunction(fn);
           }}
-        />
-      )}
-
-      {/* Function Payment Modal */}
-      {functionPayTarget && user && (
-        <FunctionPayModal
-          amount={functionPayTarget.amount_per_person}
-          functionId={functionPayTarget.id}
-          userId={user.id}
-          defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || undefined}
-          onClose={() => setFunctionPayTarget(null)}
-          onRefreshStatus={refreshFunctionPaymentStatus}
         />
       )}
 

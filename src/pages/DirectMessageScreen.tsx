@@ -36,7 +36,6 @@ import { FunctionCard } from "../components/cards/FunctionCard";
 import { MIN_MPESA_TOPUP_KES, computeFunctionTopUpGapKes } from "./home/computeTopUp";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { useThreadScrollToBottom } from "../hooks/useThreadScrollToBottom";
-import { GroupChargeModal } from "../components/wallet/GroupChargeModal";
 import { ConfirmUnsendModal } from "../components/ui/ConfirmUnsendModal";
 import { toast } from "sonner";
 import { haptics } from "../lib/haptics";
@@ -69,7 +68,8 @@ export default function DirectMessageScreen() {
   const [showFunctionTopUp, setShowFunctionTopUp] = useState(false);
   const [functionTopUpAmount, setFunctionTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
   const [pendingJoinFunction, setPendingJoinFunction] = useState<FunctionListing | null>(null);
-  const [groupPay, setGroupPay] = useState<{ groupId: string; amount: number } | null>(null);
+  // groupPay (direct STK to group invoice) intentionally removed — every STK
+  // push now goes through Yuto Balance top-up, never directly to a group.
   const [groupShareCache, setGroupShareCache] = useState<Record<string, { id: string; name: string; per_person: number; status: string }>>({});
   const [groupPaidById, setGroupPaidById] = useState<Record<string, boolean>>({});
   const [quickSplitTopUp, setQuickSplitTopUp] = useState<{ groupId: string; amount: number; perPerson: number } | null>(null);
@@ -826,9 +826,10 @@ export default function DirectMessageScreen() {
                                       return;
                                     }
                                   } catch (e) {
+                                    // No more direct-to-invoice STK fallback.
+                                    // Every payment routes through Yuto Balance.
                                     console.error(e);
-                                    // Fallback to STK push modal
-                                    setGroupPay({ groupId: listedShare.group_id, amount: perPerson });
+                                    toast.error("Couldn't reach the wallet — try again.");
                                   }
                                 }}
                                 className="flex-1 inline-flex items-center justify-center min-h-[4.25rem] px-5 py-4 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors whitespace-nowrap"
@@ -1087,25 +1088,6 @@ export default function DirectMessageScreen() {
             setPendingJoinFunction(null);
             setFunctionTopUpAmount(MIN_MPESA_TOPUP_KES);
             await handleJoinFunction(fn);
-          }}
-        />
-      )}
-
-      {groupPay && user && (
-        <GroupChargeModal
-          amount={groupPay.amount}
-          groupId={groupPay.groupId}
-          userId={user.id}
-          defaultPhoneNumber={profile?.phone_number || getSavedPhoneNumber(user.id) || ""}
-          onClose={() => setGroupPay(null)}
-          onRefreshStatus={async () => {
-            const { data } = await supabase
-              .from("group_members")
-              .select("has_paid")
-              .eq("group_id", groupPay.groupId)
-              .eq("user_id", user.id)
-              .maybeSingle();
-            if (data?.has_paid) setGroupPay(null);
           }}
         />
       )}
