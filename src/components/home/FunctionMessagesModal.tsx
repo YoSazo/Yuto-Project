@@ -1,14 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   supabase,
   ensureFunctionAttendeeChat,
   getFunctionMessages,
+  getOrCreateDmConversation,
   sendFunctionMessage,
   sendGroupChatMessage,
 } from "../../lib/supabase";
 import UserAvatar from "../UserAvatar";
+import { MessageSquare } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { FunctionListing, FunctionMessage } from "../../pages/home/types";
 import { setFunctionThreadSeenAt } from "../../pages/home/threadStorage";
+import { RosterStrip, type RosterMember } from "../chat/RosterStrip";
 
 export function FunctionMessagesModal({
   functionItem,
@@ -26,6 +30,24 @@ export function FunctionMessagesModal({
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [error, setError] = useState("");
+  // Live mirror of function_members so the roster strip reflects payments
+  // in real time, not just on next reload.
+  const [liveMembers, setLiveMembers] = useState<FunctionListing["function_members"]>(
+    functionItem.function_members ?? [],
+  );
+
+  useEffect(() => {
+    setLiveMembers(functionItem.function_members ?? []);
+  }, [functionItem.id, functionItem.function_members]);
+
+  const rosterMembers: RosterMember[] = useMemo(() => {
+    return (liveMembers ?? []).map((m: any) => ({
+      user_id: m.user_id,
+      name: m.profiles?.display_name || m.profiles?.username || "Member",
+      avatar_url: m.profiles?.avatar_url ?? null,
+      paid: !!m.has_paid,
+    }));
+  }, [liveMembers]);
 
   const loadMessages = async () => {
     setLoadingMessages(true);
@@ -56,6 +78,18 @@ export function FunctionMessagesModal({
         "postgres_changes",
         { event: "*", schema: "public", table: "function_messages", filter: `function_id=eq.${functionItem.id}` },
         () => loadMessages(),
+      )
+      // Roster strip lives at the top of this chat — mirror payment state live.
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "function_members", filter: `function_id=eq.${functionItem.id}` },
+        async () => {
+          const { data } = await supabase
+            .from("function_members")
+            .select("id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url)")
+            .eq("function_id", functionItem.id);
+          setLiveMembers((data as any) ?? []);
+        },
       )
       .subscribe();
 
@@ -91,25 +125,65 @@ export function FunctionMessagesModal({
     setSendingMessage(false);
   };
 
+  const navigate = useNavigate();
+  const iAmHost = functionItem.host_id === currentUserId;
+  const hostProfile = (functionItem as any).host || null;
+  const hostName: string | null = hostProfile?.display_name || hostProfile?.username || null;
+
+  // Cross-context jumper: lift the conversation off the public Q&A and into a
+  // 1:1 DM with the host. Keeps the public thread tidy while still funneling
+  // the question into a chat surface (vs WhatsApp or DMs off-platform).
+  const openHostDm = async () => {
+    if (iAmHost) return;
+    try {
+      const c = await getOrCreateDmConversation(currentUserId, functionItem.host_id);
+      onClose();
+      navigate(`/messages/${c.id}`, { state: { otherUserId: functionItem.host_id } });
+    } catch (err) {
+      console.error("open host dm error:", err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
       <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up max-h-[92vh] flex flex-col">
         <div className="flex justify-between items-start gap-3 mb-4">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Questions</p>
-            <h2 className="font-bold text-xl text-black">Ask about {functionItem.title}</h2>
+            <h2 className="font-bold text-xl text-black truncate">Ask about {functionItem.title}</h2>
             <p className="text-sm text-gray-500 mt-1">The host can reply here.</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {!iAmHost && (
+              <button
+                type="button"
+                onClick={() => void openHostDm()}
+                className="flex items-center gap-1 h-8 px-3 rounded-full bg-gray-100 text-black text-xs font-bold hover:bg-gray-200 transition-colors"
+                title={hostName ? `DM ${hostName}` : "DM host"}
+              >
+                <MessageSquare size={13} />
+                DM {hostName ? hostName.split(" ")[0] : "host"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3 mb-4">
+        <RosterStrip
+          mode="split"
+          members={rosterMembers}
+          perPersonKes={functionItem.amount_per_person ?? null}
+          currentUserId={currentUserId}
+          hostUserId={functionItem.host_id}
+        />
+
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3 mb-4 mt-3">
           {loadingMessages ? (
             <div className="py-10 text-center text-gray-400 text-sm">Loading questions...</div>
           ) : messages.length === 0 ? (

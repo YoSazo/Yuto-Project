@@ -39,6 +39,61 @@ function ChevronRight() {
   );
 }
 
+type TransactionRow = {
+  id: string;
+  user_id: string;
+  amount: number | string;
+  created_at: string;
+  note: string | null;
+  counterparty_id: string | null;
+  kind: string | null;
+  counterparty?: {
+    id: string;
+    username: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+};
+
+function describeTransaction(tx: TransactionRow): { title: string; subtitle: string | null } {
+  const cp = tx.counterparty;
+  const name = cp ? (cp.display_name?.trim() || cp.username || "someone") : null;
+  const note = tx.note?.trim() || null;
+  switch (tx.kind) {
+    case "transfer_sent":
+      return { title: name ? `Sent to ${name}` : "Sent", subtitle: note };
+    case "transfer_received":
+      return { title: name ? `Received from ${name}` : "Received", subtitle: note };
+    case "wallet_offer_sent":
+      return { title: name ? `Offer to ${name}` : "Wallet offer sent", subtitle: note ?? "Pending until claimed" };
+    case "wallet_offer_received":
+      return { title: name ? `Claimed from ${name}` : "Offer claimed", subtitle: note };
+    case "topup":
+    case "topup_completed":
+      return { title: "Top-up via M-PESA", subtitle: note };
+    case "withdrawal":
+    case "withdraw":
+      return { title: "Withdrawal to M-PESA", subtitle: note };
+    case "split_paid":
+    case "split_payment_sent":
+      return { title: name ? `Paid split to ${name}` : "Split payment", subtitle: note };
+    case "split_received":
+    case "split_payment_received":
+      return { title: name ? `Split paid by ${name}` : "Split received", subtitle: note };
+    case "function_payment_sent":
+      return { title: "Function paid", subtitle: note };
+    case "function_payment_received":
+      return { title: name ? `Booking from ${name}` : "Booking received", subtitle: note };
+    case "referral_bonus":
+      return { title: "Referral bonus", subtitle: note };
+    default:
+      return {
+        title: note || (Number(tx.amount) > 0 ? "Money in" : "Money out"),
+        subtitle: tx.kind ? tx.kind.replace(/_/g, " ") : null,
+      };
+  }
+}
+
 function MenuItem({
   icon,
   label,
@@ -111,7 +166,7 @@ export default function ProfileScreen() {
   const [referralCount, setReferralCount] = useState(0);
   const [referralEarned, setReferralEarned] = useState(0);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -182,16 +237,39 @@ export default function ProfileScreen() {
     try {
       const { data, error } = await supabase
         .from("transactions")
-        .select("*")
+        .select("id, user_id, amount, created_at, note, counterparty_id, kind")
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false })
-        .limit(30);
+        .limit(50);
 
-      if (!error && data) {
-        setTransactions(data);
+      if (error) throw error;
+      const rows = (data || []) as TransactionRow[];
+
+      // Fetch counterparty profiles in one round-trip so we can render
+      // "Sent to @sara" / "Received from @brian" instead of an empty row.
+      const counterIds = Array.from(
+        new Set(rows.map((r) => r.counterparty_id).filter((v): v is string => !!v)),
+      );
+      let profileMap: Record<string, NonNullable<TransactionRow["counterparty"]>> = {};
+      if (counterIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url")
+          .in("id", counterIds);
+        for (const p of (profiles || []) as NonNullable<TransactionRow["counterparty"]>[]) {
+          profileMap[p.id] = p;
+        }
       }
+
+      setTransactions(
+        rows.map((r) => ({
+          ...r,
+          counterparty: r.counterparty_id ? profileMap[r.counterparty_id] || null : null,
+        })),
+      );
     } catch (err) {
       console.error("Failed to load history", err);
+      toast.error("Couldn't load wallet history.");
     } finally {
       setLoadingHistory(false);
     }
@@ -1262,24 +1340,35 @@ export default function ProfileScreen() {
                   <p>No transactions yet.</p>
                 </div>
               ) : (
-                <div className="space-y-5">
+                <div className="space-y-4">
                   {transactions.map((tx) => {
                     const isPositive = Number(tx.amount) > 0;
+                    const { title, subtitle } = describeTransaction(tx);
+                    const cp = tx.counterparty;
                     return (
                       <div key={tx.id} className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPositive ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
-                            {isPositive ? <Plus size={16} strokeWidth={3} /> : <span className="font-bold text-lg leading-none mb-1">-</span>}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-sm text-black">{tx.description || tx.type}</p>
-                            <p className="text-xs text-gray-400">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {cp ? (
+                            <UserAvatar
+                              name={cp.display_name || cp.username || "?"}
+                              avatarUrl={cp.avatar_url}
+                              size="md"
+                            />
+                          ) : (
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPositive ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
+                              {isPositive ? <Plus size={16} strokeWidth={3} /> : <span className="font-bold text-lg leading-none mb-1">-</span>}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-black truncate">{title}</p>
+                            <p className="text-xs text-gray-400 truncate">
+                              {subtitle ? `${subtitle} · ` : ""}
                               {new Date(tx.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
                         </div>
-                        <span className={`font-bold text-sm ${isPositive ? 'text-green-600' : 'text-black'}`}>
-                          {isPositive ? '+' : ''}KSH {Math.abs(Number(tx.amount)).toLocaleString()}
+                        <span className={`font-bold text-sm shrink-0 ml-3 ${isPositive ? 'text-green-600' : 'text-black'}`}>
+                          {isPositive ? '+' : '-'}KSH {Math.abs(Number(tx.amount)).toLocaleString()}
                         </span>
                       </div>
                     );

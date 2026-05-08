@@ -16,6 +16,7 @@ import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModa
 import { useAppResume } from "../hooks/useAppResume";
 import { toast } from "sonner";
 import { haptics } from "../lib/haptics";
+import { analytics } from "../lib/analytics";
 
 interface Member {
   user_id: string;
@@ -554,8 +555,15 @@ export default function YutoGroupScreen() {
       haptics.success();
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 2500);
+      if (groupId) {
+        analytics.groupPaidInFull({
+          groupId,
+          memberCount: members.length,
+          totalKes: Number(totalAmount) || 0,
+        });
+      }
     }
-  }, [members]);
+  }, [members, groupId, totalAmount]);
 
   const paidCount = members.filter((m) => m.isPaid).length;
   const joinedCount = members.filter((m) => m.hasJoined).length;

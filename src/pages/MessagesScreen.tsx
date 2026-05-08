@@ -1,24 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Briefcase, SquarePen, Users } from "lucide-react";
+import { ArrowLeft, Briefcase, SquarePen, Users, Wallet } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import { useAuth } from "../contexts/AuthContext";
 import { SegmentedTabsBar } from "../components/ui/SegmentedTabsBar";
 import {
   getMyDmUnreadCounts,
-  getMyGroupUnreadCounts,
-  getGroupMemberIds,
   listMyDmConversations,
-  listMyGroupChats,
   listMyBusinessDmContexts,
   getBusinessDashboard,
   cancelHostListing,
+  listMyThreads,
   supabase,
   type DmConversation,
-  type GroupChatRow,
+  type UnifiedThreadRow,
 } from "../lib/supabase";
-import { buildGroupChatPickerLabels } from "../lib/groupChatDisplay";
 import { toast } from "sonner";
+import { ThreadRow } from "../components/messages/ThreadRow";
+import { MoneyInboxTab } from "../components/messages/MoneyInboxTab";
+import { ComposeAnywhereSheet } from "../components/messages/ComposeAnywhereSheet";
 
 type ProfileRow = { id: string; username: string; display_name: string; avatar_url: string | null };
 
@@ -82,19 +82,25 @@ export default function MessagesScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"personal" | "business">(() =>
-    searchParams.get("tab") === "business" ? "business" : "personal",
-  );
+  const [activeTab, setActiveTab] = useState<"personal" | "money" | "business">(() => {
+    const t = searchParams.get("tab");
+    if (t === "business") return "business";
+    if (t === "money") return "money";
+    return "personal";
+  });
 
   useEffect(() => {
-    if (searchParams.get("tab") === "business") setActiveTab("business");
+    const t = searchParams.get("tab");
+    if (t === "business") setActiveTab("business");
+    else if (t === "money") setActiveTab("money");
   }, [searchParams]);
-  const [groups, setGroups] = useState<GroupChatRow[]>([]);
+  // Unified inbox: every chat surface (DMs + group chats + plan chats + function chats)
+  // lives in a single sorted-by-recency list. The Personal tab renders this
+  // directly; the Business tab still pulls a narrower DM-only slice.
+  const [threads, setThreads] = useState<UnifiedThreadRow[]>([]);
   const [convos, setConvos] = useState<DmConversation[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, ProfileRow>>({});
-  const [groupMemberIds, setGroupMemberIds] = useState<Record<string, string[]>>({});
   const [unreadByConvo, setUnreadByConvo] = useState<Record<string, number>>({});
-  const [unreadByGroup, setUnreadByGroup] = useState<Record<string, number>>({});
   const [bizContexts, setBizContexts] = useState<
     { conversation_id: string; buyer_id: string; listing_kind: "sell" | "service"; listing_title: string; created_at: string }[]
   >([]);
@@ -108,6 +114,7 @@ export default function MessagesScreen() {
   } | null>(null);
   const [bizTab, setBizTab] = useState<"revenue" | "orders" | "listings">("revenue");
   const [listingBusyId, setListingBusyId] = useState<string | null>(null);
+  const [showCompose, setShowCompose] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -116,15 +123,15 @@ export default function MessagesScreen() {
     (async () => {
       setLoading(true);
       try {
-        const [rows, groupRows] = await Promise.all([
-          listMyDmConversations(user.id),
-          listMyGroupChats(user.id).catch(() => [] as GroupChatRow[]),
+        const [unifiedThreads, dmRows] = await Promise.all([
+          listMyThreads(user.id),
+          listMyDmConversations(user.id).catch(() => [] as DmConversation[]),
         ]);
         if (cancelled) return;
-        setConvos(rows);
-        setGroups(groupRows);
+        setThreads(unifiedThreads);
+        setConvos(dmRows);
 
-        // Business contexts (seller/provider view) + mini dashboard
+        // Business contexts (seller/provider view) + mini dashboard.
         try {
           const [ctx, dash] = await Promise.all([
             listMyBusinessDmContexts(user.id).catch(() => []),
@@ -141,65 +148,46 @@ export default function MessagesScreen() {
               })),
             );
             setBizDashboard(dash);
-            if ((dash?.activeListings || 0) > 0) {
-              // keep current selection; but ensure personal default doesn't get stuck when business exists
-            } else {
-              setActiveTab("personal");
-            }
           }
         } catch {
           // ignore
         }
 
-        const [unreadDm, unreadGr] = await Promise.all([
-          getMyDmUnreadCounts(user.id),
-          getMyGroupUnreadCounts(user.id).catch(() => ({ total: 0, byGroupId: {} as Record<string, number> })),
-        ]);
-        setUnreadByConvo(unreadDm.byConversationId);
-        setUnreadByGroup(unreadGr.byGroupId);
+        // DM-only unread map for the Business tab badges.
+        const unreadDm = await getMyDmUnreadCounts(user.id).catch(() => ({
+          total: 0,
+          byConversationId: {} as Record<string, number>,
+        }));
+        if (!cancelled) setUnreadByConvo(unreadDm.byConversationId);
 
-        const memberPairs = await Promise.all(
-          groupRows.map(async (g) => {
-            try {
-              const ids = await getGroupMemberIds(g.id);
-              return [g.id, ids] as const;
-            } catch {
-              return [g.id, [] as string[]] as const;
-            }
-          }),
-        );
-        const byGroup: Record<string, string[]> = {};
-        memberPairs.forEach(([id, ids]) => {
-          byGroup[id] = ids;
+        // Hydrate a profile map for every party that might appear in the inbox
+        // (DM peers + group/plan/function members + business buyers).
+        const allIds = new Set<string>();
+        unifiedThreads.forEach((t) => {
+          if (t.peerUserId) allIds.add(t.peerUserId);
+          t.memberIds.forEach((id) => allIds.add(id));
         });
-        setGroupMemberIds(byGroup);
-
-        const dmOtherIds = Array.from(
-          new Set(
-            rows
-              .map((c) => (c.user_low === user.id ? c.user_high : c.user_low))
-              .filter(Boolean),
-          ),
-        );
-        const groupProfileIds = Array.from(new Set(memberPairs.flatMap(([, ids]) => ids)));
-        const businessBuyerIds = (bizContexts || []).map((c) => c.buyer_id);
-        const allIds = Array.from(new Set([...dmOtherIds, ...groupProfileIds, ...businessBuyerIds]));
-        if (allIds.length === 0) {
+        dmRows.forEach((c) => {
+          const other = c.user_low === user.id ? c.user_high : c.user_low;
+          if (other) allIds.add(other);
+        });
+        (bizContexts || []).forEach((c) => allIds.add(c.buyer_id));
+        if (allIds.size === 0) {
           setProfilesById({});
           return;
         }
         const { data, error } = await supabase
           .from("profiles")
           .select("id, username, display_name, avatar_url")
-          .in("id", allIds);
+          .in("id", Array.from(allIds));
         if (error) throw error;
         const map: Record<string, ProfileRow> = {};
         (data || []).forEach((p) => (map[p.id] = p as ProfileRow));
-        setProfilesById(map);
+        if (!cancelled) setProfilesById(map);
       } catch (e) {
         console.error(e);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
 
@@ -212,24 +200,33 @@ export default function MessagesScreen() {
     if (!user) return;
     const channel = supabase
       .channel("dm-group-inbox")
+      // Any new message (DM, group, plan, function) → re-aggregate threads so
+      // the inbox jumps the row to the top + flips the unread dot.
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_messages" }, () => {
-        void getMyDmUnreadCounts(user.id)
-          .then((u) => setUnreadByConvo(u.byConversationId))
+        void Promise.all([
+          listMyThreads(user.id),
+          getMyDmUnreadCounts(user.id),
+        ])
+          .then(([t, u]) => {
+            setThreads(t);
+            setUnreadByConvo(u.byConversationId);
+          })
           .catch(() => {});
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "group_chat_messages" }, () => {
-        void getMyGroupUnreadCounts(user.id)
-          .then((u) => setUnreadByGroup(u.byGroupId))
-          .catch(() => {});
+        void listMyThreads(user.id).then(setThreads).catch(() => {});
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "plan_messages" }, () => {
+        void listMyThreads(user.id).then(setThreads).catch(() => {});
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "function_messages" }, () => {
+        void listMyThreads(user.id).then(setThreads).catch(() => {});
       })
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "group_chat_members", filter: `user_id=eq.${user.id}` },
         () => {
-          // New chat membership (e.g. created after Split) → refresh inbox immediately.
-          void listMyGroupChats(user.id)
-            .then((rows) => setGroups(rows))
-            .catch(() => {});
+          void listMyThreads(user.id).then(setThreads).catch(() => {});
         },
       )
       .subscribe();
@@ -254,8 +251,6 @@ export default function MessagesScreen() {
       .map((x) => ({ ...x, ctx: byConvoId.get(x.convo.id)! }));
   }, [bizContexts, items, user]);
 
-  const groupRowLabels = useMemo(() => buildGroupChatPickerLabels(groups), [groups]);
-
   return (
     <div className="flex flex-col overflow-y-auto pb-28 px-4 pt-6">
       <div className="flex items-center justify-between gap-3 mb-6">
@@ -273,7 +268,7 @@ export default function MessagesScreen() {
         </div>
         <button
           type="button"
-          onClick={() => navigate("/messages/group/new")}
+          onClick={() => setShowCompose(true)}
           className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
           aria-label="New message"
           title="New message"
@@ -287,6 +282,7 @@ export default function MessagesScreen() {
         onChange={setActiveTab}
         tabs={[
           { id: "personal", label: "Personal", icon: <Users size={18} /> },
+          { id: "money", label: "Money", icon: <Wallet size={18} /> },
           { id: "business", label: "Business", icon: <Briefcase size={18} /> },
         ]}
         className="mb-6"
@@ -296,10 +292,12 @@ export default function MessagesScreen() {
         <div className="flex items-center justify-center py-16">
           <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : activeTab === "personal" && groups.length === 0 && items.length === 0 ? (
+      ) : activeTab === "money" && user ? (
+        <MoneyInboxTab userId={user.id} />
+      ) : activeTab === "personal" && threads.length === 0 ? (
         <div className="py-20 text-center">
           <p className="font-bold text-black text-lg">No messages yet</p>
-          <p className="text-gray-400 text-sm mt-1">Tap “Message” on someone’s profile or start a group.</p>
+          <p className="text-gray-400 text-sm mt-1">Tap "Message" on someone's profile or start a group.</p>
         </div>
       ) : activeTab === "business" ? (
         <div className="flex flex-col gap-6">
@@ -455,62 +453,24 @@ export default function MessagesScreen() {
             )}
           </div>
         </div>
-      ) : (
-        <div className="flex flex-col gap-8">
-          {groups.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1">Group chats</p>
-              {groups.map((g) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  onClick={() => navigate(`/messages/group/${g.id}`)}
-                  className="w-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
-                >
-                  <StackedGroupMemberAvatars
-                    memberIds={groupMemberIds[g.id] || []}
-                    profilesById={profilesById}
-                    excludeUserId={user?.id ?? null}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-black truncate">{groupRowLabels[g.id] ?? "Group chat"}</p>
-                    <p className="text-sm text-gray-400 truncate">Tap to open</p>
-                  </div>
-                  {(unreadByGroup[g.id] || 0) > 0 && (
-                    <span className="min-w-6 h-6 px-2 rounded-full bg-red-500 text-white text-xs font-extrabold flex items-center justify-center">
-                      {Math.min(99, unreadByGroup[g.id])}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {items.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1">Direct messages</p>
-              {items.map(({ convo, other, otherId }) => (
-                <button
-                  key={convo.id}
-                  type="button"
-                  onClick={() => navigate(`/messages/${convo.id}`, { state: { otherUserId: otherId } })}
-                  className="w-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
-                >
-                  <UserAvatar name={other?.display_name || "User"} avatarUrl={other?.avatar_url || null} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-black truncate">{other?.display_name || "User"}</p>
-                    <p className="text-sm text-gray-400 truncate">@{other?.username || "unknown"}</p>
-                  </div>
-                  {(unreadByConvo[convo.id] || 0) > 0 && (
-                    <span className="min-w-6 h-6 px-2 rounded-full bg-red-500 text-white text-xs font-extrabold flex items-center justify-center">
-                      {Math.min(99, unreadByConvo[convo.id])}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+      ) : user ? (
+        <div className="flex flex-col gap-2">
+          {threads.map((t) => (
+            <ThreadRow
+              key={`${t.kind}:${t.id}`}
+              thread={t}
+              currentUserId={user.id}
+              profilesById={profilesById}
+            />
+          ))}
         </div>
+      ) : null}
+
+      {showCompose && user && (
+        <ComposeAnywhereSheet
+          currentUserId={user.id}
+          onClose={() => setShowCompose(false)}
+        />
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import {
   getProfile,
   savePushToken,
 } from "../lib/supabase";
+import { identifyAnalyticsUser, resetAnalyticsUser } from "../lib/analytics";
 
 async function requestPushPermission(userId: string) {
   try {
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchProfileWithRetry(u.id).then((p) => {
           setProfile(p);
           setLoading(false);
+          identifyAnalyticsUser(u.id, { username: p?.username, display_name: p?.display_name });
         });
         requestPushPermission(u.id);
       } else {
@@ -86,10 +88,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        fetchProfileWithRetry(u.id).then(setProfile);
+        fetchProfileWithRetry(u.id).then((p) => {
+          setProfile(p);
+          identifyAnalyticsUser(u.id, { username: p?.username, display_name: p?.display_name });
+        });
         requestPushPermission(u.id);
       } else {
         setProfile(null);
+        resetAnalyticsUser();
       }
     });
 

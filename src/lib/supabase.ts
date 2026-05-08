@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { analytics } from "./analytics";
+import { getPlanThreadSeenAt, getFunctionThreadSeenAt } from "../pages/home/threadStorage";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "placeholder-key";
@@ -415,14 +417,14 @@ export async function joinGroup(groupId: string, userId: string) {
   if (error) throw error;
 }
 
-export async function markPaid(groupId: string, userId: string) {
-  const { error } = await supabase
-    .from("group_members")
-    .update({ has_paid: true, paid_at: new Date().toISOString() })
-    .eq("group_id", groupId)
-    .eq("user_id", userId);
-  if (error) throw error;
-}
+// DO NOT REVIVE: a manual "I paid in cash" toggle was intentionally removed.
+// Yuto's business model relies on liquidity moving through the platform —
+// either Yuto Balance or an M-Pesa STK push. Letting users self-report cash
+// settlement bleeds float, breaks the audit trail, and invites disputes
+// inside group chats. If a user paid outside the app, that's between them
+// and their friend; the platform does not record it. Splits are only
+// cleared by a real on-platform transfer (which sets has_paid via the
+// pay_for_function_group RPC or wallet group payment flow).
 
 // ─── Avatar Upload ────────────────────────────────────
 
@@ -734,13 +736,14 @@ export async function sendFunctionMessage(functionId: string, userId: string, co
 }
 
 export async function transferYutoBalance(fromUserId: string, toUserId: string, amountKes: number, note?: string | null) {
+  const amount = Math.round(Number(amountKes || 0));
   const { error } = await supabase.rpc("transfer_yuto_balance", {
     p_to_user_id: toUserId,
-    p_amount_kes: Math.round(Number(amountKes || 0)),
+    p_amount_kes: amount,
     p_note: note ?? null,
   });
   if (error) throw error;
-  // no return payload
+  analytics.walletTransferSent({ amountKes: amount, toUserId });
 }
 
 // ─── Highlights ──────────────────────────────────────
@@ -1218,12 +1221,18 @@ export async function createWalletOffer(args: {
     p_recipient_user_id: args.recipientUserId ?? null,
   });
   if (error) throw error;
+  analytics.walletOfferCreated({
+    amountKes: args.amountKes,
+    surface: args.dmConversationId ? "dm" : "group",
+  });
   return String(data);
 }
 
 export async function acceptWalletOffer(offerId: string) {
   const { error } = await supabase.rpc("accept_wallet_offer", { p_offer_id: offerId });
   if (error) throw error;
+  // Amount unknown at this layer; we capture the event as a count signal.
+  analytics.walletOfferAccepted({ amountKes: 0 });
 }
 
 export type WalletOfferRow = {
@@ -1772,4 +1781,511 @@ export async function getMyDmAndGroupUnreadTotal(userId: string) {
     getMyGroupUnreadCounts(userId).catch(() => ({ total: 0, byGroupId: {} as Record<string, number> })),
   ]);
   return dm.total + gr.total;
+}
+
+// ─── Unified inbox: DMs + group chats + plan/function chats ──────────────
+//
+// The "Personal" tab in MessagesScreen used to render DMs and group chats as
+// two separate stacks while plan and function chats lived only behind their
+// home-feed cards. Users were missing chats they were actually a part of.
+// `listMyThreads` rolls every conversation surface a user belongs to into one
+// stream, sorted by recency, so the inbox is the single source of truth.
+//
+// We keep plan/function "seen" state in localStorage for now (see
+// pages/home/threadStorage.ts) — it ships now without a migration. When we
+// promote it to a server-side tracker we'll just swap the source here.
+
+export type UnifiedThreadKind = "dm" | "group" | "plan" | "function";
+
+export type UnifiedThreadRow = {
+  kind: UnifiedThreadKind;
+  // Stable id for the thread itself (conversation_id / group_chat_id / plan_id / function_id).
+  id: string;
+  title: string;
+  subtitle: string;
+  // Primary peer info for DMs; first member for groups; host for plan/function.
+  peerUserId: string | null;
+  peerAvatarUrl: string | null;
+  peerName: string | null;
+  // For groups + plans + functions, all member ids (used by stacked avatars).
+  memberIds: string[];
+  // Latest activity timestamp used for sorting.
+  lastActivityAt: string;
+  // Optional preview snippet (last message text). May be empty for plan/function
+  // surfaces if we have no message yet — we still surface them with subtitle.
+  lastMessagePreview: string | null;
+  lastSenderId: string | null;
+  // Whether the latest message qualifies as unread for the current user.
+  unread: boolean;
+  // Used by the inbox to render context badges.
+  contextLabel: "Plan" | "Function" | "Group" | null;
+};
+
+/**
+ * One-shot pull of every chat surface the user can see. We only run lightweight
+ * queries — most heavy lifting (message fetch + unread compute) reuses the
+ * existing dm/group helpers, then we splice in plan/function threads using the
+ * same shape so the inbox can render them homogeneously.
+ */
+export async function listMyThreads(userId: string): Promise<UnifiedThreadRow[]> {
+  const [dmConvos, groupChats] = await Promise.all([
+    listMyDmConversations(userId).catch(() => [] as DmConversation[]),
+    listMyGroupChats(userId).catch(() => [] as GroupChatRow[]),
+  ]);
+
+  // Plan threads: every plan you created OR are a member of (active only).
+  const [createdPlans, memberPlans] = await Promise.all([
+    supabase
+      .from("plans")
+      .select("id, title, creator_id, created_at, plan_members(user_id)")
+      .eq("creator_id", userId),
+    supabase
+      .from("plan_members")
+      .select("plan_id, plans!inner(id, title, creator_id, created_at, plan_members(user_id))")
+      .eq("user_id", userId),
+  ]);
+
+  type PlanLite = { id: string; title: string; creator_id: string; created_at: string; plan_members: { user_id: string }[] };
+  const planMap = new Map<string, PlanLite>();
+  ((createdPlans.data || []) as any[]).forEach((p) => planMap.set(p.id, p));
+  ((memberPlans.data || []) as any[]).forEach((row) => {
+    const p = row.plans;
+    if (p?.id) planMap.set(p.id, p);
+  });
+  const plans = Array.from(planMap.values());
+
+  // Function threads: every function you host OR are a paid/joined member of.
+  const [hostedFunctions, memberFunctions] = await Promise.all([
+    supabase
+      .from("functions")
+      .select("id, title, host_id, created_at, function_members(user_id)")
+      .eq("host_id", userId),
+    supabase
+      .from("function_members")
+      .select("function_id, functions!inner(id, title, host_id, created_at, function_members(user_id))")
+      .eq("user_id", userId),
+  ]);
+
+  type FunctionLite = {
+    id: string;
+    title: string;
+    host_id: string;
+    created_at: string;
+    function_members: { user_id: string }[];
+  };
+  const fnMap = new Map<string, FunctionLite>();
+  ((hostedFunctions.data || []) as any[]).forEach((f) => fnMap.set(f.id, f));
+  ((memberFunctions.data || []) as any[]).forEach((row) => {
+    const f = row.functions;
+    if (f?.id) fnMap.set(f.id, f);
+  });
+  const functions = Array.from(fnMap.values());
+
+  // Latest message per plan/function (one round trip each, capped) so we can
+  // compute unread + sort the whole inbox by true last-activity time.
+  const planIds = plans.map((p) => p.id);
+  const fnIds = functions.map((f) => f.id);
+  const [planMsgs, fnMsgs] = await Promise.all([
+    planIds.length === 0
+      ? Promise.resolve({ data: [] as any[] })
+      : supabase
+          .from("plan_messages")
+          .select("plan_id, user_id, content, created_at")
+          .in("plan_id", planIds)
+          .order("created_at", { ascending: false })
+          .limit(planIds.length * 5),
+    fnIds.length === 0
+      ? Promise.resolve({ data: [] as any[] })
+      : supabase
+          .from("function_messages")
+          .select("function_id, user_id, content, created_at")
+          .in("function_id", fnIds)
+          .order("created_at", { ascending: false })
+          .limit(fnIds.length * 5),
+  ]);
+
+  const latestPlanMsgByPlan: Record<string, { content: string; user_id: string; created_at: string }> = {};
+  ((planMsgs.data || []) as any[]).forEach((m) => {
+    if (!latestPlanMsgByPlan[m.plan_id]) latestPlanMsgByPlan[m.plan_id] = m;
+  });
+  const latestFnMsgByFn: Record<string, { content: string; user_id: string; created_at: string }> = {};
+  ((fnMsgs.data || []) as any[]).forEach((m) => {
+    if (!latestFnMsgByFn[m.function_id]) latestFnMsgByFn[m.function_id] = m;
+  });
+
+  // DMs + groups: latest message lookup so we can show previews and sort
+  // by true recency (currently we sort by created_at of the conversation row).
+  const dmIds = dmConvos.map((c) => c.id);
+  const groupIds = groupChats.map((g) => g.id);
+  const [dmLatest, groupLatest] = await Promise.all([
+    dmIds.length === 0
+      ? Promise.resolve({ data: [] as any[] })
+      : supabase
+          .from("dm_messages")
+          .select("conversation_id, sender_id, content, created_at, message_type")
+          .in("conversation_id", dmIds)
+          .order("created_at", { ascending: false })
+          .limit(dmIds.length * 3),
+    groupIds.length === 0
+      ? Promise.resolve({ data: [] as any[] })
+      : supabase
+          .from("group_chat_messages")
+          .select("group_id, sender_id, content, created_at, message_type")
+          .in("group_id", groupIds)
+          .order("created_at", { ascending: false })
+          .limit(groupIds.length * 3),
+  ]);
+
+  const latestDmByConvo: Record<string, { content: string; sender_id: string; created_at: string; message_type?: string }> = {};
+  ((dmLatest.data || []) as any[]).forEach((m) => {
+    if (!latestDmByConvo[m.conversation_id]) latestDmByConvo[m.conversation_id] = m;
+  });
+  const latestGroupByGroup: Record<string, { content: string; sender_id: string; created_at: string; message_type?: string }> = {};
+  ((groupLatest.data || []) as any[]).forEach((m) => {
+    if (!latestGroupByGroup[m.group_id]) latestGroupByGroup[m.group_id] = m;
+  });
+
+  // Pull the unread maps we already had — these query dm_reads / group_chat_reads
+  // and compare to recent message timestamps. Authoritative source for DM/group.
+  const [dmUnread, groupUnread] = await Promise.all([
+    getMyDmUnreadCounts(userId).catch(() => ({ total: 0, byConversationId: {} as Record<string, number> })),
+    getMyGroupUnreadCounts(userId).catch(() => ({ total: 0, byGroupId: {} as Record<string, number> })),
+  ]);
+
+  // Resolve all profile ids (DM peers + group members + plan/function members + hosts)
+  // in one batched call so the inbox doesn't N+1 the profiles table.
+  const profileIds = new Set<string>();
+  dmConvos.forEach((c) => {
+    const other = c.user_low === userId ? c.user_high : c.user_low;
+    if (other) profileIds.add(other);
+  });
+  // Group member ids — one lookup so we can render stacked avatars.
+  const groupMemberRows = groupIds.length
+    ? await supabase.from("group_chat_members").select("group_id, user_id").in("group_id", groupIds)
+    : { data: [] as any[] };
+  const memberIdsByGroup: Record<string, string[]> = {};
+  ((groupMemberRows.data || []) as any[]).forEach((r) => {
+    (memberIdsByGroup[r.group_id] ||= []).push(r.user_id);
+    profileIds.add(r.user_id);
+  });
+  plans.forEach((p) => {
+    profileIds.add(p.creator_id);
+    (p.plan_members || []).forEach((m) => profileIds.add(m.user_id));
+  });
+  functions.forEach((f) => {
+    profileIds.add(f.host_id);
+    (f.function_members || []).forEach((m) => profileIds.add(m.user_id));
+  });
+
+  const profilesById: Record<string, ProfileRow> = {};
+  if (profileIds.size > 0) {
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .in("id", Array.from(profileIds));
+    (profs || []).forEach((p: any) => (profilesById[p.id] = p));
+  }
+
+  const rows: UnifiedThreadRow[] = [];
+
+  // DMs
+  for (const c of dmConvos) {
+    const otherId = c.user_low === userId ? c.user_high : c.user_low;
+    const peer = profilesById[otherId];
+    const last = latestDmByConvo[c.id];
+    rows.push({
+      kind: "dm",
+      id: c.id,
+      title: peer?.display_name || "User",
+      subtitle: peer?.username ? `@${peer.username}` : "",
+      peerUserId: otherId,
+      peerAvatarUrl: peer?.avatar_url ?? null,
+      peerName: peer?.display_name || peer?.username || null,
+      memberIds: [otherId],
+      lastActivityAt: last?.created_at || c.created_at,
+      lastMessagePreview: last?.content?.trim() || null,
+      lastSenderId: last?.sender_id ?? null,
+      unread: (dmUnread.byConversationId[c.id] || 0) > 0,
+      contextLabel: null,
+    });
+  }
+
+  // Group chats
+  for (const g of groupChats) {
+    const last = latestGroupByGroup[g.id];
+    const memberIds = memberIdsByGroup[g.id] || [];
+    const otherIds = memberIds.filter((id) => id !== userId);
+    const firstOther = otherIds[0] ? profilesById[otherIds[0]] : null;
+    const title =
+      g.title?.trim() ||
+      otherIds.slice(0, 3).map((id) => profilesById[id]?.display_name || "Member").join(", ") ||
+      "Group chat";
+    rows.push({
+      kind: "group",
+      id: g.id,
+      title,
+      subtitle: `${memberIds.length} people`,
+      peerUserId: otherIds[0] ?? null,
+      peerAvatarUrl: firstOther?.avatar_url ?? null,
+      peerName: firstOther?.display_name || null,
+      memberIds,
+      lastActivityAt: last?.created_at || g.created_at,
+      lastMessagePreview: last?.content?.trim() || null,
+      lastSenderId: last?.sender_id ?? null,
+      unread: (groupUnread.byGroupId[g.id] || 0) > 0,
+      contextLabel: g.wallet_group_id ? "Group" : null,
+    });
+  }
+
+  // Plan chats
+  for (const p of plans) {
+    const last = latestPlanMsgByPlan[p.id];
+    const seenAt = getPlanThreadSeenAt(userId, p.id);
+    const lastAt = last?.created_at || p.created_at;
+    const unread =
+      !!last && last.user_id !== userId && new Date(last.created_at).getTime() > seenAt;
+    const host = profilesById[p.creator_id];
+    const memberIds = (p.plan_members || []).map((m) => m.user_id);
+    rows.push({
+      kind: "plan",
+      id: p.id,
+      title: p.title,
+      subtitle: host ? `Hosted by ${host.display_name || host.username}` : "Plan",
+      peerUserId: p.creator_id,
+      peerAvatarUrl: host?.avatar_url ?? null,
+      peerName: host?.display_name || null,
+      memberIds: memberIds.length > 0 ? memberIds : [p.creator_id],
+      lastActivityAt: lastAt,
+      lastMessagePreview: last?.content?.trim() || null,
+      lastSenderId: last?.user_id ?? null,
+      unread,
+      contextLabel: "Plan",
+    });
+  }
+
+  // Function chats
+  for (const f of functions) {
+    const last = latestFnMsgByFn[f.id];
+    const seenAt = getFunctionThreadSeenAt(userId, f.id);
+    const lastAt = last?.created_at || f.created_at;
+    const unread =
+      !!last && last.user_id !== userId && new Date(last.created_at).getTime() > seenAt;
+    const host = profilesById[f.host_id];
+    const memberIds = (f.function_members || []).map((m) => m.user_id);
+    rows.push({
+      kind: "function",
+      id: f.id,
+      title: f.title,
+      subtitle: host ? `Hosted by ${host.display_name || host.username}` : "Function",
+      peerUserId: f.host_id,
+      peerAvatarUrl: host?.avatar_url ?? null,
+      peerName: host?.display_name || null,
+      memberIds: memberIds.length > 0 ? memberIds : [f.host_id],
+      lastActivityAt: lastAt,
+      lastMessagePreview: last?.content?.trim() || null,
+      lastSenderId: last?.user_id ?? null,
+      unread,
+      contextLabel: "Function",
+    });
+  }
+
+  rows.sort(
+    (a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime(),
+  );
+  return rows;
+}
+
+/**
+ * Truthful unread total for the bottom-nav badge: includes DMs, group chats,
+ * AND plan/function chats. The plan/function portion is per-device for now.
+ */
+export async function getMyAllUnreadTotal(userId: string): Promise<number> {
+  try {
+    const rows = await listMyThreads(userId);
+    return rows.reduce((acc, r) => acc + (r.unread ? 1 : 0), 0);
+  } catch {
+    // Fallback so a transient hiccup doesn't crash the badge.
+    return getMyDmAndGroupUnreadTotal(userId).catch(() => 0);
+  }
+}
+
+// ─── Money Inbox ────────────────────────────────────────
+//
+// One pane that surfaces every piece of money in motion the user actually has
+// to act on (or recently acted on). Backstops the strategic call to keep
+// liquidity inside the platform: the inbox is the place that nags you to
+// settle, accept, or send — instead of asking "did Sara pay?" in WhatsApp.
+
+export type MoneyInboxOffer = {
+  id: string;
+  amount_kes: number;
+  note: string | null;
+  created_at: string;
+  sender: { id: string; username: string; display_name: string; avatar_url: string | null } | null;
+  // Where to deep-link the "Open chat" CTA. Filled when the offer was created
+  // inside a DM or group chat.
+  dm_conversation_id: string | null;
+  group_chat_id: string | null;
+};
+
+export type MoneyInboxSplitOwed = {
+  group_id: string;
+  group_name: string | null;
+  per_person_kes: number;
+  function_id: string | null;
+  function_title: string | null;
+  // The user the host should ping for payment. Group is created by the host.
+  host: { id: string; username: string; display_name: string; avatar_url: string | null } | null;
+};
+
+export type MoneyInboxSplitOwedToMe = {
+  group_id: string;
+  group_name: string | null;
+  per_person_kes: number;
+  function_id: string | null;
+  function_title: string | null;
+  unpaid_count: number;
+  unpaid_members: { id: string; username: string; display_name: string; avatar_url: string | null }[];
+};
+
+export type MoneyInboxTransfer = {
+  id: string;
+  amount: number;
+  kind: string | null;
+  note: string | null;
+  created_at: string;
+  counterparty: { id: string; username: string; display_name: string; avatar_url: string | null } | null;
+};
+
+export type MoneyInbox = {
+  pendingOffersForMe: MoneyInboxOffer[];
+  splitsIOwe: MoneyInboxSplitOwed[];
+  splitsOwedToMe: MoneyInboxSplitOwedToMe[];
+  recentTransfers: MoneyInboxTransfer[];
+};
+
+/**
+ * Aggregates every "act on me" money item for the user in one round trip-ish
+ * call. Designed to be cheap enough to call on tab open + every wallet realtime
+ * tick without paginating.
+ */
+export async function getMoneyInbox(userId: string): Promise<MoneyInbox> {
+  // 1. Pending wallet offers I can accept.
+  // Either explicitly addressed to me (DM offer) OR a group offer in a chat I'm in.
+  const myGroupChatIds = await supabase
+    .from("group_chat_members")
+    .select("group_id")
+    .eq("user_id", userId)
+    .then((r) => (r.data || []).map((x) => x.group_id as string));
+
+  const orFilters = [
+    `recipient_user_id.eq.${userId}`,
+    myGroupChatIds.length > 0 ? `group_chat_id.in.(${myGroupChatIds.join(",")})` : null,
+  ]
+    .filter(Boolean)
+    .join(",");
+
+  let pendingOffersForMe: MoneyInboxOffer[] = [];
+  if (orFilters) {
+    const { data: offers } = await supabase
+      .from("wallet_offers")
+      .select(
+        `id, amount_kes, note, created_at, dm_conversation_id, group_chat_id,
+         sender:profiles!wallet_offers_sender_id_fkey(id, username, display_name, avatar_url)`,
+      )
+      .eq("status", "pending")
+      .neq("sender_id", userId)
+      .or(orFilters)
+      .order("created_at", { ascending: false })
+      .limit(40);
+    pendingOffersForMe = ((offers || []) as any[]).map((o) => ({
+      id: o.id,
+      amount_kes: Number(o.amount_kes) || 0,
+      note: o.note,
+      created_at: o.created_at,
+      sender: o.sender || null,
+      dm_conversation_id: o.dm_conversation_id,
+      group_chat_id: o.group_chat_id,
+    }));
+  }
+
+  // 2. Splits I owe — group_members rows where I haven't paid yet.
+  // Includes both standalone splits and function-attached groups.
+  const { data: owedRows } = await supabase
+    .from("group_members")
+    .select(
+      `group_id,
+       groups!inner(id, name, per_person, created_by, function_id,
+         host:profiles!groups_created_by_fkey(id, username, display_name, avatar_url),
+         functions(id, title))`,
+    )
+    .eq("user_id", userId)
+    .eq("has_paid", false);
+
+  const splitsIOwe: MoneyInboxSplitOwed[] = ((owedRows || []) as any[])
+    .filter((r) => r.groups && r.groups.created_by !== userId)
+    .map((r) => ({
+      group_id: r.groups.id,
+      group_name: r.groups.name ?? null,
+      per_person_kes: Number(r.groups.per_person) || 0,
+      function_id: r.groups.function_id ?? null,
+      function_title: r.groups.functions?.title ?? null,
+      host: r.groups.host ?? null,
+    }));
+
+  // 3. Splits owed TO me — groups I created that still have unpaid members.
+  const { data: myGroups } = await supabase
+    .from("groups")
+    .select(
+      `id, name, per_person, function_id,
+       group_members(user_id, has_paid, profiles(id, username, display_name, avatar_url)),
+       functions(id, title)`,
+    )
+    .eq("created_by", userId);
+
+  const splitsOwedToMe: MoneyInboxSplitOwedToMe[] = ((myGroups || []) as any[])
+    .map((g) => {
+      const unpaid = (g.group_members || []).filter((m: any) => !m.has_paid && m.user_id !== userId);
+      if (unpaid.length === 0) return null;
+      return {
+        group_id: g.id,
+        group_name: g.name ?? null,
+        per_person_kes: Number(g.per_person) || 0,
+        function_id: g.function_id ?? null,
+        function_title: g.functions?.title ?? null,
+        unpaid_count: unpaid.length,
+        unpaid_members: unpaid.map((m: any) => m.profiles).filter(Boolean),
+      } as MoneyInboxSplitOwedToMe;
+    })
+    .filter((x): x is MoneyInboxSplitOwedToMe => !!x);
+
+  // 4. Recent transfers — last 5 wallet movements with counterparty profile.
+  const { data: txs } = await supabase
+    .from("transactions")
+    .select("id, amount, kind, note, counterparty_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  const counterIds = Array.from(
+    new Set(((txs || []) as any[]).map((t) => t.counterparty_id).filter(Boolean)),
+  );
+  let counterMap: Record<string, { id: string; username: string; display_name: string; avatar_url: string | null }> = {};
+  if (counterIds.length > 0) {
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .in("id", counterIds);
+    (profs || []).forEach((p: any) => (counterMap[p.id] = p));
+  }
+  const recentTransfers: MoneyInboxTransfer[] = ((txs || []) as any[]).map((t) => ({
+    id: t.id,
+    amount: Number(t.amount) || 0,
+    kind: t.kind ?? null,
+    note: t.note ?? null,
+    created_at: t.created_at,
+    counterparty: t.counterparty_id ? counterMap[t.counterparty_id] || null : null,
+  }));
+
+  return { pendingOffersForMe, splitsIOwe, splitsOwedToMe, recentTransfers };
 }

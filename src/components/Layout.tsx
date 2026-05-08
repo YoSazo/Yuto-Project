@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, useLocation, Navigate } from "react-router-dom";
 import GlassNavBar from "./GlassNavBar";
 import { useAuth } from "../contexts/AuthContext";
-import { getPendingRequests, getMyDmAndGroupUnreadTotal } from "../lib/supabase";
+import { getPendingRequests, getMyAllUnreadTotal } from "../lib/supabase";
 import { useAppResume } from "../hooks/useAppResume";
 
 type NavTab = "split" | "home" | "activity" | "profile";
@@ -27,7 +27,7 @@ export default function Layout() {
     if (!user) return;
     const fetchCounts = () => {
       getPendingRequests(user.id).then((data) => setPendingCount(data.length)).catch(() => {});
-      getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadCount).catch(() => {});
+      getMyAllUnreadTotal(user.id).then(setDmUnreadCount).catch(() => {});
     };
     fetchCounts();
     const interval = setInterval(fetchCounts, 15000);

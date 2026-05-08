@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { haptics } from "../../lib/haptics";
+import { analytics } from "../../lib/analytics";
 
 const DEFAULT_PRESETS = [100, 250, 500, 1000] as const;
 
@@ -77,6 +78,7 @@ export function YutoBalanceTopUpModal({
           invoiceIdRef.current = null;
           haptics.success();
           toast.success("Top-up confirmed");
+          analytics.topupStkCompleted({ amountKes: parseInt(amountStr, 10) || 0 });
           if (onRetryAfterPaid) {
             try {
               await onRetryAfterPaid();
@@ -91,6 +93,7 @@ export function YutoBalanceTopUpModal({
           invoiceIdRef.current = null;
           haptics.error();
           toast.error("Payment was cancelled or failed.");
+          analytics.topupStkFailed({ amountKes: parseInt(amountStr, 10) || 0, reason: state });
           setPhase("form");
           setMessage("Payment cancelled or failed. Try again.");
         }
@@ -136,6 +139,10 @@ export function YutoBalanceTopUpModal({
       if (data.success) {
         invoiceIdRef.current = typeof data.invoice_id === "string" ? data.invoice_id : null;
         setPhase("prompt_sent");
+        analytics.topupStkSent({
+          amountKes: amountNum,
+          phoneSuffix: mpesaPhoneNumber.slice(-3),
+        });
         if (onRetryAfterPaid) {
           setMessage("Check your phone for M-PESA. Confirm the payment and we'll continue automatically.");
         } else {

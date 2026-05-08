@@ -25,7 +25,7 @@ import {
   sendDmShareMessage,
   upsertDmBusinessContext,
   getSavedPhoneNumber,
-  getMyDmAndGroupUnreadTotal,
+  getMyAllUnreadTotal,
   getMyNotificationUnreadCount,
   getFriends,
   createGroup,
@@ -54,6 +54,7 @@ import { Users, Globe, MessageCircle, Bell, Send } from "lucide-react";
 import { SegmentedTabsBar } from "../components/ui/SegmentedTabsBar";
 import { toast } from "sonner";
 import { haptics } from "../lib/haptics";
+import { analytics } from "../lib/analytics";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 
 export default function HomeScreen() {
@@ -116,10 +117,16 @@ export default function HomeScreen() {
       .on("postgres_changes", { event: "*", schema: "public", table: "function_members" }, () => loadFeed())
       .on("postgres_changes", { event: "*", schema: "public", table: "function_messages" }, () => loadFeed())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_messages" }, () => {
-        void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
+        void getMyAllUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "group_chat_messages" }, () => {
-        void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
+        void getMyAllUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "plan_messages" }, () => {
+        void getMyAllUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "function_messages" }, () => {
+        void getMyAllUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
       })
       .subscribe();
 
@@ -128,7 +135,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!user) return;
-    void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
+    void getMyAllUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
     void getMyNotificationUnreadCount(user.id).then(setNotifUnreadTotal).catch(() => {});
   }, [user]);
 
@@ -136,7 +143,7 @@ export default function HomeScreen() {
     if (!user) return;
     const onResume = () => {
       void loadFeed();
-      void getMyDmAndGroupUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
+      void getMyAllUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
       void getMyNotificationUnreadCount(user.id).then(setNotifUnreadTotal).catch(() => {});
     };
     window.addEventListener("yuto:resume", onResume);
@@ -154,26 +161,56 @@ export default function HomeScreen() {
   }, [location.state]);
 
   useEffect(() => {
-    const focus = (location.state as any)?.focus as { kind?: string; id?: string } | undefined;
+    const focus = (location.state as any)?.focus as
+      | { kind?: string; id?: string; openChat?: boolean }
+      | undefined;
     if (!focus?.kind || !focus?.id) return;
     if (loading) return;
+
+    // Inbox deep-link: open the right chat modal directly without scrolling.
+    // Plan/function chats live behind feed cards, so the inbox uses this path
+    // to send users straight into the conversation they tapped.
+    if (focus.openChat) {
+      if (focus.kind === "plan") {
+        const plan = plans.find((p) => p.id === focus.id);
+        if (plan) {
+          setActivePlanChat(plan);
+          navigate(location.pathname, { replace: true, state: {} });
+          focusAttemptRef.current = "none";
+          return;
+        }
+        // Plan not found on the active tab yet — flip to friends once and retry.
+        if (focusAttemptRef.current === "public") {
+          setActiveTab("friends");
+          focusAttemptRef.current = "friends";
+        }
+        return;
+      }
+      if (focus.kind === "function") {
+        const fn = functionsFeed.find((f) => f.id === focus.id);
+        if (fn) {
+          setActiveFunctionThread(fn);
+          navigate(location.pathname, { replace: true, state: {} });
+          focusAttemptRef.current = "none";
+          return;
+        }
+      }
+    }
 
     const elId = focus.kind === "plan" ? `plan-${focus.id}` : `function-${focus.id}`;
     const el = document.getElementById(elId);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Clear state so it doesn't keep jumping on re-renders.
       navigate(location.pathname, { replace: true, state: {} });
       focusAttemptRef.current = "none";
       return;
     }
 
-    // If it was a plan and not found on public, try friends once.
     if (focus.kind === "plan" && focusAttemptRef.current === "public") {
       setActiveTab("friends");
       focusAttemptRef.current = "friends";
     }
-  }, [loading, plans.length, functionsFeed.length, activeTab, location.state, navigate, location.pathname]);
+  }, [loading, plans, functionsFeed, activeTab, location.state, navigate, location.pathname]);
 
   useEffect(() => {
     if (!user || !functionPayTarget) return;
@@ -546,6 +583,7 @@ export default function HomeScreen() {
         haptics.light();
       } else {
         await joinPlan(plan.id, user.id, joinerName, plan.creator_id);
+        analytics.planJoined({ planId: plan.id, isCreator: plan.creator_id === user.id });
         haptics.medium();
       }
       await loadFeed();
@@ -566,6 +604,11 @@ export default function HomeScreen() {
       ...(plan.plan_members ?? []).map((m) => m.user_id).filter((id) => id !== plan.creator_id),
     ];
     try {
+      analytics.yutoItClicked({
+        planId: plan.id,
+        memberCount: memberIds.length,
+        perPerson: Math.ceil(plan.amount / memberIds.length),
+      });
       const group = await yutoItPlan(plan.id, user.id, plan.title, plan.amount, memberIds);
       navigate(`/yuto/${group.id}`);
     } catch (err) { console.error(err); }
@@ -733,7 +776,7 @@ export default function HomeScreen() {
         onSubmitPlan={async (data) => {
           if (!user) return;
           const mediaFiles = Array.isArray(data?.mediaFiles) ? (data.mediaFiles as File[]) : [];
-          await createPlan(
+          const created = await createPlan(
             user.id,
             String(data?.title ?? "").trim(),
             data?.amount ? Number(data.amount) : null,
@@ -741,6 +784,11 @@ export default function HomeScreen() {
             null,
             mediaFiles,
           );
+          analytics.planCreated({
+            planId: (created as any)?.id ?? "unknown",
+            amount: data?.amount ? Number(data.amount) : null,
+            slots: null,
+          });
           await loadFeed();
         }}
         onSubmitFunction={async (data) => {
