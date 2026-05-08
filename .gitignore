@@ -6,3 +6,4 @@ build
 *.local
 .idea
 node_modules
+.env
