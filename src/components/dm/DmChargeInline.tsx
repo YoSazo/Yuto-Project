@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import type { DmMessage, ListingDmChargeRow } from "../../lib/supabase";
-import { getListingDmCharge, payListingDmCharge, releaseListingDmCharge } from "../../lib/supabase";
+import { getListingDmCharge, payListingDmCharge, releaseListingDmCharge, fetchYutoBalance } from "../../lib/supabase";
 import { toast } from "sonner";
 import { haptics } from "../../lib/haptics";
 import { Lock, ShieldCheck } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { YutoBalanceTopUpModal } from "../wallet/YutoBalanceTopUpModal";
+import { MIN_MPESA_TOPUP_KES } from "../../pages/home/computeTopUp";
 
 export function DmChargeInline({
   message,
@@ -21,6 +24,31 @@ export function DmChargeInline({
   const row = chargeId ? chargeCache[chargeId] : undefined;
   const [local, setLocal] = useState<ListingDmChargeRow | null>(null);
   const effective = row || local;
+
+  const { profile } = useAuth();
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState(MIN_MPESA_TOPUP_KES);
+
+  const handlePay = async () => {
+    if (!effective || !chargeId || !currentUserId) return;
+    try {
+      await payListingDmCharge(chargeId);
+      haptics.success();
+      toast.success("Paid from Yuto Balance");
+      await onRefreshCharge(chargeId);
+    } catch (e: any) {
+      console.error(e);
+      const msg = e.message || String(e);
+      if (msg.includes("Insufficient Yuto balance")) {
+        const currentBalance = await fetchYutoBalance(currentUserId);
+        const gap = effective.amount_kes - currentBalance;
+        setTopUpAmount(Math.max(MIN_MPESA_TOPUP_KES, gap));
+        setShowTopUp(true);
+      } else {
+        toast.error(msg || "Couldn't pay");
+      }
+    }
+  };
 
   useEffect(() => {
     if (!chargeId) return;
@@ -77,17 +105,7 @@ export function DmChargeInline({
         {pending && isBuyer && (
           <button
             type="button"
-            onClick={async () => {
-              try {
-                await payListingDmCharge(chargeId);
-                haptics.success();
-                toast.success("Paid from Yuto Balance");
-                await onRefreshCharge(chargeId);
-              } catch (e) {
-                console.error(e);
-                toast.error(e instanceof Error ? e.message : "Couldn't pay");
-              }
-            }}
+            onClick={handlePay}
             className="w-full py-3.5 rounded-2xl bg-black text-white font-extrabold text-base"
           >
             Pay with Yuto Balance
@@ -115,6 +133,22 @@ export function DmChargeInline({
         )}
         {!effective && <p className="text-sm text-gray-400 font-semibold">Loading…</p>}
       </div>
+
+      {showTopUp && currentUserId && effective && (
+        <YutoBalanceTopUpModal
+          open
+          onClose={() => setShowTopUp(false)}
+          userId={currentUserId}
+          mpesaPhoneNumber={profile?.phone_number || ""}
+          initialAmount={topUpAmount}
+          contextLine={`This charge is KSH ${effective.amount_kes.toLocaleString()}. You are short on Yuto Balance. Add at least KSH ${topUpAmount.toLocaleString()} to continue.`}
+          retryCtaLabel="I've paid — try again"
+          onRetryAfterPaid={async () => {
+            setShowTopUp(false);
+            await handlePay();
+          }}
+        />
+      )}
     </div>
   );
 }
