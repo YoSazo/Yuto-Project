@@ -1119,33 +1119,74 @@ return (
           {ownShowcaseTab === "functions" && (
             <div className="space-y-4">
               {ownFunctions.map(fn => (
-                <div key={fn.id} className="flex flex-col p-4 rounded-3xl border border-gray-100 bg-white shadow-sm">
+                <div key={fn.id} className="flex flex-col p-4 rounded-3xl border border-gray-100 bg-white shadow-sm relative overflow-hidden">
+                  
+                  {/* Functions 3-Dot Menu */}
+                  <button
+                    type="button"
+                    onClick={() => setOwnListingOptionsOpen(ownListingOptionsOpen === fn.id ? null : fn.id)}
+                    className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center border-none hover:bg-gray-200 transition-colors"
+                  >
+                    <span className="text-lg font-bold mb-2">...</span>
+                  </button>
+                  
+                  {ownListingOptionsOpen === fn.id && (
+                    <>
+                      <div className="fixed inset-0 z-20 cursor-default" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOwnListingOptionsOpen(null); }} />
+                      <div className="absolute top-12 right-3 z-30 w-40 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col py-1">
+                        <button type="button" onClick={() => { setOwnListingOptionsOpen(null); alert("Cancel flow coming soon"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">
+                          Cancel Event
+                        </button>
+                        <div className="h-px bg-gray-100 my-1 mx-2" />
+                        <button type="button" onClick={() => { setOwnListingOptionsOpen(null); alert("Delete flow coming soon"); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+
                   <div className="flex gap-4">
-                    <div className="w-24 h-24 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
+                    <div className="w-20 h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
                       {fn.image_url ? (
                         <img src={fn.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                          <Store size={26} />
+                          <Store size={22} />
                         </div>
                       )}
                     </div>
-                    <div className="min-w-0 flex-1 py-1">
+                    <div className="min-w-0 flex-1 py-0.5 pr-6">
                       <p className="font-extrabold text-lg text-black truncate">{fn.title}</p>
                       <p className="text-sm text-gray-400 font-semibold truncate mt-0.5">
                         {fn.date ? new Date(fn.date).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" }) : "Anytime"}
                         {fn.location ? ` · ${fn.location}` : ""}
                       </p>
-                      <p className="text-base font-black mt-2">KSH {fn.amount_per_person.toLocaleString()}</p>
+                      <p className="text-sm font-black mt-2">KSH {fn.amount_per_person.toLocaleString()}</p>
                     </div>
                   </div>
+                  
                   <div className="mt-4 pt-4 border-t border-gray-50 flex gap-2">
                     <button
                       type="button"
                       onClick={() => navigate("/home", { state: { focus: { kind: "function", id: fn.id }, forcePublicTab: true } })}
-                      className="flex-1 h-10 rounded-xl bg-gray-100 text-black border-none font-extrabold text-sm hover:bg-gray-200 transition-colors"
+                      className="flex-[1.5] h-10 rounded-xl bg-gray-100 text-black border-none font-extrabold text-sm hover:bg-gray-200 transition-colors"
                     >
-                      View Post
+                      View & Manage
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const link = `${window.location.origin}/join/${fn.id}`;
+                        if (navigator.share) {
+                          navigator.share({ title: fn.title, url: link });
+                        } else {
+                          navigator.clipboard.writeText(link);
+                          toast.success("Link copied!");
+                        }
+                      }}
+                      className="flex-1 h-10 rounded-xl bg-gray-100 text-black border-none font-extrabold text-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                       Share
                     </button>
                     <button
                       type="button"
