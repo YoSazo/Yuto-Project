@@ -15,6 +15,9 @@ import {
   payForFunctionWithLedger,
   getFunctionById,
   sendDmMessage,
+  updateFunctionListingStatus,
+  cancelHostListing,
+  submitUserReport,
   sendDmShareMessage,
   upsertDmBusinessContext,
   getSavedPhoneNumber,
@@ -78,6 +81,48 @@ export default function UserProfileScreen() {
   const [highlightReplyText, setHighlightReplyText] = useState("");
   const [highlightReplySending, setHighlightReplySending] = useState(false);
   const [highlightViewerMuted, setHighlightViewerMuted] = useState(true);
+  const [listingOptionsOpen, setListingOptionsOpen] = useState<string | null>(null);
+
+  const handleReportUser = async () => {
+    if (!targetUserId) return;
+    const reason = window.prompt("Why are you reporting this user? (Spam, scam, inappropriate behavior, etc.)");
+    if (!reason) return;
+    try {
+      await submitUserReport(targetUserId, reason);
+      toast.success("User reported. Our team will review this profile.");
+    } catch (e) {
+      toast.error("Couldn't submit report. Try again.");
+    }
+  };
+
+  const handleUpdateListingStatus = async (listingId: string, status: "active" | "sold" | "paused") => {
+    if (!user) return;
+    try {
+      await updateFunctionListingStatus(user.id, listingId, status);
+      setUserListings((prev) =>
+        prev.map((l) => (l.id === listingId ? { ...l, listing_status: status } : l))
+      );
+      toast.success(`Listing marked as ${status}`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Couldn't update listing.");
+    }
+    setListingOptionsOpen(null);
+  };
+
+  const handleDeleteListing = async (listingId: string) => {
+    if (!user) return;
+    if (!window.confirm("Are you sure you want to delete this listing?")) return;
+    try {
+      await cancelHostListing(user.id, listingId);
+      setUserListings((prev) => prev.filter((l) => l.id !== listingId));
+      toast.success("Listing deleted");
+    } catch (e) {
+      console.error(e);
+      toast.error("Couldn't delete listing.");
+    }
+    setListingOptionsOpen(null);
+  };
 
   useEffect(() => {
     const st = location.state as { openHighlightId?: string } | null;
@@ -322,7 +367,7 @@ export default function UserProfileScreen() {
             <>
               <button
                 type="button"
-                onClick={() => toast.success("User reported. Our team will review this profile.")}
+                onClick={handleReportUser}
                 className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 aria-label="Report user"
                 title="Report user"
@@ -588,9 +633,50 @@ export default function UserProfileScreen() {
                             </div>
                           </div>
                         )}
-                        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-black/80 text-white z-10">
+                        
+                        {listing.listing_status && listing.listing_status !== "active" && (
+                          <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-[2px]">
+                            <span className="px-4 py-2 bg-white text-black font-extrabold text-lg uppercase tracking-widest rounded-xl transform -rotate-6">
+                              {listing.listing_status}
+                            </span>
+                          </div>
+                        )}
+
+                        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-black/80 text-white z-20">
                           {listing.kind === "sell" ? "Sell" : "Service"}
                         </span>
+                        
+                        {user?.id === targetUserId && (
+                          <div className="absolute top-3 right-14 z-30">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setListingOptionsOpen(listingOptionsOpen === listing.id ? null : listing.id);
+                              }}
+                              className="w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 border-none shadow-sm"
+                            >
+                              <span className="text-xl font-bold mb-2">...</span>
+                            </button>
+                            {listingOptionsOpen === listing.id && (
+                              <div className="absolute top-12 right-0 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col py-1">
+                                {listing.listing_status !== "active" && (
+                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUpdateListingStatus(listing.id, "active"); }} className="px-4 py-2 text-sm font-bold text-left text-black hover:bg-gray-50 border-none bg-transparent">Re-list</button>
+                                )}
+                                {listing.listing_status !== "sold" && (
+                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUpdateListingStatus(listing.id, "sold"); }} className="px-4 py-2 text-sm font-bold text-left text-black hover:bg-gray-50 border-none bg-transparent">Mark Sold</button>
+                                )}
+                                {listing.listing_status !== "paused" && (
+                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUpdateListingStatus(listing.id, "paused"); }} className="px-4 py-2 text-sm font-bold text-left text-black hover:bg-gray-50 border-none bg-transparent">Pause</button>
+                                )}
+                                <div className="h-px bg-gray-100 my-1 mx-2" />
+                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteListing(listing.id); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">Delete</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {user && (
                           <button
                             type="button"
@@ -621,7 +707,7 @@ export default function UserProfileScreen() {
                           className="shrink-0 w-[3.25rem] rounded-2xl bg-gray-100 hover:bg-gray-200 text-black flex items-center justify-center transition-colors tap-scale disabled:opacity-40"
                           aria-label="Message about listing"
                           title="Message seller"
-                          disabled={!user}
+                          disabled={!user || listing.listing_status === "sold"}
                         >
                           <MessageCircle size={22} strokeWidth={2} />
                         </button>
@@ -633,9 +719,14 @@ export default function UserProfileScreen() {
                             if (!user || !targetUserId) return;
                             setListingInquiry(listing); // Opens the DM flow instead of instant debit
                           }}
-                          className="flex-1 min-h-[3.25rem] rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors inline-flex items-center justify-center px-4"
+                          disabled={listing.listing_status === "sold" || listing.listing_status === "paused"}
+                          className="flex-1 min-h-[3.25rem] rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors inline-flex items-center justify-center px-4 disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-500"
                         >
-                          {listing.kind === "service" ? "Message to book" : "Message to buy"}
+                          {listing.listing_status === "sold" 
+                            ? "Sold Out" 
+                            : listing.listing_status === "paused" 
+                              ? "Unavailable" 
+                              : listing.kind === "service" ? "Message to book" : "Message to buy"}
                         </button>
                       </div>
                     </div>
