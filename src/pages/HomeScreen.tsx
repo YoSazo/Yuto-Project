@@ -154,10 +154,13 @@ export default function HomeScreen() {
   }, [user?.id]);
 
   useEffect(() => {
-    const focus = (location.state as any)?.focus as { kind?: string; id?: string } | undefined;
+    const state = location.state as any;
+    const focus = state?.focus as { kind?: string; id?: string } | undefined;
     if (!focus?.kind || !focus?.id) return;
+    if (state?.forcePublicTab) {
+      setActiveTab("public");
+    }
     if (focusAttemptRef.current === "none") {
-      // Start by ensuring public tab is active (functions are public; plans might be public too).
       setActiveTab("public");
       focusAttemptRef.current = "public";
     }

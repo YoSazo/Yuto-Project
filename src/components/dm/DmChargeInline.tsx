@@ -81,21 +81,20 @@ export function DmChargeInline({
   const cancelled = effective?.status === "cancelled";
 
   return (
-    <div
-      className={[
-        "max-w-[min(100%,20rem)] rounded-3xl border-2 p-4 shadow-sm",
-        effective?.release_mode === "held" ? "border-sky-200 bg-sky-50" : "border-emerald-200 bg-emerald-50",
-      ].join(" ")}
-    >
-      <div className="flex items-center gap-2 mb-1">
-        {effective?.release_mode === "held" ? (
-          <Lock size={16} className="text-sky-700 shrink-0" />
-        ) : (
-          <ShieldCheck size={16} className="text-emerald-700 shrink-0" />
-        )}
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-          {effective?.release_mode === "held" ? "Pay — held until handoff" : "Pay — trust / delivery"}
-        </p>
+    <div className="max-w-[min(100%,22rem)] rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+  <div className="flex items-center gap-2 mb-2">
+    {effective?.release_mode === "held" ? (
+      <Lock size={14} className="text-gray-400 shrink-0" />
+    ) : (
+      <ShieldCheck size={14} className="text-gray-400 shrink-0" />
+    )}
+    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+      {effective?.release_mode === "held" ? "Pay — held until handoff" : "Pay — trust / delivery"}
+    </p>
+  </div>
+  <p className="text-3xl font-black text-black leading-tight">
+    KSH {effective ? effective.amount_kes.toLocaleString("en-KE") : "—"}
+  </p>
       </div>
       <p className="text-2xl font-black text-black">KSH {effective ? effective.amount_kes.toLocaleString("en-KE") : "—"}</p>
       {effective?.note ? <p className="text-xs text-gray-600 mt-1 font-semibold">{effective.note}</p> : null}
@@ -106,7 +105,7 @@ export function DmChargeInline({
           <button
             type="button"
             onClick={handlePay}
-            className="w-full py-3.5 rounded-2xl bg-black text-white font-extrabold text-base"
+            className="w-full py-4 rounded-2xl bg-black text-green-400 font-extrabold text-lg"
           >
             Pay with Yuto Balance
           </button>
@@ -135,7 +134,7 @@ export function DmChargeInline({
                 toast.error(e instanceof Error ? e.message : "Couldn't release");
               }
             }}
-            className="w-full py-3.5 rounded-2xl bg-sky-600 text-white font-extrabold text-base"
+            className="w-full py-4 rounded-2xl bg-black text-white font-extrabold text-lg"
           >
             {isBuyer
               ? effective.note?.toLowerCase().includes("service") || effective.function_id

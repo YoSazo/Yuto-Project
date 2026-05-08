@@ -323,8 +323,15 @@ export default function YutoGroupScreen() {
         setMembers(list);
 
         // Auto-join
+        // AFTER — guard against non-members entirely
         const me = gmem.find((gm: any) => gm.user_id === user.id);
-        if (me && !me.has_joined) {
+        if (!me) {
+          // Not a member of this group at all — redirect back
+          navigate(-1);
+          toast.error("You're not part of this split.");
+          return;
+        }
+        if (!me.has_joined) {
           await joinGroup(groupId, user.id);
           setMembers((prev) => prev.map((m) => m.user_id === user.id ? { ...m, hasJoined: true } : m));
         }

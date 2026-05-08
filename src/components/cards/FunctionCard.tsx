@@ -330,28 +330,9 @@ export function FunctionCard({
             )}
 
             {isHost ? (
-              <div className="flex items-center gap-2">
-                <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>Hosting</span>
-                {onDuplicate && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDuplicate(eventFunction);
-                    }}
-                    className={[
-                      "inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-bold transition-colors",
-                      isFunction
-                        ? "bg-white/15 text-white hover:bg-white/25"
-                        : "bg-gray-100 text-black hover:bg-gray-200",
-                    ].join(" ")}
-                    title="Run this again next week"
-                  >
-                    <Copy size={11} />
-                    Run again
-                  </button>
-                )}
-              </div>
+              <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>
+                Hosting
+              </span>
             ) : suppressListingPay && isListing ? (
               <span className={["text-xs font-semibold text-center max-w-[11rem]", isFunction ? "text-white/55" : "text-gray-400"].join(" ")}>
                 Pay in chat when ready

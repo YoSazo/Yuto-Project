@@ -182,7 +182,7 @@ export function PlanCard({
               )}
             </button>
           )}
-          {allIn && plan.yuto_group_id && isMember && onNavigateToYutoGroup && (
+          {plan.yuto_group_id && isMember && onNavigateToYutoGroup && (
             <button
               type="button"
               onClick={() => onNavigateToYutoGroup(plan.yuto_group_id!)}

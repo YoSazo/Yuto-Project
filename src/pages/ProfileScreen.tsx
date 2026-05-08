@@ -30,7 +30,9 @@ import { TransactionReceiptModal } from "../components/profile/TransactionReceip
 import { useCountUp } from "../hooks/useCountUp";
 import { toast } from "sonner";
 import { haptics } from "../lib/haptics";
-
+import { getUserListings, getUserHostedFunctions, type StorefrontListingItem, type HostedFunctionItem } from "../lib/supabase";
+import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
+import { Store } from "lucide-react";
 
 function ChevronRight() {
   return (
@@ -205,6 +207,10 @@ export default function ProfileScreen() {
   const [sendNote, setSendNote] = useState("");
   const [sendBusy, setSendBusy] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [ownListings, setOwnListings] = useState<StorefrontListingItem[]>([]);
+  const [ownFunctions, setOwnHostedFunctions] = useState<HostedFunctionItem[]>([]);
+  const [ownShowcaseTab, setOwnShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
+  const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
 
   // Highlights (max 2, 2 photos each)
   const [highlights, setHighlights] = useState<Highlight[]>([]);
@@ -224,10 +230,13 @@ export default function ProfileScreen() {
   const highlightLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightPendingDelete, setHighlightPendingDelete] = useState<string | null>(null);
   const [myListings, setMyListings] = useState<Array<{ id: string; title: string; kind: "sell" | "service"; amount_per_person: number }>>([]);
-
+  const [ownListings, setOwnListings] = useState<StorefrontListingItem[]>([]);
+  const [ownFunctions, setOwnHostedFunctions] = useState<HostedFunctionItem[]>([]);
+  const [ownShowcaseTab, setOwnShowcaseTab] = useState<"functions" | "sell" | "service">("functions");
   const animatedBalance = useCountUp(points, 1100);
   const prevBalanceRef = useRef<number | null>(null);
   const [balancePulse, setBalancePulse] = useState(false);
+  
 
   useEffect(() => {
     if (prevBalanceRef.current === null) {
@@ -438,6 +447,13 @@ export default function ProfileScreen() {
           getPendingRequests(user.id),
           supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", user.id),
         ]);
+
+        const [listingRows, hostedRows] = await Promise.all([
+          getUserListings(user.id, user.id).catch(() => []),
+          getUserHostedFunctions(user.id).catch(() => []),
+        ]);
+        setOwnListings(listingRows as StorefrontListingItem[]);
+        setOwnHostedFunctions(hostedRows as HostedFunctionItem[]);
   
         const paidGroups = (groups as any[]).filter((g: any) =>
           (g.group_members ?? []).some((m: any) => m.user_id === user.id && m.has_paid)
@@ -1323,7 +1339,7 @@ export default function ProfileScreen() {
                 }}
               />
 
-              <button
+<button
                 type="button"
                 className="absolute inset-y-0 right-0 w-1/2 border-none bg-transparent z-40"
                 aria-label="Next photo"
@@ -1342,6 +1358,165 @@ export default function ProfileScreen() {
         )}
       </AnimatePresence>
 
+      {/* ── Own Storefront / Functions ── */}
+      {(() => {
+        const sellListings = ownListings.filter(l => l.kind === "sell");
+        const serviceListings = ownListings.filter(l => l.kind === "service");
+        const hasFns = ownFunctions.length > 0;
+        const available: Array<{ id: "functions" | "sell" | "service"; label: string }> = [];
+        if (hasFns) available.push({ id: "functions", label: "Functions" });
+        if (sellListings.length > 0) available.push({ id: "sell", label: "Storefront" });
+        if (serviceListings.length > 0) available.push({ id: "service", label: "Services" });
+        if (available.length === 0) return null;
+        
+        return (
+          <div className="mb-6">
+            {available.length > 1 && (
+              <div className="flex justify-center mb-4">
+                <div className="inline-flex rounded-full bg-gray-100 p-1">
+                  {available.map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setOwnShowcaseTab(t.id)}
+                      className={[
+                        "px-4 py-2 rounded-full text-sm font-extrabold transition-colors border-none",
+                        ownShowcaseTab === t.id ? "bg-black text-white" : "bg-transparent text-gray-400",
+                      ].join(" ")}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {available.length === 1 && (
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 text-center">
+                {available[0]!.label}
+              </p>
+            )}
+            
+            {ownShowcaseTab === "functions" && (
+              <div className="space-y-3">
+                {ownFunctions.map(fn => (
+                  <div key={fn.id} className="flex gap-3 p-3 rounded-2xl border border-gray-100 bg-white shadow-sm">
+                    <div className="w-20 h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
+                      {fn.image_url ? (
+                        <img src={fn.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+                          <Store size={22} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-extrabold text-black truncate">{fn.title}</p>
+                      <p className="text-sm text-gray-400 font-semibold truncate">
+                        {fn.date ? new Date(fn.date).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" }) : "Anytime"}
+                        {fn.location ? ` · ${fn.location}` : ""}
+                      </p>
+                      <p className="text-sm font-extrabold mt-1">KSH {fn.amount_per_person.toLocaleString()}</p>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => navigate("/home", { state: { focus: { kind: "function", id: fn.id }, forcePublicTab: true } })}
+                          className="h-9 px-4 rounded-xl bg-gray-100 text-black border-none font-extrabold text-sm"
+                        >
+                          View on Home
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!user) return;
+                            try {
+                              await duplicateFunction(user.id, fn.id, 7);
+                              toast.success("Duplicated for next week!");
+                              const rows = await getUserHostedFunctions(user.id);
+                              setOwnHostedFunctions(rows as HostedFunctionItem[]);
+                            } catch (e: any) {
+                              toast.error(e?.message || "Couldn't duplicate");
+                            }
+                          }}
+                          className="h-9 px-4 rounded-xl bg-black border-none text-white font-extrabold text-sm"
+                        >
+                          Run again
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {(ownShowcaseTab === "sell" || ownShowcaseTab === "service") && (() => {
+              const listings = ownShowcaseTab === "sell" ? sellListings : serviceListings;
+              return (
+                <div className="flex flex-col gap-5">
+                  {listings.map(listing => (
+                    <div key={listing.id} className="rounded-3xl border border-gray-100 bg-white shadow-md overflow-hidden">
+                      <div className="relative">
+                        {listing.media.length > 0 || listing.image_url ? (
+                          <FixedMediaCarousel
+                            items={(listing.media.length > 0 ? listing.media : [{ id: "", media_url: listing.image_url!, media_type: "image", sort_index: 0 }])
+                              .map(m => ({ url: m.media_url, type: String(m.media_type || "").startsWith("video") ? "video" as const : "image" as const }))}
+                          />
+                        ) : (
+                          <div className="aspect-[4/5] bg-gray-100 flex items-center justify-center text-gray-300">
+                            <Store size={34} />
+                          </div>
+                        )}
+                        
+                        {listing.listing_status && listing.listing_status !== "active" && (
+                          <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-[2px]">
+                            <span className="px-4 py-2 bg-white text-black font-extrabold text-lg uppercase tracking-widest rounded-xl -rotate-6">
+                              {listing.listing_status === "sold" ? "SOLD" : "PAUSED"}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* 3-dot menu */}
+                        <button
+                          type="button"
+                          onClick={() => setOwnListingOptionsOpen(ownListingOptionsOpen === listing.id ? null : listing.id)}
+                          className="absolute top-3 right-3 z-20 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center border-none"
+                        >
+                          <span className="text-xl font-bold mb-1.5">...</span>
+                        </button>
+                        
+                        {ownListingOptionsOpen === listing.id && (
+                          <div className="absolute top-14 right-3 z-30 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col py-1">
+                            {listing.listing_status !== "active" && (
+                              <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "active"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "active" } : l)); setOwnListingOptionsOpen(null); toast.success("Re-listed!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Re-list</button>
+                            )}
+                            {listing.listing_status !== "sold" && (
+                              <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "sold"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "sold" } : l)); setOwnListingOptionsOpen(null); toast.success("Marked sold!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Mark Sold</button>
+                            )}
+                            {listing.listing_status !== "paused" && (
+                              <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "paused"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "paused" } : l)); setOwnListingOptionsOpen(null); toast.success("Paused!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Pause</button>
+                            )}
+                            <div className="h-px bg-gray-100 my-1 mx-2" />
+                            <button type="button" onClick={async () => { if (!window.confirm("Delete this listing?")) return; await cancelHostListing(user!.id, listing.id); setOwnListings(prev => prev.filter(l => l.id !== listing.id)); setOwnListingOptionsOpen(null); toast.success("Deleted"); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">Delete</button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <p className="font-extrabold text-black text-base">{listing.title}</p>
+                        <p className="text-sm font-bold mt-1">KSH {listing.amount_per_person.toLocaleString()}</p>
+                        <p className="text-xs text-gray-400 mt-1 font-semibold">{listing.kind === "sell" ? "Sell" : "Service"}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        );
+      })()}
+
+
+      {/* NEW: Yuto Wallet Card */}
+      <div className="bg-black rounded-3xl p-6 text-white mb-6 relative overflow-hidden shadow-lg">
+      
 
       {/* Transaction History Modal */}
       {showHistoryModal && (

@@ -433,7 +433,7 @@ export default function MessagesScreen() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => navigate("/home", { state: { focus: { kind: "function", id: row.id } } })}
+                      onClick={() => navigate("/home", { state: { focus: { kind: "function", id: row.id }, forcePublicTab: true } })}
                       className="px-4 py-2 rounded-full bg-black text-white text-sm font-bold"
                     >
                       View
