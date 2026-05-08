@@ -1211,7 +1211,7 @@ return (
             </div>
           )}
 
-          {(ownShowcaseTab === "sell" || ownShowcaseTab === "service") && (() => {
+{(ownShowcaseTab === "sell" || ownShowcaseTab === "service") && (() => {
             const listings = ownShowcaseTab === "sell" ? sellListings : serviceListings;
             return (
               <div className="flex flex-col gap-6">
@@ -1238,8 +1238,8 @@ return (
                         </div>
                       )}
                       
-{/* 3-dot menu */}
-<button
+                      {/* 3-dot menu */}
+                      <button
                         type="button"
                         onClick={() => setOwnListingOptionsOpen(ownListingOptionsOpen === listing.id ? null : listing.id)}
                         className="absolute top-3 right-3 z-20 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center border-none"
@@ -1261,17 +1261,18 @@ return (
                           
                           <div className="absolute top-14 right-3 z-30 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col py-1">
                             {listing.listing_status !== "active" && (
-                            <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "active"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "active" } : l)); setOwnListingOptionsOpen(null); toast.success("Re-listed!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Re-list</button>
-                          )}
-                          {listing.listing_status !== "sold" && (
-                            <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "sold"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "sold" } : l)); setOwnListingOptionsOpen(null); toast.success("Marked sold!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Mark Sold</button>
-                          )}
-                          {listing.listing_status !== "paused" && (
-                            <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "paused"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "paused" } : l)); setOwnListingOptionsOpen(null); toast.success("Paused!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Pause</button>
-                          )}
-                          <div className="h-px bg-gray-100 my-1 mx-2" />
-                          <button type="button" onClick={async () => { if (!window.confirm("Delete this listing?")) return; await cancelHostListing(user!.id, listing.id); setOwnListings(prev => prev.filter(l => l.id !== listing.id)); setOwnListingOptionsOpen(null); toast.success("Deleted"); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">Delete</button>
-                        </div>
+                              <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "active"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "active" } : l)); setOwnListingOptionsOpen(null); toast.success("Re-listed!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Re-list</button>
+                            )}
+                            {listing.listing_status !== "sold" && (
+                              <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "sold"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "sold" } : l)); setOwnListingOptionsOpen(null); toast.success("Marked sold!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Mark Sold</button>
+                            )}
+                            {listing.listing_status !== "paused" && (
+                              <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "paused"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "paused" } : l)); setOwnListingOptionsOpen(null); toast.success("Paused!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Pause</button>
+                            )}
+                            <div className="h-px bg-gray-100 my-1 mx-2" />
+                            <button type="button" onClick={async () => { if (!window.confirm("Delete this listing?")) return; await cancelHostListing(user!.id, listing.id); setOwnListings(prev => prev.filter(l => l.id !== listing.id)); setOwnListingOptionsOpen(null); toast.success("Deleted"); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">Delete</button>
+                          </div>
+                        </>
                       )}
                     </div>
                     {/* Text Block */}
