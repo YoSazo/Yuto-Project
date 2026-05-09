@@ -55,7 +55,7 @@ export function FunctionMessagesModal({
       const data = await getFunctionMessages(functionItem.id);
       setMessages((data as FunctionMessage[]) || []);
       // Server-side read receipt — clears the unread dot on every device.
-      void markFunctionRead(functionItem.id, currentUserId).catch(() => {});
+      void markFunctionRead(functionItem.id, currentUserId).catch(() => { });
       onMessagesRead?.(functionItem.id);
     } catch (err) {
       console.error("load function messages error:", err);
@@ -141,7 +141,7 @@ export function FunctionMessagesModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-      <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up max-h-[92vh] flex flex-col">
+      <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up max-h-[92vh] flex flex-col">
         <div className="flex justify-between items-start gap-3 mb-4">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Questions</p>
@@ -200,12 +200,19 @@ export function FunctionMessagesModal({
                     />
                   )}
                   <div
-                    className={`max-w-[82%] rounded-2xl px-3 py-2 ${isMe ? "bg-black text-white rounded-tr-sm" : "bg-gray-50 text-black rounded-tl-sm"}`}
+                    className={`max-w-[82%] rounded-2xl px-3 py-2 ${isMe ? "bg-black text-white rounded-tr-sm" : "bg-gray-50 dark:bg-zinc-800 text-black dark:text-white rounded-tl-sm"}`}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
-                      <p className={`text-xs font-semibold ${isMe ? "text-white/75" : "text-gray-500"}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          navigate(`/user/${message.user_id}`);
+                        }}
+                        className={`text-xs font-semibold bg-transparent border-none p-0 cursor-pointer ${isMe ? "text-white/75" : "text-gray-500 hover:text-black dark:hover:text-white"}`}
+                      >
                         {isMe ? "You" : message.profiles.display_name}
-                      </p>
+                      </button>
                       {isHost && !isMe && (
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-black text-white">Host</span>
                       )}
@@ -235,7 +242,7 @@ export function FunctionMessagesModal({
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
               placeholder="Ask a question about the function..."
-              className="flex-1 h-20 resize-none rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors"
+              className="flex-1 h-20 resize-none rounded-2xl border border-gray-200 dark:border-zinc-700 bg-transparent text-black dark:text-white px-4 py-3 text-sm focus:outline-none focus:border-black dark:focus:border-white transition-colors placeholder-gray-400 dark:placeholder-gray-500"
               maxLength={320}
             />
             <button

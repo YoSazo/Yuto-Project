@@ -56,7 +56,7 @@ export function PlanMessagesModal({
       const arr = (data as PlanMessage[]) || [];
       setMessages(arr);
       // Server-side read receipt — every device clears the unread dot.
-      void markPlanRead(plan.id, currentUserId).catch(() => {});
+      void markPlanRead(plan.id, currentUserId).catch(() => { });
     } catch (err) {
       console.error("load plan messages error:", err);
     }
@@ -165,7 +165,7 @@ export function PlanMessagesModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50">
-      <div className="bg-white rounded-t-3xl w-full max-w-md flex flex-col" style={{ height: "75vh" }}>
+      <div className="bg-white dark:bg-zinc-900 rounded-t-3xl w-full max-w-md flex flex-col" style={{ height: "75vh" }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 gap-3">
           <div className="min-w-0">
             <h2 className="font-bold text-lg text-black truncate">{plan.title}</h2>
@@ -219,13 +219,20 @@ export function PlanMessagesModal({
                   )}
                   <div className={`max-w-[75%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-0.5`}>
                     {!isMe && (
-                      <span className="text-[11px] text-gray-400 ml-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          navigate(`/user/${message.user_id}`);
+                        }}
+                        className="text-[11px] text-gray-400 ml-1 bg-transparent border-none p-0 cursor-pointer hover:text-black dark:hover:text-white"
+                      >
                         {message.profiles.display_name}
                         {isCreator && " · Creator"}
-                      </span>
+                      </button>
                     )}
                     <div
-                      className={`px-3 py-2 rounded-2xl text-sm ${isMe ? "bg-black text-white rounded-br-sm" : "bg-gray-100 text-black rounded-bl-sm"}`}
+                      className={`px-3 py-2 rounded-2xl text-sm ${isMe ? "bg-black text-white rounded-br-sm" : "bg-gray-100 dark:bg-zinc-800 text-black dark:text-white rounded-bl-sm"}`}
                     >
                       {message.content}
                     </div>
@@ -250,7 +257,7 @@ export function PlanMessagesModal({
             onChange={(e) => setMessageInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !sendingMessage && handleSend()}
             placeholder="Say something..."
-            className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm outline-none focus:bg-gray-200 transition-colors"
+            className="flex-1 bg-gray-100 dark:bg-zinc-800 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded-full px-4 py-2.5 text-sm outline-none focus:bg-gray-200 dark:focus:bg-zinc-700 transition-colors"
             maxLength={500}
           />
           <button

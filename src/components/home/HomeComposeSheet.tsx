@@ -94,10 +94,8 @@ export function HomeComposeSheet({
     if (!title.trim()) return false;
     if (composeMode === "plan") return true;
 
-    // For Sell and Service, photos are required
-    if ((composeMode === "sell" || composeMode === "service") && createMediaFiles.length === 0) {
-      return false;
-    }
+    // Photos required for all non-plan types
+    if (createMediaFiles.length === 0) return false;
 
     return (parseInt(amount) || 0) > 0;
   }, [title, amount, composeMode, createMediaFiles.length]);
@@ -168,25 +166,22 @@ export function HomeComposeSheet({
       <div className="relative flex w-[240px] bg-gray-100 dark:bg-zinc-800 rounded-full p-1">
         {/* Sliding Background Pill */}
         <div
-          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-zinc-700 rounded-full shadow-sm transition-transform duration-300 cubic-bezier(0.4, 0, 0.2, 1) ${
-            topMode === "create" ? "translate-x-0" : "translate-x-[calc(100%+8px)]"
-          }`}
+          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-zinc-700 rounded-full shadow-sm transition-transform duration-300 cubic-bezier(0.4, 0, 0.2, 1) ${topMode === "create" ? "translate-x-0" : "translate-x-[calc(100%+8px)]"
+            }`}
         />
         <button
           type="button"
           onClick={() => setTopMode("create")}
-          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 border-none bg-transparent ${
-            topMode === "create" ? "text-black dark:text-white" : "text-gray-400 dark:text-gray-500"
-          }`}
+          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 border-none bg-transparent ${topMode === "create" ? "text-black dark:text-white" : "text-gray-400 dark:text-gray-500"
+            }`}
         >
           Create
         </button>
         <button
           type="button"
           onClick={() => setTopMode("post")}
-          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 border-none bg-transparent ${
-            topMode === "post" ? "text-black dark:text-white" : "text-gray-400 dark:text-gray-500"
-          }`}
+          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 border-none bg-transparent ${topMode === "post" ? "text-black dark:text-white" : "text-gray-400 dark:text-gray-500"
+            }`}
         >
           Post
         </button>
@@ -201,7 +196,7 @@ export function HomeComposeSheet({
       <button type="button" className="absolute inset-0 border-none bg-transparent" aria-label="Dismiss" onClick={onClose} />
 
       <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl p-5 modal-slide-up flex flex-col max-h-[90vh]">
-        
+
         {/* Header & Toggle */}
         <div className="flex items-center justify-between mb-2">
           <p className="font-extrabold text-black dark:text-white text-lg">
@@ -358,10 +353,12 @@ export function HomeComposeSheet({
 
               {createError && <p className="text-sm text-red-600">{createError}</p>}
 
-              {(composeMode === "sell" || composeMode === "service") && createMediaFiles.length === 0 && (
+              {createMediaFiles.length === 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-sm text-amber-800 font-semibold flex items-start gap-2">
                   <span className="text-amber-500 mt-0.5">⚠️</span>
-                  Photos are required for listings. They help you sell 3x faster!
+                  {composeMode === "sell" || composeMode === "service"
+                    ? "At least 1 photo is required for listings."
+                    : "At least 1 photo is required for functions."}
                 </div>
               )}
 
@@ -395,8 +392,8 @@ export function HomeComposeSheet({
                     <p className="font-bold text-sm text-black dark:text-white truncate">{taggedEntity.title}</p>
                     <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{taggedEntity.kind}</p>
                   </div>
-                  <button 
-                    onClick={() => setTaggedEntity(null)} 
+                  <button
+                    onClick={() => setTaggedEntity(null)}
                     className="w-8 h-8 border-none rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-zinc-700"
                   >
                     <X size={14} />
@@ -432,9 +429,9 @@ export function HomeComposeSheet({
                 >
                   <ImageIcon size={20} />
                 </button>
-                <button 
+                <button
                   type="button"
-                  onClick={() => setShowTagPicker(true)} 
+                  onClick={() => setShowTagPicker(true)}
                   className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-black hover:bg-gray-200 transition-colors"
                 >
                   <Tag size={20} />
