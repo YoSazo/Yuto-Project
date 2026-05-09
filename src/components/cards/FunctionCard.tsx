@@ -87,8 +87,17 @@ export function FunctionCard({
         ? window.location.origin
         : "https://yuto.social";
     const url = `${shareOrigin}/function/${f.id}`;
-    const title = `🎉 ${f.host.display_name} is hosting a ${f.title}`;
-    const text = `${formatEventDate(f.date)} · KSH ${f.amount_per_person.toLocaleString("en-KE")}`;
+
+    // Correct labels based on listing type
+    let title = "";
+    if (isSell) title = `🛍️ ${f.host.display_name} is selling ${f.title}`;
+    else if (isService) title = `🛠️ ${f.host.display_name} is offering ${f.title}`;
+    else title = `🎉 ${f.host.display_name} is hosting a ${f.title}`;
+
+    const text = isListing
+      ? `KSH ${f.amount_per_person.toLocaleString("en-KE")}`
+      : `${formatEventDate(f.date)} · KSH ${f.amount_per_person.toLocaleString("en-KE")}`;
+
     try {
       if (navigator.share) {
         await navigator.share({ title, text, url });
@@ -112,7 +121,7 @@ export function FunctionCard({
         "w-full rounded-3xl p-4 relative overflow-hidden",
         isFunction
           ? "bg-black border border-black text-white"
-          : "bg-white border border-gray-200/80 text-black premium-function-card function-card-highlight",
+          : "bg-white dark:bg-zinc-900 border border-gray-200/80 dark:border-zinc-800 text-black dark:text-white premium-function-card function-card-highlight",
       ].join(" ")}
     >
       <div className="flex items-start gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
@@ -127,17 +136,20 @@ export function FunctionCard({
         tabIndex={0}
       >
         <UserAvatar name={eventFunction.host.display_name} avatarUrl={eventFunction.host.avatar_url} size="sm" />
-        <div className="flex-1">
-          {isFunction && (
-            <p className={["font-semibold text-sm", isFunction ? "text-white" : "text-black"].join(" ")}>
-              {`${eventFunction.host.display_name} is hosting a function`}
-            </p>
-          )}
-          {!isListing && (
-            <p className={["text-xs", isFunction ? "text-white/70" : "text-gray-400"].join(" ")}>
-              {formatEventDate(eventFunction.date)}
-            </p>
-          )}
+        <div className="flex-1 min-w-0">
+          <p className={["font-semibold text-sm truncate", isFunction ? "text-white" : "text-black dark:text-white"].join(" ")}>
+            {eventFunction.host.display_name}
+          </p>
+          <p className={["text-xs flex items-center gap-1 mt-0.5", isFunction ? "text-white/70" : "text-gray-400"].join(" ")}>
+            {isListing ? (
+              <>Available now</>
+            ) : (
+              <>
+                <MapPin size={11} className="shrink-0" />
+                <span className="truncate">{eventFunction.location || "Online"} · {formatEventDate(eventFunction.date)}</span>
+              </>
+            )}
+          </p>
         </div>
         <span
           className={[
@@ -158,7 +170,7 @@ export function FunctionCard({
 
       <div className="flex items-start justify-between gap-3 mb-1">
         <p 
-          className={`font-bold text-lg flex-1 min-w-0 ${isFunction ? "text-white" : "text-black"} ${
+          className={`font-bold text-lg flex-1 min-w-0 ${isFunction ? "text-white" : "text-black dark:text-white"} ${
             (isListing && eventFunction.listing_status && eventFunction.listing_status !== "active") || 
             (isFunction && (eventFunction as any).status === "cancelled") 
               ? "opacity-60 line-through" 
@@ -183,7 +195,7 @@ export function FunctionCard({
               "shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors tap-scale border",
               isFunction
                 ? "border-white/20 bg-white/10 text-white hover:bg-white/15"
-                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-sm",
+                : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 shadow-sm",
             ].join(" ")}
             aria-label={`Send ${eventFunction.title} in messages`}
             title="Share in messages"
@@ -224,7 +236,7 @@ export function FunctionCard({
         );
       })()}
       {cleanedDescription && (
-        <p className={["text-sm mb-3", isFunction ? "text-white/80" : "text-gray-600"].join(" ")}>{cleanedDescription}</p>
+        <p className={["text-sm mb-3", isFunction ? "text-white/80" : "text-gray-600 dark:text-gray-400"].join(" ")}>{cleanedDescription}</p>
       )}
 
       {/* No contact/booking pill on listings (DM flow handles it). */}
@@ -241,12 +253,12 @@ export function FunctionCard({
         {isListing ? (
           <>
             {remainingStock != null && (
-              <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+              <span className="bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                 <Sparkles size={14} /> {remainingStock} {isService ? "spots left" : "left"}
               </span>
             )}
             {paidCount > 0 && (
-              <span className="bg-gray-100 text-gray-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+              <span className="bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                 <Users size={14} /> {paidCount} {isSell ? "bought" : "booked"}
               </span>
             )}
@@ -257,7 +269,7 @@ export function FunctionCard({
             onClick={() => onOpenPeople?.(eventFunction.id, `${joinedCount} going`)}
             className={[
               "font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border",
-              isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 text-gray-600 border-transparent",
+              isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-transparent",
             ].join(" ")}
           >
             <span className="inline-flex items-center gap-1.5">
@@ -273,7 +285,7 @@ export function FunctionCard({
           <span
             className={[
               "font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 border",
-              isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 text-gray-600 border-transparent",
+              isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-transparent",
             ].join(" ")}
           >
             <MapPin size={14} /> {eventFunction.location}
@@ -283,7 +295,7 @@ export function FunctionCard({
           <span
             className={[
               "font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 border",
-              isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 text-gray-600 border-transparent",
+              isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-transparent",
             ].join(" ")}
           >
             <Sparkles size={14} /> {eventFunction.max_capacity} max
@@ -297,7 +309,7 @@ export function FunctionCard({
         </div>
       )}
 
-      <div className={["pt-1 border-t", isFunction ? "border-white/10" : "border-gray-100"].join(" ")}>
+      <div className={["pt-1 border-t", isFunction ? "border-white/10" : "border-gray-100 dark:border-zinc-800"].join(" ")}>
         <div className="flex items-center justify-between gap-2 mt-3">
           <div className={["text-xs flex items-center gap-1.5", isFunction ? "text-white/65" : "text-gray-400"].join(" ")}>
             <CalendarDays size={13} /> {isListing ? "Available now" : formatEventDate(eventFunction.date)}
@@ -309,7 +321,7 @@ export function FunctionCard({
               onClick={() => void shareFunction(eventFunction)}
               className={[
                 "w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
-                isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700",
               ].join(" ")}
               aria-label={`Copy or share ${eventFunction.title} link`}
               title="Share link"
@@ -323,7 +335,7 @@ export function FunctionCard({
                 onClick={() => onOpenFunctionThread(eventFunction)}
                 className={[
                   "relative w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
-                  isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                  isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700",
                 ].join(" ")}
                 aria-label={`Ask questions about ${eventFunction.title}`}
                 title="Ask questions"
@@ -384,7 +396,7 @@ export function FunctionCard({
                 onClick={() => onJoinFunction?.(eventFunction)}
                 className={[
                   "px-4 py-2 rounded-xl font-bold text-sm transition-colors",
-                  isFunction ? "bg-white text-black hover:bg-white/90" : "bg-black text-white hover:bg-gray-800",
+                  isFunction ? "bg-white text-black hover:bg-white/90" : "bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-100",
                 ].join(" ")}
               >
                 {isSell ? "Pay & buy" : isService ? "Pay & book" : "Pay & join"}
@@ -430,4 +442,3 @@ export function FunctionCard({
     </div>
   );
 }
-

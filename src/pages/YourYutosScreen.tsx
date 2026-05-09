@@ -40,31 +40,32 @@ function YutoCard({ group, onClick, onDelete }: { group: GroupData; onClick: () 
   const paidCount = members.filter((m) => m.has_paid).length;
   const progress = members.length > 0 ? (paidCount / members.length) * 100 : 0;
   const isActive = group.status === "active";
+  const isCancelled = group.status === "cancelled";
 
   return (
     <button
       onClick={onClick}
-      className="w-full bg-white border border-gray-200 rounded-2xl p-4 text-left transition-all tap-scale hover:border-gray-300"
+      className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-4 text-left transition-all tap-scale hover:border-gray-300 dark:hover:border-zinc-700"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-base text-black truncate">{group.name}</p>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="font-bold text-base text-black dark:text-white truncate">{group.name}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             KSH {group.per_person.toLocaleString()} each · {members.length} people
           </p>
         </div>
         <div className="flex items-center gap-2 ml-3 flex-shrink-0">
           <span
             className={`text-xs font-semibold px-3 py-1 rounded-full ${
-              isActive ? "bg-black text-white" : "bg-gray-100 text-gray-500"
+              isActive ? "bg-black dark:bg-white text-white dark:text-black" : isCancelled ? "bg-red-50 text-red-500 dark:bg-red-500/20 dark:text-red-400" : "bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400"
             }`}
           >
-            {isActive ? "Active" : "Done"}
+            {isActive ? "Active" : isCancelled ? "Cancelled" : "Done"}
           </span>
           {!isActive && onDelete && (
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 transition-colors border-none cursor-pointer"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors border-none cursor-pointer"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6" />
@@ -79,9 +80,9 @@ function YutoCard({ group, onClick, onDelete }: { group: GroupData; onClick: () 
 
       {isActive && (
         <div className="mb-2">
-          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-black rounded-full transition-all duration-500"
+              className="h-full bg-black dark:bg-white rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -96,13 +97,13 @@ function YutoCard({ group, onClick, onDelete }: { group: GroupData; onClick: () 
           {members.slice(0, 4).map((m, i) => (
             <div
               key={i}
-              className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600"
+              className="w-6 h-6 rounded-full bg-gray-200 dark:bg-zinc-700 border-2 border-white dark:border-zinc-900 flex items-center justify-center text-[10px] font-bold text-gray-600 dark:text-gray-300"
             >
               {m.profiles.display_name.charAt(0).toUpperCase()}
             </div>
           ))}
           {members.length > 4 && (
-            <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-gray-400">
+            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-zinc-800 border-2 border-white dark:border-zinc-900 flex items-center justify-center text-[9px] font-bold text-gray-400">
               +{members.length - 4}
             </div>
           )}
@@ -134,7 +135,7 @@ export default function YourYutosScreen() {
   }, [user]);
 
   const activeGroups = groups.filter((g) => g.status === "active");
-  const completedGroups = groups.filter((g) => g.status === "completed");
+  const completedGroups = groups.filter((g) => g.status === "completed" || g.status === "funded" || g.status === "cancelled");
 
   const handleDelete = async (groupId: string) => {
     setGroups((prev) => prev.filter((g) => g.id !== groupId));
@@ -146,10 +147,10 @@ export default function YourYutosScreen() {
   };
 
   return (
-    <div className="flex flex-col min-h-full px-6 pt-14">
+    <div className="flex flex-col min-h-full px-6 pt-14 bg-white dark:bg-black text-black dark:text-white transition-colors">
       <div className="flex items-center gap-3 mb-8">
         <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
-        <span className="text-2xl font-bold text-black">Activity</span>
+        <span className="text-2xl font-bold text-black dark:text-white">Activity</span>
       </div>
 
       <div className="mb-6">

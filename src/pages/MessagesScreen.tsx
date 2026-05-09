@@ -282,18 +282,18 @@ export default function MessagesScreen() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0"
+            className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center shrink-0"
             aria-label="Back"
             title="Back"
           >
             <ArrowLeft size={18} />
           </button>
-          <span className="text-2xl font-bold text-black truncate">Messages</span>
+          <span className="text-2xl font-bold text-black dark:text-white truncate">Messages</span>
         </div>
         <button
           type="button"
           onClick={() => setShowCompose(true)}
-          className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
+          className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors shrink-0"
           aria-label="New message"
           title="New message"
         >
@@ -323,7 +323,7 @@ export default function MessagesScreen() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search messages, plans, functions, friends..."
-            className="w-full h-11 pl-9 pr-9 bg-gray-100 rounded-xl text-sm font-medium text-black placeholder:text-gray-400 outline-none"
+            className="w-full h-11 pl-9 pr-9 bg-gray-100 dark:bg-zinc-800 rounded-xl text-sm font-medium text-black dark:text-white placeholder:text-gray-400 outline-none"
           />
           {searchQuery && (
             <button
@@ -346,7 +346,7 @@ export default function MessagesScreen() {
         <MoneyInboxTab userId={user.id} />
       ) : activeTab === "personal" && threads.length === 0 ? (
         <div className="py-20 text-center">
-          <p className="font-bold text-black text-lg">No messages yet</p>
+          <p className="font-bold text-black dark:text-white text-lg">No messages yet</p>
           <p className="text-gray-400 text-sm mt-1">Tap "Message" on someone's profile or start a group.</p>
         </div>
       ) : activeTab === "business" ? (
@@ -421,10 +421,10 @@ export default function MessagesScreen() {
               {(bizDashboard?.listings ?? []).map((row) => (
                 <div
                   key={row.id}
-                  className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex flex-col gap-3"
+                  className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col gap-3"
                 >
                   <div className="min-w-0">
-                    <p className="font-bold text-black truncate">{row.title}</p>
+                    <p className="font-bold text-black dark:text-white truncate">{row.title}</p>
                     <p className="text-sm text-gray-400">
                       {row.kind === "sell" ? "Sell" : "Service"}
                       {row.remaining != null ? ` · ${row.remaining} left` : ""}
@@ -434,7 +434,7 @@ export default function MessagesScreen() {
                     <button
                       type="button"
                       onClick={() => navigate("/home", { state: { focus: { kind: "function", id: row.id }, forcePublicTab: true } })}
-                      className="px-4 py-2 rounded-full bg-black text-white text-sm font-bold"
+                      className="px-4 py-2 rounded-full bg-black dark:bg-white text-white dark:text-black text-sm font-bold"
                     >
                       View
                     </button>
@@ -455,7 +455,7 @@ export default function MessagesScreen() {
                           setListingBusyId(null);
                         }
                       }}
-                      className="px-4 py-2 rounded-full bg-gray-100 text-black text-sm font-bold disabled:opacity-50"
+                      className="px-4 py-2 rounded-full bg-gray-100 dark:bg-zinc-800 text-black dark:text-white text-sm font-bold disabled:opacity-50"
                     >
                       {listingBusyId === row.id ? "…" : "Mark inactive"}
                     </button>

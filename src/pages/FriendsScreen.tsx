@@ -80,15 +80,15 @@ export default function FriendsScreen() {
   };
 
   return (
-    <div className="flex flex-col min-h-full px-6 pt-10 pb-6">
+    <div className="flex flex-col min-h-full px-6 pt-10 pb-6 bg-white dark:bg-black transition-colors">
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate("/profile")}
-          className="text-gray-400 hover:text-black bg-transparent border-none cursor-pointer text-base"
+          className="text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none cursor-pointer text-base"
         >
           ← Back
         </button>
-        <span className="text-2xl font-bold text-black">Friends</span>
+        <span className="text-2xl font-bold text-black dark:text-white">Friends</span>
         <button
           onClick={() => {
             const link = `${window.location.origin}/invite/${profile?.username || ""}`;
@@ -100,7 +100,7 @@ export default function FriendsScreen() {
               setTimeout(() => setToast(""), 2000);
             }
           }}
-          className="ml-auto px-4 py-1.5 bg-black text-white text-xs font-semibold rounded-full border-none cursor-pointer"
+          className="ml-auto px-4 py-1.5 bg-black dark:bg-white text-white dark:text-black text-xs font-semibold rounded-full border-none cursor-pointer hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
         >
           Invite Friends
         </button>
@@ -112,7 +112,7 @@ export default function FriendsScreen() {
         onChange={(e) => setSearchQuery(e.target.value)}
         placeholder="Search by username..."
         autoCapitalize="none"
-        className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors mb-5"
+        className="w-full h-12 bg-transparent text-black dark:text-white border border-gray-300 dark:border-zinc-700 rounded-full px-5 text-base outline-none focus:border-black dark:focus:border-white transition-colors mb-5"
       />
 
       {toast && (
@@ -128,12 +128,12 @@ export default function FriendsScreen() {
             {searchResults.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-3"
+                className="flex items-center justify-between bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-3"
               >
                 <div className="flex items-center gap-3">
                   <UserAvatar name={p.display_name} avatarUrl={p.avatar_url} size="sm" />
                   <div>
-                    <p className="font-semibold text-sm text-black">{p.display_name}</p>
+                    <p className="font-semibold text-sm text-black dark:text-white">{p.display_name}</p>
                     <p className="text-xs text-gray-400">@{p.username}</p>
                   </div>
                 </div>
@@ -144,7 +144,7 @@ export default function FriendsScreen() {
                 ) : (
                   <button
                     onClick={() => handleSend(p.id)}
-                    className="px-4 py-1.5 bg-black text-white text-xs font-semibold rounded-full border-none cursor-pointer hover:bg-gray-800"
+                    className="px-4 py-1.5 bg-black dark:bg-white text-white dark:text-black text-xs font-semibold rounded-full border-none cursor-pointer hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
                   >
                     Add
                   </button>
@@ -164,12 +164,12 @@ export default function FriendsScreen() {
             {pending.map((req) => (
               <div
                 key={req.id}
-                className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-3"
+                className="flex items-center justify-between bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-3"
               >
                 <div className="flex items-center gap-3">
                   <UserAvatar name={req.requester.display_name} avatarUrl={req.requester.avatar_url} size="sm" />
                   <div>
-                    <p className="font-semibold text-sm text-black">
+                    <p className="font-semibold text-sm text-black dark:text-white">
                       {req.requester.display_name}
                     </p>
                     <p className="text-xs text-gray-400">@{req.requester.username}</p>
@@ -178,13 +178,13 @@ export default function FriendsScreen() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleRespond(req.id, true)}
-                    className="px-4 py-1.5 bg-black text-white text-xs font-semibold rounded-full border-none cursor-pointer"
+                    className="px-4 py-1.5 bg-black dark:bg-white text-white dark:text-black text-xs font-semibold rounded-full border-none cursor-pointer hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
                   >
                     Accept
                   </button>
                   <button
                     onClick={() => handleRespond(req.id, false)}
-                    className="px-4 py-1.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full border-none cursor-pointer"
+                    className="px-4 py-1.5 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 text-xs font-semibold rounded-full border-none cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                   >
                     Decline
                   </button>
@@ -208,12 +208,12 @@ export default function FriendsScreen() {
             {friends.map((f) => (
               <div
                 key={f.id}
-                className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3 cursor-pointer hover:border-gray-300 transition-colors"
+                className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-3 cursor-pointer hover:border-gray-300 dark:hover:border-zinc-700 transition-colors"
                 onClick={() => navigate(`/user/${f.id}`)}
               >
                 <UserAvatar name={f.display_name} avatarUrl={f.avatar_url} size="sm" />
                 <div>
-                  <p className="font-semibold text-sm text-black">{f.display_name}</p>
+                  <p className="font-semibold text-sm text-black dark:text-white">{f.display_name}</p>
                   <p className="text-xs text-gray-400">@{f.username}</p>
                 </div>
               </div>

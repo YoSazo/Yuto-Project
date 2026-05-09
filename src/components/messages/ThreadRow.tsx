@@ -132,7 +132,7 @@ export function ThreadRow({
     <button
       type="button"
       onClick={handleOpen}
-      className="w-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
+      className="w-full bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
     >
       {showStacked ? (
         <StackedAvatars
@@ -150,7 +150,7 @@ export function ThreadRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 min-w-0">
-          <p className="font-bold text-black truncate flex-1 min-w-0">{thread.title}</p>
+          <p className="font-bold text-black dark:text-white truncate flex-1 min-w-0">{thread.title}</p>
           {thread.contextLabel && <ContextChip label={thread.contextLabel} />}
         </div>
         <p className="text-sm text-gray-400 truncate">

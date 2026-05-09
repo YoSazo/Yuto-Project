@@ -462,10 +462,14 @@ declare
   v_group_name  text;
   v_plan_id     uuid;
   v_plan_title  text;
+  v_payer_name  text;
 begin
   if v_user_id is null then
     raise exception 'Not authenticated';
   end if;
+
+  select coalesce(display_name, username, 'Someone') into v_payer_name
+  from public.profiles where id = v_user_id;
 
   select balance into v_balance
   from public.wallets
@@ -523,7 +527,7 @@ begin
       (user_id, amount, kind, note, method, status, counterparty_id, metadata)
     values
       (v_owner_id, p_amount, 'split_payment_received',
-       coalesce('Split paid for: ' || nullif(v_plan_title, ''), 'Split paid: ' || coalesce(v_group_name, 'Split')),
+       coalesce(v_payer_name || ' paid for: ' || nullif(v_plan_title, ''), v_payer_name || ' paid: ' || coalesce(v_group_name, 'Split')),
        'yuto_balance', 'settled', v_user_id,
        jsonb_build_object(
          'group_id', p_group_id,
@@ -532,6 +536,17 @@ begin
          'plan_title', v_plan_title,
          'per_person_kes', p_amount
        ));
+  end if;
+
+  -- Update group status to 'completed' if everyone has paid.
+  -- (Matches logic in api/webhook.ts)
+  if not exists (
+    select 1 from public.group_members
+    where group_id = p_group_id and has_paid = false
+  ) then
+    update public.groups
+    set status = 'completed'
+    where id = p_group_id;
   end if;
 
   return true;

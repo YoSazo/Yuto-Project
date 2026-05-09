@@ -59,19 +59,19 @@ export default function NotificationsScreen() {
   const grouped = useMemo(() => rows, [rows]);
 
   return (
-    <div className="flex flex-col overflow-y-auto pb-28 px-5 pt-6">
+    <div className="flex flex-col overflow-y-auto pb-28 px-5 pt-6 bg-white dark:bg-black min-h-screen transition-colors">
       <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
+            className="w-11 h-11 border-none rounded-2xl bg-gray-100 dark:bg-zinc-900 text-black dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors shrink-0"
             aria-label="Back"
           >
             <ArrowLeft size={18} />
           </button>
           <div className="min-w-0">
-            <p className="text-2xl font-bold text-black truncate">Notifications</p>
+            <p className="text-2xl font-bold text-black dark:text-white truncate">Notifications</p>
             <p className="text-xs text-gray-400 font-semibold">
               {hasUnread ? `${unread} unread` : "All caught up"}
             </p>
@@ -117,7 +117,7 @@ export default function NotificationsScreen() {
                 navigate("/friends");
               }
             }}
-            className="mt-5 h-12 px-6 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors tap-scale"
+            className="mt-5 border-none h-12 px-6 rounded-2xl bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-extrabold transition-colors tap-scale"
           >
             Invite a friend
           </button>
@@ -174,28 +174,28 @@ export default function NotificationsScreen() {
                   }
                 }}
                 className={[
-                  "w-full rounded-3xl border px-4 py-4 text-left shadow-sm transition-colors",
-                  n.is_read ? "bg-white border-gray-100 hover:bg-gray-50" : "bg-gray-50 border-gray-200 hover:bg-gray-100",
+                  "w-full border-none rounded-3xl border px-4 py-4 text-left shadow-sm transition-colors",
+                  n.is_read ? "bg-white dark:bg-zinc-900 border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800" : "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-700",
                 ].join(" ")}
               >
                 <div className="flex items-start gap-3">
                   {actor ? (
                     <UserAvatar name={actor.display_name || actor.username} avatarUrl={actor.avatar_url} size="sm" />
                   ) : (
-                    <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shrink-0">
                       {iconForType(n.type)}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="font-extrabold text-black truncate">{n.title}</p>
+                      <p className="font-extrabold text-black dark:text-white truncate">{n.title}</p>
                       <span className="text-xs text-gray-400 font-semibold">· {timeAgo(n.created_at)}</span>
                       {!n.is_read && <span className="ml-auto w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />}
                     </div>
-                    {n.body ? <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap break-words">{n.body}</p> : null}
+                    {n.body ? <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-words">{n.body}</p> : null}
 
                     {typeof n.amount_kes === "number" ? (
-                      <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-extrabold text-black">
+                      <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-xs font-extrabold text-black dark:text-white">
                         <Wallet size={14} />
                         KSH {Number(n.amount_kes).toLocaleString("en-KE")}
                       </div>

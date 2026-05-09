@@ -17,9 +17,13 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+import { ThemeProvider } from "./contexts/ThemeContext";
+
 createRoot(document.getElementById("root")!).render(
   <AuthProvider>
-    <RouterProvider router={router} />
-    <Toaster />
+    <ThemeProvider>
+      <RouterProvider router={router} />
+      <Toaster />
+    </ThemeProvider>
   </AuthProvider>
 );

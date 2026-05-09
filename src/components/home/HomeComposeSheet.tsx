@@ -93,8 +93,14 @@ export function HomeComposeSheet({
   const canCreateSubmit = useMemo(() => {
     if (!title.trim()) return false;
     if (composeMode === "plan") return true;
+
+    // For Sell and Service, photos are required
+    if ((composeMode === "sell" || composeMode === "service") && createMediaFiles.length === 0) {
+      return false;
+    }
+
     return (parseInt(amount) || 0) > 0;
-  }, [title, amount, composeMode]);
+  }, [title, amount, composeMode, createMediaFiles.length]);
 
   const canPostSubmit = useMemo(() => {
     return !!postText.trim() || !!taggedEntity || taggedPeople.length > 0 || postMediaFiles.length > 0;
@@ -159,18 +165,18 @@ export function HomeComposeSheet({
   // The sliding segmented control for "Create" vs "Post"
   const renderTopToggle = () => (
     <div className="flex justify-center mb-4">
-      <div className="relative flex w-[240px] bg-gray-100 rounded-full p-1">
+      <div className="relative flex w-[240px] bg-gray-100 dark:bg-zinc-800 rounded-full p-1">
         {/* Sliding Background Pill */}
         <div
-          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-sm transition-transform duration-300 cubic-bezier(0.4, 0, 0.2, 1) ${
+          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-zinc-700 rounded-full shadow-sm transition-transform duration-300 cubic-bezier(0.4, 0, 0.2, 1) ${
             topMode === "create" ? "translate-x-0" : "translate-x-[calc(100%+8px)]"
           }`}
         />
         <button
           type="button"
           onClick={() => setTopMode("create")}
-          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 ${
-            topMode === "create" ? "text-black" : "text-gray-400"
+          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 border-none bg-transparent ${
+            topMode === "create" ? "text-black dark:text-white" : "text-gray-400 dark:text-gray-500"
           }`}
         >
           Create
@@ -178,8 +184,8 @@ export function HomeComposeSheet({
         <button
           type="button"
           onClick={() => setTopMode("post")}
-          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 ${
-            topMode === "post" ? "text-black" : "text-gray-400"
+          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 border-none bg-transparent ${
+            topMode === "post" ? "text-black dark:text-white" : "text-gray-400 dark:text-gray-500"
           }`}
         >
           Post
@@ -194,14 +200,14 @@ export function HomeComposeSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm fade-in">
       <button type="button" className="absolute inset-0 border-none bg-transparent" aria-label="Dismiss" onClick={onClose} />
 
-      <div className="relative w-full max-w-md bg-white rounded-t-3xl md:rounded-3xl p-5 modal-slide-up flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl p-5 modal-slide-up flex flex-col max-h-[90vh]">
         
         {/* Header & Toggle */}
         <div className="flex items-center justify-between mb-2">
-          <p className="font-extrabold text-black text-lg">
+          <p className="font-extrabold text-black dark:text-white text-lg">
             {topMode === "create" ? "Post Something" : "Share…"}
           </p>
-          <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">
+          <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none">
             <X size={24} />
           </button>
         </div>
@@ -220,7 +226,7 @@ export function HomeComposeSheet({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Bowling Saturday? Who's in 🎳"
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors"
+                  className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                   maxLength={200}
                 />
               ) : (
@@ -236,7 +242,7 @@ export function HomeComposeSheet({
                           ? "Photography session"
                           : "Friday Night Westlands"
                     }
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-base focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                     maxLength={120}
                   />
                   <textarea
@@ -249,7 +255,7 @@ export function HomeComposeSheet({
                           ? "What service are you offering? (hair, photos, lessons...)"
                           : "Add a short description..."
                     }
-                    className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black transition-colors"
+                    className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-base resize-none h-24 focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                     maxLength={240}
                   />
                 </div>
@@ -274,7 +280,7 @@ export function HomeComposeSheet({
                   <button
                     type="button"
                     onClick={() => createMediaInputRef.current?.click()}
-                    className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
+                    className="w-full bg-transparent py-4 border-2 border-dashed border-gray-200 dark:border-zinc-800 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 dark:hover:border-zinc-700 hover:text-gray-500 dark:hover:text-gray-300 transition-colors"
                   >
                     <ImageIcon size={20} />
                     <span className="text-sm font-medium">Add up to 3 photos / videos</span>
@@ -309,7 +315,7 @@ export function HomeComposeSheet({
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="e.g. 500"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                   />
                 </div>
                 <div className="flex-1">
@@ -321,7 +327,7 @@ export function HomeComposeSheet({
                     value={maxCapacity}
                     onChange={(e) => setMaxCapacity(e.target.value)}
                     placeholder={composeMode === "plan" ? "e.g. 5" : "e.g. 25"}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                    className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                   />
                 </div>
               </div>
@@ -334,7 +340,7 @@ export function HomeComposeSheet({
                       type="datetime-local"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                      className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                     />
                   </div>
                   <div>
@@ -344,7 +350,7 @@ export function HomeComposeSheet({
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       placeholder="Westlands, Nairobi"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black transition-colors"
+                      className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                     />
                   </div>
                 </>
@@ -355,7 +361,7 @@ export function HomeComposeSheet({
               {(composeMode === "sell" || composeMode === "service") && createMediaFiles.length === 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-sm text-amber-800 font-semibold flex items-start gap-2">
                   <span className="text-amber-500 mt-0.5">⚠️</span>
-                  Listings with photos sell 3x faster. Consider adding one before posting!
+                  Photos are required for listings. They help you sell 3x faster!
                 </div>
               )}
 
@@ -363,7 +369,7 @@ export function HomeComposeSheet({
                 type="button"
                 onClick={handleCreateSubmit}
                 disabled={!canCreateSubmit || isSubmitting}
-                className="w-full py-4 bg-black text-white rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
+                className="w-full border-none py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
               >
                 <span className="flex items-center justify-center gap-2">
                   <Send size={16} /> {isSubmitting ? "Posting..." : "Post"}
@@ -374,31 +380,31 @@ export function HomeComposeSheet({
             /* --- POST MODE UI --- */
             <div className="flex flex-col h-full min-h-[350px] fade-in">
               <textarea
-                className="w-full flex-1 text-xl font-medium text-black outline-none resize-none placeholder-gray-300 py-2"
+                className="w-full bg-transparent flex-1 text-xl font-medium text-black dark:text-white outline-none resize-none placeholder-gray-300 dark:placeholder-gray-600 py-2"
                 placeholder="What's going on?"
                 value={postText}
                 onChange={(e) => setPostText(e.target.value)}
               />
 
               {taggedEntity && (
-                <div className="relative mt-auto mb-4 p-3 border border-gray-200 rounded-2xl flex items-center gap-3 bg-gray-50/50">
-                  <div className="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-xl flex items-center justify-center text-black">
+                <div className="relative mt-auto mb-4 p-3 border border-gray-200 dark:border-zinc-800 rounded-2xl flex items-center gap-3 bg-gray-50/50 dark:bg-zinc-800/50">
+                  <div className="w-10 h-10 bg-white dark:bg-zinc-800 shadow-sm border border-gray-100 dark:border-zinc-700 rounded-xl flex items-center justify-center text-black dark:text-white">
                     <Tag size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-black truncate">{taggedEntity.title}</p>
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{taggedEntity.kind}</p>
+                    <p className="font-bold text-sm text-black dark:text-white truncate">{taggedEntity.title}</p>
+                    <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{taggedEntity.kind}</p>
                   </div>
                   <button 
                     onClick={() => setTaggedEntity(null)} 
-                    className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200"
+                    className="w-8 h-8 border-none rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-zinc-700"
                   >
                     <X size={14} />
                   </button>
                 </div>
               )}
 
-              <div className="flex items-center gap-2 mt-auto pt-4 border-t border-gray-100 pb-2">
+              <div className="flex items-center gap-2 mt-auto pt-4 border-t border-gray-100 dark:border-zinc-800 pb-2">
                 <input
                   ref={postMediaInputRef}
                   type="file"
@@ -445,7 +451,7 @@ export function HomeComposeSheet({
                   type="button"
                   onClick={handlePostSubmit}
                   disabled={!canPostSubmit || isSubmitting}
-                  className="ml-auto px-8 py-3 bg-black text-white rounded-full font-bold disabled:opacity-50 tap-scale"
+                  className="ml-auto border-none px-8 py-3 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold disabled:opacity-50 tap-scale"
                 >
                   {isSubmitting ? "Posting..." : "Post"}
                 </button>
@@ -454,7 +460,7 @@ export function HomeComposeSheet({
               {postMediaPreviews.length > 0 && (
                 <div className="mt-3 flex gap-2 overflow-x-auto">
                   {postMediaPreviews.map((u, idx) => (
-                    <div key={u} className="relative w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
+                    <div key={u} className="relative w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 flex-shrink-0">
                       {postMediaFiles[idx]?.type.startsWith("video/") ? (
                         <video src={u} className="w-full h-full object-cover" muted playsInline />
                       ) : (
@@ -559,7 +565,7 @@ function ComposeMediaPreview({
 
   return (
     <div
-      className="relative rounded-2xl overflow-hidden bg-gray-100"
+      className="relative rounded-2xl overflow-hidden bg-gray-100 dark:bg-zinc-800"
       onPointerDown={(e) => {
         dragX.current = e.clientX;
       }}
@@ -640,4 +646,3 @@ function ComposeMediaPreview({
     </div>
   );
 }
-

@@ -651,16 +651,19 @@ useEffect(() => {
   }, [messages, highlightShareCache, conversationId]);
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-white">
-      <div className="px-5 pt-6 pb-4 border-b border-gray-100 flex items-center gap-3">
-        <button type="button" onClick={() => navigate(-1)} className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+    <div className="h-[100dvh] flex flex-col bg-white dark:bg-black">
+      <div className="px-5 pt-6 pb-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
+        <button type="button" onClick={() => navigate(-1)} className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center">
           <ArrowLeft size={18} />
         </button>
-        <div className="flex items-center gap-2 min-w-0">
+        <div
+          className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-70 transition-opacity"
+          onClick={() => otherUserId && navigate(`/user/${otherUserId}`)}
+        >
           <UserAvatar name={other?.display_name || "User"} avatarUrl={other?.avatar_url || null} size="sm" />
           <div className="min-w-0">
-            <p className="font-extrabold text-black truncate">{title}</p>
-            {other?.username && <p className="text-xs text-gray-400 truncate">@{other.username}</p>}
+            <p className="font-extrabold text-black dark:text-white truncate">{title}</p>
+            {other?.username && <p className="text-xs text-gray-400 dark:text-gray-500 truncate">@{other.username}</p>}
             {dmContexts[0] ? (
               <p className="text-[11px] font-semibold text-gray-500 truncate max-w-[min(100vw-8rem,18rem)]">
                 {dmContexts[0].listing_title} · {dmContexts[0].listing_kind === "sell" ? "Sell" : "Service"}
@@ -1007,7 +1010,7 @@ useEffect(() => {
                     <div
                       className={[
                         "max-w-[78%] px-4 py-3 rounded-2xl text-sm font-semibold whitespace-pre-wrap break-words",
-                        mine ? "bg-black text-white rounded-br-md" : "bg-gray-100 text-black rounded-bl-md",
+                        mine ? "bg-black dark:bg-white text-white dark:text-black rounded-br-md" : "bg-gray-100 dark:bg-zinc-800 text-black dark:text-white rounded-bl-md",
                       ].join(" ")}
                     >
                       {m.content}
@@ -1038,7 +1041,7 @@ useEffect(() => {
         }}
       />
 
-      <div className="px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-3 border-t border-gray-100">
+      <div className="px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-3 border-t border-gray-100 dark:border-zinc-800">
         <SmartReplies
           lastMessage={lastReceivedMessage}
           onSelect={(reply) => {
@@ -1049,7 +1052,7 @@ useEffect(() => {
           <button
             type="button"
             onClick={() => setShowSharePicker(true)}
-            className="w-12 h-12 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
             aria-label="Share"
             title="Share"
           >
@@ -1059,7 +1062,7 @@ useEffect(() => {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Message…"
-            className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 outline-none font-semibold min-w-0"
+            className="flex-1 bg-gray-100 dark:bg-zinc-800 text-black dark:text-white rounded-2xl px-4 py-3 outline-none font-semibold min-w-0"
             onKeyDown={(e) => {
               if (e.key === "Enter") void onSend();
             }}
@@ -1067,7 +1070,7 @@ useEffect(() => {
           <button
             type="button"
             onClick={() => void onSend()}
-            className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center"
+            className="w-12 h-12 rounded-2xl bg-black dark:bg-white text-white dark:text-black flex items-center justify-center"
             aria-label="Send"
             title="Send"
           >
@@ -1235,4 +1238,3 @@ useEffect(() => {
     </div>
   );
 }
-

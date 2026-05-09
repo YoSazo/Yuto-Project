@@ -11,6 +11,8 @@ import {
   getSavedPhoneNumber,
   ensureWalletGroupChat,
   payForPlanWithLedger,
+  cancelSplitGroup,
+  leaveSplitGroup,
 } from "../lib/supabase";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { useAppResume } from "../hooks/useAppResume";
@@ -289,6 +291,12 @@ export default function YutoGroupScreen() {
   const [isSubmittingRide, setIsSubmittingRide] = useState(false);
   const [rideSubmitError, setRideSubmitError] = useState("");
   const [isPayingShare, setIsPayingShare] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "leave" | "remove" | "cancel";
+    targetUserId?: string;
+    targetName?: string;
+    message: string;
+  } | null>(null);
   const [originPlan, setOriginPlan] = useState<{ id: string; title: string } | null>(null);
   const justJoinedTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -586,6 +594,57 @@ export default function YutoGroupScreen() {
       setIsSubmittingRide(false);
     }
   };
+  
+  const handleLeave = () => {
+    if (!groupId || !user) return;
+    const confirmMsg = members.find(m => m.user_id === user.id)?.isPaid 
+      ? "You've already paid. If you leave, your share will be refunded to your Yuto Balance. Leave anyway?"
+      : "Are you sure you want to leave this split?";
+      
+    setConfirmAction({ type: "leave", message: confirmMsg });
+  };
+  
+  const handleRemoveMember = (targetUserId: string, targetName: string) => {
+    if (!groupId || !user) return;
+    const member = members.find(m => m.user_id === targetUserId);
+    const confirmMsg = member?.isPaid
+      ? `Remove ${targetName}? They have already paid, so their share will be automatically refunded to their Yuto Balance.`
+      : `Remove ${targetName} from this split?`;
+      
+    setConfirmAction({ type: "remove", targetUserId, targetName, message: confirmMsg });
+  };
+  
+  const handleCancelGroup = () => {
+    if (!groupId || !user) return;
+    setConfirmAction({
+      type: "cancel",
+      message: "Are you sure you want to CANCEL this entire split? Any members who have already paid will be automatically refunded to their Yuto Balance."
+    });
+  };
+
+  const executeConfirmAction = async () => {
+    if (!confirmAction || !groupId || !user) return;
+    const { type, targetUserId, targetName } = confirmAction;
+    setConfirmAction(null);
+
+    try {
+      if (type === "leave") {
+        await leaveSplitGroup(groupId, user.id);
+        toast.success("You left the split.");
+        navigate("/activity");
+      } else if (type === "remove" && targetUserId) {
+        await leaveSplitGroup(groupId, targetUserId);
+        setMembers(prev => prev.filter(m => m.user_id !== targetUserId));
+        toast.success(`${targetName} removed.`);
+      } else if (type === "cancel") {
+        await cancelSplitGroup(groupId);
+        setGroupStatus("cancelled");
+        toast.success("Split cancelled and refunds processed.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Action failed.");
+    }
+  };
 
   if (loading) {
     return (
@@ -601,7 +660,7 @@ export default function YutoGroupScreen() {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <button onClick={() => navigate("/activity")} className="text-gray-400 hover:text-black bg-transparent border-none cursor-pointer text-base">← Back</button>
+        <button onClick={() => navigate("/activity")} className="text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none cursor-pointer text-base">← Back</button>
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
@@ -612,9 +671,9 @@ export default function YutoGroupScreen() {
                 navigator.clipboard.writeText(link);
               }
             }}
-            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-200"
+            className="w-10 h-10 border-none rounded-full bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E1E1E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
               <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
@@ -631,9 +690,9 @@ export default function YutoGroupScreen() {
                 toast.error("Couldn't open the chat yet. Apply latest migrations and try again.");
               }
             }}
-            className="px-4 py-2 bg-black text-white rounded-full font-bold text-sm flex items-center gap-1.5 hover:bg-gray-800 transition-colors"
+            className="px-4 py-2 border-none bg-black dark:bg-white text-white dark:text-black rounded-full font-bold text-sm flex items-center gap-1.5 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
           >
-            <MessageCircle size={16} /> Chat
+            <MessageCircle size={18} /> Chat
           </button>
         </div>
       </div>
@@ -752,6 +811,17 @@ export default function YutoGroupScreen() {
                 ) : (
                   <p className="text-xs mt-2 text-gray-400 italic whitespace-nowrap">Waiting for {member.name}</p>
                 )}
+                {isHost && !member.isHost && groupStatus === "active" && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleRemoveMember(member.user_id, member.name); }}
+                    className="mt-1 w-6 h-6 rounded-full bg-red-50 text-red-500 flex items-center justify-center border-none cursor-pointer hover:bg-red-100 transition-colors"
+                    aria-label="Remove member"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -760,7 +830,9 @@ export default function YutoGroupScreen() {
 
       {/* Status text */}
       <p className="text-center text-base text-gray-500 mt-2 mb-4">
-        {groupStatus === "completed"
+        {groupStatus === "cancelled" 
+          ? "Split Cancelled"
+          : groupStatus === "completed"
           ? "Split complete ✓"
           : allPaid
           ? isHost
@@ -857,6 +929,10 @@ export default function YutoGroupScreen() {
             💸 Pay Out KSH {totalAmount.toLocaleString()}
           </button>
 
+        ) : groupStatus === "cancelled" ? (
+          <button disabled className="w-full py-5 bg-red-50 text-red-500 rounded-full font-bold text-lg cursor-default">
+            Split Cancelled
+          </button>
         ) : (
           // All paid, not host — just wait
           <button disabled className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
@@ -864,6 +940,28 @@ export default function YutoGroupScreen() {
           </button>
         )}
       </div>
+
+      {/* Secondary Actions (Leave / Cancel Entirely) */}
+      {(groupStatus === "active" || groupStatus === "funded") && (
+        <div className="mt-4 flex flex-col gap-2">
+          {!isHost && (
+            <button 
+              onClick={handleLeave}
+              className="w-full py-3 text-sm font-bold text-gray-500 hover:text-red-500 transition-colors border-none bg-transparent"
+            >
+              Leave Split
+            </button>
+          )}
+          {isHost && (
+            <button 
+              onClick={handleCancelGroup}
+              className="w-full py-3 text-sm font-bold text-gray-500 hover:text-red-500 transition-colors border-none bg-transparent"
+            >
+              Cancel Split Entirely
+            </button>
+          )}
+        </div>
+      )}
 
       {showBalanceTopUpModal && user && (
         <YutoBalanceTopUpModal
@@ -895,6 +993,44 @@ export default function YutoGroupScreen() {
             setShowBalanceTopUpModal(true);
           }}
         />
+      )}
+
+      {/* Custom Confirm Action Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setConfirmAction(null)}>
+          <div 
+            className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl p-6 pb-8 transition-colors modal-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-black dark:text-white">
+                  {confirmAction.type === "leave" ? "Leave Split" : confirmAction.type === "remove" ? "Remove Member" : "Cancel Split"}
+                </h3>
+              </div>
+              <button onClick={() => setConfirmAction(null)} className="w-8 h-8 border-none rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-zinc-700">✕</button>
+            </div>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-6 font-medium">
+              {confirmAction.message}
+            </p>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 py-3.5 border-none rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white hover:bg-gray-200 dark:hover:bg-zinc-700 font-bold text-sm transition-colors"
+              >
+                Go Back
+              </button>
+              <button 
+                onClick={executeConfirmAction}
+                className="flex-1 py-3.5 border-none rounded-2xl bg-red-600 text-white hover:bg-red-700 font-bold text-sm transition-colors"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

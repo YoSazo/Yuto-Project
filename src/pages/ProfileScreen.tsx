@@ -24,7 +24,7 @@ import {
 import UserAvatar from "../components/UserAvatar";
 import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
-import { Wallet, History, Plus, Copy, Check, Send, Volume2, VolumeX, Store, ChevronDown } from "lucide-react";
+import { Wallet, History, Plus, Copy, Check, Send, Volume2, VolumeX, Store, ChevronDown, ArrowDownLeft, Sun, Moon } from "lucide-react";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 import { TransactionReceiptModal } from "../components/profile/TransactionReceiptModal";
 import { useCountUp } from "../hooks/useCountUp";
@@ -38,6 +38,7 @@ import {
   type StorefrontListingItem, 
   type HostedFunctionItem 
 } from "../lib/supabase";
+import { useTheme } from "../contexts/ThemeContext";
 import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
 
 function ChevronRight() {
@@ -148,10 +149,10 @@ function MenuItem({
       className="w-full flex items-center justify-between py-4 px-1 bg-transparent border-none cursor-pointer text-left"
     >
       <div className="flex items-center gap-4">
-        <div className={danger ? "text-red-500" : "text-black"}>{icon}</div>
+        <div className={danger ? "text-red-500" : "text-black dark:text-white"}>{icon}</div>
         <div>
           <div className="flex items-center gap-2">
-            <p className={`font-semibold text-[15px] ${danger ? "text-red-500" : "text-black"}`}>
+            <p className={`font-semibold text-[15px] ${danger ? "text-red-500" : "text-black dark:text-white"}`}>
               {label}
             </p>
             {badge && badge > 0 ? (
@@ -183,6 +184,7 @@ export default function ProfileScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile, signOut, refreshProfile } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [stats, setStats] = useState({ totalYutos: 0, totalSpent: 0, friendsCount: 0, plansCount: 0 });
   const [pendingCount, setPendingCount] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
@@ -657,7 +659,7 @@ if (sellListings.length > 0) availableTabs.push({ id: "sell", label: "My Marketp
 if (serviceListings.length > 0) availableTabs.push({ id: "service", label: "My Services" });
 
 return (
-  <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
+  <div className="flex flex-col min-h-full px-5 pt-10 pb-6 bg-white dark:bg-black text-black dark:text-white transition-colors">
     {/* ── HEADER & VIEW SWITCHER ── */}
     <div className="flex items-center justify-between mb-6 relative z-50">
       {availableTabs.length > 1 ? (
@@ -667,7 +669,7 @@ return (
             onClick={() => setIsHeaderDropdownOpen(!isHeaderDropdownOpen)}
             className="flex items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer"
           >
-            <span className="text-2xl font-bold text-black">
+            <span className="text-2xl font-bold text-black dark:text-white">
               {availableTabs.find(t => t.id === ownShowcaseTab)?.label || "Profile"}
             </span>
             <ChevronDown size={22} className={`text-black transition-transform duration-200 ${isHeaderDropdownOpen ? "rotate-180" : ""}`} />
@@ -676,7 +678,7 @@ return (
           {isHeaderDropdownOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsHeaderDropdownOpen(false)} />
-              <div className="absolute top-8 left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 py-2 animate-in fade-in slide-in-from-top-2">
+              <div className="absolute top-8 left-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-gray-100 dark:border-zinc-800 overflow-hidden z-50 py-2 animate-in fade-in slide-in-from-top-2">
                 <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
                   Switch View
                 </div>
@@ -689,7 +691,7 @@ return (
                       setIsHeaderDropdownOpen(false);
                     }}
                     className={`w-full text-left px-4 py-3 text-sm font-extrabold transition-colors border-none ${
-                      ownShowcaseTab === t.id ? "bg-gray-50 text-black" : "bg-white text-gray-500 hover:bg-gray-50 hover:text-black"
+                      ownShowcaseTab === t.id ? "bg-gray-50 dark:bg-zinc-800 text-black dark:text-white" : "bg-white dark:bg-zinc-900 text-gray-500 hover:bg-gray-50 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
                     }`}
                   >
                     {t.label}
@@ -700,8 +702,17 @@ return (
           )}
         </div>
       ) : (
-        <span className="text-2xl font-bold text-black">Profile</span>
+        <span className="text-2xl font-bold text-black dark:text-white">Profile</span>
       )}
+
+      {/* Dark mode toggle */}
+      <button
+        onClick={toggleTheme}
+        className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-black dark:text-white transition-all tap-scale hover:bg-gray-200 dark:hover:bg-zinc-700 border-none"
+        aria-label="Toggle theme"
+      >
+        {theme === "light" ? <Moon size={20} strokeWidth={2.5} /> : <Sun size={20} strokeWidth={2.5} />}
+      </button>
     </div>
 
     {/* ── MAIN CONTENT SWITCHER ── */}
@@ -715,13 +726,13 @@ return (
             preserveAspectRatio="xMidYMid meet"
             style={{ zIndex: 1 }}
           >
-            <circle cx={cx} cy={cy} r="85" fill="none" stroke="#f0f0f0" strokeWidth="1" />
+            <circle cx={cx} cy={cy} r="85" fill="none" stroke={theme === "dark" ? "#27272a" : "#f0f0f0"} strokeWidth="1" />
             <circle
               cx={cx}
               cy={cy}
               r="135"
               fill="none"
-              stroke="#f0f0f0"
+              stroke={theme === "dark" ? "#27272a" : "#f0f0f0"}
               strokeWidth="1"
               strokeDasharray="4 6"
               style={{ animation: "orbitSpin 60s linear infinite", transformOrigin: "190px 190px" }}
@@ -742,7 +753,7 @@ return (
                   <path
                     d={pathD}
                     fill="none"
-                    stroke="#d1d5db"
+                    stroke={theme === "dark" ? "#27272a" : "#d1d5db"}
                     strokeWidth="2"
                     strokeDasharray="7 5"
                     strokeLinecap="round"
@@ -806,9 +817,9 @@ return (
                 className="absolute left-1/2 top-1/2 flex flex-col items-center"
                 style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`, zIndex: 20 }}
               >
-                <div className={`rounded-2xl px-5 py-3 text-center min-w-[88px] transition-colors ${isPaid ? "bg-black text-green-400 border-2 border-green-500 shadow-lg" : "bg-white border border-gray-200 shadow-sm"}`}>
-                  <p className={`font-extrabold text-xl font-syne ${isPaid ? "text-green-400" : "text-black"}`}>{value}</p>
-                  <p className={`text-xs mt-0.5 ${isPaid ? "text-white/70" : "text-gray-400"}`}>{pos.label}</p>
+                <div className={`rounded-2xl px-5 py-3 text-center min-w-[88px] transition-colors ${isPaid ? "bg-black text-green-400 border-2 border-green-500 shadow-lg" : "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm"}`}>
+                  <p className={`font-extrabold text-xl font-syne ${isPaid ? "text-green-400" : "text-black dark:text-white"}`}>{value}</p>
+                  <p className={`text-xs mt-0.5 ${isPaid ? "text-white/70" : "text-gray-400 dark:text-gray-500"}`}>{pos.label}</p>
                 </div>
               </div>
             );
@@ -817,14 +828,14 @@ return (
 
         {/* Name + handle */}
         <div className="text-center -mt-2 mb-3">
-          <p className="font-bold text-xl text-black">{userName}</p>
-          <p className="text-sm text-gray-400">{userHandle}</p>
+          <p className="font-bold text-xl text-black dark:text-white">{userName}</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">{userHandle}</p>
         </div>
 
         {/* Highlights */}
         <div className="flex items-center justify-center gap-4 mb-6">
           {highlights.length < 2 && (
-            <button type="button" onClick={() => setShowHighlightCreate(true)} className="w-16 h-16 rounded-full border-2 border-gray-200 bg-white text-black flex items-center justify-center shadow-sm">
+            <button type="button" onClick={() => setShowHighlightCreate(true)} className="w-16 h-16 rounded-full border-2 border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-black dark:text-white flex items-center justify-center shadow-sm">
               <Plus size={22} />
             </button>
           )}
@@ -849,7 +860,7 @@ return (
                     onPointerLeave={() => { if (highlightLongPressTimerRef.current) { clearTimeout(highlightLongPressTimerRef.current); highlightLongPressTimerRef.current = null; } }}
                     className="bg-transparent border-none p-0"
                   >
-                    <motion.div layoutId={`highlight-container-${h.id}`} style={{ borderRadius: 9999 }} className="relative w-16 h-16 shrink-0 border-2 border-gray-200 overflow-hidden bg-gray-100">
+                    <motion.div layoutId={`highlight-container-${h.id}`} style={{ borderRadius: 9999 }} className="relative w-16 h-16 shrink-0 border-2 border-gray-200 dark:border-zinc-800 overflow-hidden bg-gray-100 dark:bg-zinc-800">
                       {h.photos[0]?.url ? <HighlightStillMedia url={(h.photos[0].thumb_url || h.photos[0].poster_url || h.photos[0].url) as string} className="absolute inset-0 h-full w-full object-cover pointer-events-none" /> : null}
                     </motion.div>
                   </button>
@@ -922,24 +933,24 @@ return (
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
+        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
-              <p className="text-sm font-semibold text-black">M-PESA number</p>
-              <p className="text-xs text-gray-500">Used to prefill payment prompts on this device.</p>
+              <p className="text-sm font-semibold text-black dark:text-white">M-PESA number</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Used to prefill payment prompts on this device.</p>
             </div>
             <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mt-1">Saved</span>
           </div>
           <div className="flex gap-2">
-            <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))} placeholder="254712345678" maxLength={12} className="flex-1 h-12 border border-gray-300 rounded-full px-4 text-base outline-none focus:border-black transition-colors" />
-            <button type="button" onClick={handleSavePhone} disabled={savingPhone} className="h-12 px-5 rounded-full bg-black text-white font-semibold disabled:opacity-60 disabled:cursor-not-allowed">
+            <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))} placeholder="254712345678" maxLength={12} className="flex-1 h-12 border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 rounded-full px-4 text-base outline-none focus:border-black dark:focus:border-white text-black dark:text-white transition-colors" />
+            <button type="button" onClick={handleSavePhone} disabled={savingPhone} className="h-12 px-5 rounded-full bg-black dark:bg-white text-white dark:text-black font-semibold disabled:opacity-60 disabled:cursor-not-allowed">
               {savingPhone ? "Saving" : "Save"}
             </button>
           </div>
-          {phoneMessage && <p className="text-xs text-gray-500 mt-2 ml-1">{phoneMessage}</p>}
+          {phoneMessage && <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-1">{phoneMessage}</p>}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl px-5 divide-y divide-gray-100">
+        <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl px-5 divide-y divide-gray-100 dark:divide-zinc-800">
           <MenuItem
             icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
             label="Friends"
@@ -967,13 +978,13 @@ return (
         {ownShowcaseTab === "functions" && (
           <div className="space-y-4">
             {ownFunctions.map(fn => (
-              <div key={fn.id} className="flex flex-col p-4 rounded-3xl border border-gray-100 bg-white shadow-sm relative overflow-hidden">
+              <div key={fn.id} className="flex flex-col p-4 rounded-3xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm relative overflow-hidden">
                 
                 {/* Functions 3-Dot Menu */}
                 <button
                   type="button"
                   onClick={() => setOwnListingOptionsOpen(ownListingOptionsOpen === fn.id ? null : fn.id)}
-                  className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center border-none hover:bg-gray-200 transition-colors"
+                  className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 flex items-center justify-center border-none hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                 >
                   <span className="text-lg font-bold mb-2">...</span>
                 </button>
@@ -1151,9 +1162,9 @@ return (
 
     {showHistoryModal && (
       <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-        <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md h-[75vh] md:h-[600px] flex flex-col overflow-hidden modal-slide-up">
-          <div className="flex justify-between items-center p-6 border-b border-gray-100 shrink-0">
-            <h2 className="font-bold text-xl text-black">Wallet History</h2>
+        <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md h-[75vh] md:h-[600px] flex flex-col overflow-hidden modal-slide-up">
+          <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-zinc-800 shrink-0">
+            <h2 className="font-bold text-xl text-black dark:text-white">Wallet History</h2>
             <button onClick={() => setShowHistoryModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
           </div>
           <div className="flex-1 overflow-y-auto p-6">
@@ -1170,6 +1181,7 @@ return (
               <div className="space-y-4">
                 {transactions.map((tx) => {
                   const isPositive = Number(tx.amount) > 0;
+                  const isSplitReceived = tx.kind === "split_payment_received" || tx.kind === "split_received";
                   const { title, subtitle } = describeTransaction(tx);
                   const cp = tx.counterparty;
                   return (
@@ -1179,11 +1191,17 @@ return (
                           <UserAvatar name={cp.display_name || cp.username || "?"} avatarUrl={cp.avatar_url} size="md" />
                         ) : (
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPositive ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
-                            {isPositive ? <Plus size={16} strokeWidth={3} /> : <span className="font-bold text-lg leading-none mb-1">-</span>}
+                            {isSplitReceived ? (
+                              <ArrowDownLeft size={16} strokeWidth={3} />
+                            ) : isPositive ? (
+                              <Plus size={16} strokeWidth={3} />
+                            ) : (
+                              <span className="font-bold text-lg leading-none mb-1">-</span>
+                            )}
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="font-semibold text-sm text-black truncate">{title}</p>
+                          <p className="font-semibold text-sm text-black dark:text-white truncate">{title}</p>
                           <p className="text-xs text-gray-400 truncate">{subtitle ? `${subtitle} · ` : ""}{new Date(tx.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                       </div>
@@ -1206,14 +1224,14 @@ return (
 
     {showWithdrawModal && (
       <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-        <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+        <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="font-bold text-xl text-black">Withdraw to M-PESA</h2>
+            <h2 className="font-bold text-xl text-black dark:text-white">Withdraw to M-PESA</h2>
             <button onClick={() => setShowWithdrawModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
           </div>
           <div className="mb-6 flex flex-col items-center w-full">
             <span className="text-sm text-gray-400 font-semibold mb-2 uppercase tracking-wide">Amount (KSH)</span>
-            <input type="text" inputMode="numeric" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value.replace(/\D/g, ""))} placeholder="0" className="text-[48px] font-bold text-center text-black bg-transparent border-none outline-none w-full mb-2" />
+            <input type="text" inputMode="numeric" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value.replace(/\D/g, ""))} placeholder="0" className="text-[48px] font-bold text-center text-black dark:text-white bg-transparent border-none outline-none w-full mb-2" />
             <p className="text-sm text-gray-500 font-medium mb-4">Available: KSH {points.toLocaleString()}</p>
             <div className="flex gap-2 w-full mb-2">
               {[100, 500, 'MAX'].map((preset) => (
@@ -1234,14 +1252,14 @@ return (
     {showSendModal && user && (
       <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/60 backdrop-blur-sm">
         <button type="button" className="absolute inset-0 z-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={() => setShowSendModal(false)} />
-        <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+        <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="font-bold text-xl text-black">Send</h2>
-            <button onClick={() => setShowSendModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+            <h2 className="font-bold text-xl text-black dark:text-white">Send</h2>
+            <button onClick={() => setShowSendModal(false)} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none">✕</button>
           </div>
-          <div className="rounded-3xl border border-gray-200 p-5">
+          <div className="rounded-3xl border border-gray-200 dark:border-zinc-800 p-5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Amount (KSH)</p>
-            <input inputMode="numeric" value={sendAmount} onChange={(e) => setSendAmount(e.target.value.replace(/[^\d]/g, ""))} placeholder="500" className="w-full text-4xl font-black tracking-tight outline-none border-none bg-transparent" />
+            <input inputMode="numeric" value={sendAmount} onChange={(e) => setSendAmount(e.target.value.replace(/[^\d]/g, ""))} placeholder="500" className="w-full text-4xl font-black tracking-tight outline-none border-none bg-transparent text-black dark:text-white" />
             <p className="text-xs text-gray-500 mt-1 font-semibold">Available: KSH {points.toLocaleString("en-KE")}</p>
             <div className="mt-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">To</p>

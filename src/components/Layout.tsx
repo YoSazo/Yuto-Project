@@ -41,8 +41,8 @@ export default function Layout() {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] bg-gray-100 flex items-center justify-center">
-        <div className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white flex items-center justify-center md:rounded-[40px] md:shadow-2xl">
+      <div className="min-h-[100dvh] bg-gray-100 dark:bg-black flex items-center justify-center transition-colors">
+        <div className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white dark:bg-black flex items-center justify-center md:rounded-[40px] md:shadow-2xl transition-colors">
           <p className="text-gray-400 text-lg">Loading...</p>
         </div>
       </div>
@@ -52,8 +52,8 @@ export default function Layout() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <div className="min-h-[100dvh] bg-gray-100 flex items-center justify-center">
-      <div id="app-shell" className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white relative overflow-hidden md:rounded-[40px] md:shadow-2xl">
+    <div className="min-h-[100dvh] bg-gray-100 dark:bg-black flex items-center justify-center transition-colors">
+      <div id="app-shell" className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white dark:bg-black relative overflow-hidden md:rounded-[40px] md:shadow-2xl transition-colors">
         <div className={`h-full overflow-y-auto ${showNav ? "pb-24" : ""}`}>
           <Outlet />
         </div>

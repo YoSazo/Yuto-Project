@@ -73,11 +73,11 @@ export default function SplitScreen() {
   };
 
   return (
-    <div className="flex flex-col min-h-full px-6 pt-14">
+    <div className="flex flex-col min-h-full px-6 pt-14 bg-white dark:bg-black text-black dark:text-white transition-colors">
       {/* Header */}
       <div className="flex items-center gap-3 mb-10">
         <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
-        <span className="text-xl font-bold text-black">Split Anything</span>
+        <span className="text-xl font-bold text-black dark:text-white">Split Anything</span>
       </div>
 
       {/* Amount input */}
@@ -92,10 +92,10 @@ export default function SplitScreen() {
             if (val.length <= 7) setAmount(val);
           }}
           placeholder="0"
-          className="text-[56px] font-bold text-center text-black bg-transparent border-none outline-none w-full placeholder-gray-200"
+          className="text-[56px] font-bold text-center text-black dark:text-white bg-transparent border-none outline-none w-full placeholder-gray-200 dark:placeholder-gray-700"
           style={{ caretColor: "#5493b3" }}
         />
-        <div className="w-16 h-0.5 bg-gray-200 rounded-full mt-1" />
+        <div className="w-16 h-0.5 bg-gray-200 dark:bg-zinc-800 rounded-full mt-1" />
       </div>
 
       {/* Description */}
@@ -106,7 +106,7 @@ export default function SplitScreen() {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="What's this for? (chipo, lunch, drinks...)"
           maxLength={40}
-          className="w-full text-sm text-center text-gray-500 bg-gray-50 border-none outline-none rounded-full px-4 py-3 placeholder-gray-300"
+          className="w-full text-sm text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-900 border-none outline-none rounded-full px-4 py-3 placeholder-gray-300 dark:placeholder-zinc-600"
         />
       </div>
 
@@ -118,7 +118,7 @@ export default function SplitScreen() {
             <p className="text-sm text-gray-400 mb-2">No friends yet</p>
             <button
               onClick={() => navigate("/friends")}
-              className="text-sm text-black font-semibold bg-transparent border-none cursor-pointer underline p-0"
+              className="text-sm text-black dark:text-white font-semibold bg-transparent border-none cursor-pointer underline p-0"
             >
               Add friends to get started
             </button>
@@ -133,8 +133,8 @@ export default function SplitScreen() {
                   onClick={() => toggleFriend(friend.id)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all tap-scale ${
                     selected
-                      ? "bg-black border-black text-white"
-                      : "bg-white border-gray-200 text-black"
+                      ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black"
+                      : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-black dark:text-white"
                   }`}
                 >
                   <UserAvatar name={friend.display_name} avatarUrl={(friend as any).avatar_url} size="sm" className={selected ? "ring-2 ring-white" : ""} />
@@ -150,9 +150,9 @@ export default function SplitScreen() {
       {/* Per person summary */}
       {isValid && (
         <div className="mt-6 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full">
-            <span className="text-sm text-gray-500">Each person pays</span>
-            <span className="font-bold text-lg text-black">KSH {equalShare.toLocaleString()}</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-zinc-900 rounded-full">
+            <span className="text-sm text-gray-500 dark:text-gray-400">Each person pays</span>
+            <span className="font-bold text-lg text-black dark:text-white">KSH {equalShare.toLocaleString()}</span>
           </div>
         </div>
       )}
@@ -168,8 +168,8 @@ export default function SplitScreen() {
           disabled={!isValid || isCreating}
           className={`w-full py-4 rounded-full font-bold text-lg transition-all tap-scale ${
             isValid && !isCreating
-              ? "bg-black text-white active:scale-[0.98]"
-              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              ? "bg-black dark:bg-white text-white dark:text-black active:scale-[0.98]"
+              : "bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 cursor-not-allowed"
           }`}
         >
           {isCreating

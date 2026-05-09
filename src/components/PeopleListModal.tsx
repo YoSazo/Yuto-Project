@@ -31,10 +31,10 @@ export function PeopleListModal({
         onClick={onClose}
       />
 
-      <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-5 modal-slide-up">
+      <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-5 modal-slide-up">
         <div className="flex items-center justify-between mb-4">
-          <p className="font-extrabold text-black text-lg">{title}</p>
-          <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">
+          <p className="font-extrabold text-black dark:text-white text-lg">{title}</p>
+          <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none">
             ✕
           </button>
         </div>
@@ -52,11 +52,11 @@ export function PeopleListModal({
                       onClose();
                       onNavigateToUser(p.id);
                     }}
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl py-1 pr-2 text-left transition-colors hover:bg-gray-50 bg-transparent border-none"
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl py-1 pr-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800 bg-transparent border-none"
                   >
                     <UserAvatar name={p.display_name} avatarUrl={p.avatar_url} size="md" />
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-black truncate">{p.display_name}</p>
+                      <p className="font-bold text-black dark:text-white truncate">{p.display_name}</p>
                       <p className="text-sm text-gray-400 truncate">@{p.username}</p>
                     </div>
                   </button>
@@ -66,7 +66,7 @@ export function PeopleListModal({
                       onClose();
                       onNavigateToUser(p.id);
                     }}
-                    className="shrink-0 rounded-xl bg-gray-100 px-3 py-2.5 text-sm font-bold text-black transition-colors hover:bg-gray-200"
+                    className="shrink-0 border-none rounded-xl bg-gray-100 dark:bg-zinc-800 px-3 py-2.5 text-sm font-bold text-black dark:text-white transition-colors hover:bg-gray-200 dark:hover:bg-zinc-700"
                   >
                     View profile
                   </button>

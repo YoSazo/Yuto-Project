@@ -251,20 +251,20 @@ export async function createGroup(
   groupType: "single" | "multi" = "single"
 ) {
   // Step 1: Insert the group
-  const { error: groupError } = await supabase
+  const { data: group, error: groupError } = await supabase
     .from("groups")
-    .insert({ name, total_amount: totalAmount, per_person: perPerson, created_by: createdBy, group_type: groupType });
-  if (groupError) throw groupError;
-
-  // Step 2: Fetch the group we just created (creator can select via created_by = auth.uid())
-  const { data: group, error: fetchError } = await supabase
-    .from("groups")
-    .select("*")
-    .eq("created_by", createdBy)
-    .order("created_at", { ascending: false })
-    .limit(1)
+    .insert({
+      name,
+      total_amount: totalAmount,
+      per_person: perPerson,
+      created_by: createdBy,
+      group_type: groupType,
+      status: "active",
+    })
+    .select()
     .single();
-  if (fetchError) throw fetchError;
+
+  if (groupError) throw groupError;
 
   // Step 3: Insert creator first so RLS on group_members select works for future queries
   const creatorMember = {
@@ -321,6 +321,23 @@ export async function submitRideAmount(groupId: string, userId: string, rideAmou
     .from("groups")
     .update({ total_amount: total, per_person: perPerson })
     .eq("id", groupId);
+}
+
+export async function cancelSplitGroup(groupId: string) {
+  const { data, error } = await supabase.rpc("cancel_split_group", {
+    p_group_id: groupId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function leaveSplitGroup(groupId: string, userId: string) {
+  const { data, error } = await supabase.rpc("leave_split_group", {
+    p_group_id: groupId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function getMyGroups() {

@@ -28,17 +28,11 @@ export function SegmentedTabsBar<Id extends string>({
   return (
     <div className={`relative h-[54px] w-full ${className}`}>
       <div
-        className="absolute inset-0 rounded-full overflow-hidden border border-gray-200"
-        style={{
-          background: "rgba(255, 255, 255, 0.7)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.06)",
-        }}
+        className="absolute inset-0 rounded-full overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-none"
       />
 
       <div
-        className="absolute top-[5px] bottom-[5px] rounded-full bg-black z-20 transition-all duration-300 ease-out"
+        className="absolute top-[5px] bottom-[5px] rounded-full bg-black dark:bg-white z-20 transition-all duration-300 ease-out"
         style={{
           left: `calc(${idx * (100 / n)}% + 5px)`,
           width: `calc(${100 / n}% - 10px)`,
@@ -55,8 +49,8 @@ export function SegmentedTabsBar<Id extends string>({
               onClick={() => onChange(tab.id)}
               className="flex-1 relative flex flex-col items-center justify-center gap-0.5 h-full cursor-pointer bg-transparent border-none"
             >
-              <span className={isLit ? "text-white" : "text-gray-400"}>{tab.icon}</span>
-              <span className={`text-[10px] font-semibold transition-colors duration-200 ${isLit ? "text-white" : "text-gray-400"}`}>
+              <span className={isLit ? "text-white dark:text-black" : "text-gray-400 dark:text-gray-500"}>{tab.icon}</span>
+              <span className={`text-[10px] font-semibold transition-colors duration-200 ${isLit ? "text-white dark:text-black" : "text-gray-400 dark:text-gray-500"}`}>
                 {tab.label}
               </span>
             </button>

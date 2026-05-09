@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { haptics } from "../lib/haptics";
+import { useTheme } from "../contexts/ThemeContext";
 
 type NavTab = "split" | "home" | "activity" | "profile";
 
@@ -55,6 +56,7 @@ const TAB_COUNT = tabs.length;
 
 export default function GlassNavBar({ activeTab, pendingCount = 0, dmUnreadCount = 0 }: GlassNavBarProps) {
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const activeIndex = tabs.findIndex((t) => t.id === activeTab);
 
   const [justLanded, setJustLanded] = useState<NavTab | null>(null);
@@ -160,17 +162,11 @@ export default function GlassNavBar({ activeTab, pendingCount = 0, dmUnreadCount
       onPointerCancel={() => setIsDragging(false)}
     >
       <div
-        className="absolute inset-0 rounded-full overflow-hidden border border-gray-200"
-        style={{
-          background: "rgba(255, 255, 255, 0.7)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.06)",
-        }}
+        className="absolute inset-0 rounded-full overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-none"
       />
 
       <div
-        className="absolute top-[5px] bottom-[5px] rounded-full bg-black z-20 transition-all duration-300 ease-out"
+        className="absolute top-[5px] bottom-[5px] rounded-full bg-black dark:bg-white z-20 transition-all duration-300 ease-out"
         style={pillStyle}
       />
 
@@ -180,7 +176,7 @@ export default function GlassNavBar({ activeTab, pendingCount = 0, dmUnreadCount
       >
         {tabs.map((tab, i) => {
           const isLit = i === visualIndex;
-          const color = isLit ? "#fff" : "#9ca3af";
+          const color = isLit ? (theme === "dark" ? "#000" : "#fff") : (theme === "dark" ? "#6b7280" : "#9ca3af");
 
           let scale = 1;
           if (isDragging) {
@@ -222,7 +218,7 @@ export default function GlassNavBar({ activeTab, pendingCount = 0, dmUnreadCount
               </div>
               <span
                 className={`text-[10px] font-semibold transition-all duration-200 ${
-                  isLit ? "text-white" : "text-gray-400"
+                  isLit ? "text-white dark:text-black" : "text-gray-400 dark:text-gray-500"
                 } ${justLanded === tab.id ? "scale-110" : "scale-100"}`}
                 style={{
                   transform:

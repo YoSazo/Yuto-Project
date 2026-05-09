@@ -36,6 +36,7 @@ import type { FunctionListing } from "../lib/types";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { FixedMediaCarousel, type CarouselMediaItem } from "../components/media/FixedMediaCarousel";
+import { FunctionCard } from "../components/cards/FunctionCard";
 import { toast } from "sonner";
 
 const STAT_POSITIONS = [
@@ -70,7 +71,7 @@ export default function UserProfileScreen() {
   }, [activeHighlightMediaKey]);
   const [sendProfileOpen, setSendProfileOpen] = useState(false);
   const [userListings, setUserListings] = useState<StorefrontListingItem[]>([]);
-  const [hostedFunctions, setHostedFunctions] = useState<HostedFunctionItem[]>([]);
+  const [hostedFunctions, setHostedFunctions] = useState<FunctionListing[]>([]);
   const [shareHighlightOpen, setShareHighlightOpen] = useState(false);
   const [shareListingOpen, setShareListingOpen] = useState<StorefrontListingItem | null>(null);
   const [listingInquiry, setListingInquiry] = useState<StorefrontListingItem | null>(null);
@@ -166,7 +167,15 @@ export default function UserProfileScreen() {
           .maybeSingle(),
         getHighlightsByUser(targetUserId).catch(() => []),
         getUserListings(targetUserId).catch(() => [] as StorefrontListingItem[]),
-        getUserHostedFunctions(targetUserId).catch(() => [] as HostedFunctionItem[]),
+        supabase
+          .from("functions")
+          .select("*, host:profiles!functions_host_id_fkey(id, username, display_name, avatar_url), function_members(id, user_id, has_paid, joined_at, paid_at, buyer_confirmed_at, profiles(id, username, display_name, avatar_url)), media:function_media(id, media_url, media_type, sort_index)")
+          .eq("host_id", targetUserId)
+          .eq("status", "open")
+          .neq("location", "__SELL__")
+          .neq("location", "__SERVICE__")
+          .order("created_at", { ascending: false })
+          .then(res => (res.data || []) as FunctionListing[]),
       ]);
 
       const membersData = statsRes.data || [];
@@ -181,7 +190,7 @@ export default function UserProfileScreen() {
       });
       setHighlights(highlightRows as Highlight[]);
       setUserListings(listingRows as StorefrontListingItem[]);
-      setHostedFunctions(hostedRows as HostedFunctionItem[]);
+      setHostedFunctions(hostedRows);
 
       // 3. Determine Friendship Status
       if (friendshipRes.data) {
@@ -277,7 +286,6 @@ export default function UserProfileScreen() {
         if (hostId) {
           const convo = await getOrCreateDmConversation(user.id, hostId);
           const isSell = fn.location === "__SELL__";
-          const kindLabel = isSell ? "Sell" : "Service";
           const verb = isSell ? "bought" : "booked";
           await sendDmMessage(convo.id, user.id, `Hey! I just ${verb} “${fn.title}”.`);
           await sendDmShareMessage(convo.id, user.id, {
@@ -303,7 +311,7 @@ export default function UserProfileScreen() {
     }
   };
 
-  const handleJoinHostedFunction = async (hosted: HostedFunctionItem) => {
+  const handleJoinHostedFunction = async (hosted: FunctionListing) => {
     if (!user) return;
     try {
       await joinFunction(hosted.id, user.id);
@@ -325,7 +333,7 @@ export default function UserProfileScreen() {
           cachedBalance: cachedBal,
         });
         setFunctionTopUpAmount(topUp);
-        setPendingJoinFunction({ ...(hosted as any), location: hosted.location || "" } as any);
+        setPendingJoinFunction(hosted);
         setShowFunctionTopUp(true);
         return;
       }
@@ -339,7 +347,7 @@ export default function UserProfileScreen() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-full">
+      <div className="flex items-center justify-center min-h-full bg-white dark:bg-black transition-colors">
         <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -354,14 +362,14 @@ export default function UserProfileScreen() {
   const nodeRadius = 125;
 
   return (
-    <div className="flex flex-col min-h-full px-5 pt-10 pb-6">
+    <div className="flex flex-col min-h-full px-5 pt-10 pb-6 bg-white dark:bg-black text-black dark:text-white transition-colors">
       {/* Header with Back Button */}
       <div className="flex items-center justify-between gap-3 mb-6">
       <div className="flex items-center gap-3 min-w-0">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 bg-transparent border-none cursor-pointer text-black hover:opacity-70 transition-opacity shrink-0">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 bg-transparent border-none cursor-pointer text-black dark:text-white hover:opacity-70 transition-opacity shrink-0">
             <ArrowLeft size={24} />
           </button>
-          <span className="text-2xl font-bold text-black truncate">Profile</span>
+          <span className="text-2xl font-bold text-black dark:text-white truncate">Profile</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {user && targetUserId && (
@@ -369,7 +377,7 @@ export default function UserProfileScreen() {
               <button
                 type="button"
                 onClick={() => setReportModalOpen(true)}
-                className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-zinc-900 text-gray-500 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors"
                 aria-label="Report user"
                 title="Report user"
               >
@@ -378,7 +386,7 @@ export default function UserProfileScreen() {
               <button
                 type="button"
                 onClick={() => setSendProfileOpen(true)}
-                className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+                className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-zinc-900 text-black dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors"
                 aria-label="Send profile in messages"
                 title="Send profile"
               >
@@ -470,9 +478,9 @@ export default function UserProfileScreen() {
           const isPaid = pos.id === "paid" && stats.totalSpent > 0;
           return (
             <div key={pos.id} className="absolute left-1/2 top-1/2 flex flex-col items-center" style={{ transform: `translate(calc(-50% + ${Math.cos(pos.angle) * nodeRadius}px), calc(-50% + ${Math.sin(pos.angle) * nodeRadius}px))`, zIndex: 20 }}>
-              <div className={`rounded-2xl px-5 py-3 text-center min-w-[88px] transition-colors ${isPaid ? "bg-black text-green-400 border-2 border-green-500 shadow-lg" : "bg-white border border-gray-200 shadow-sm"}`}>
-                <p className={`font-extrabold text-xl font-syne ${isPaid ? "text-green-400" : "text-black"}`}>{value}</p>
-                <p className={`text-xs mt-0.5 ${isPaid ? "text-white/70" : "text-gray-400"}`}>{pos.label}</p>
+              <div className={`rounded-2xl px-5 py-3 text-center min-w-[88px] transition-colors ${isPaid ? "bg-black text-green-400 border-2 border-green-500 shadow-lg" : "bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm"}`}>
+                <p className={`font-extrabold text-xl font-syne ${isPaid ? "text-green-400" : "text-black dark:text-white"}`}>{value}</p>
+                <p className={`text-xs mt-0.5 ${isPaid ? "text-white/70" : "text-gray-400 dark:text-gray-500"}`}>{pos.label}</p>
               </div>
             </div>
           );
@@ -481,7 +489,7 @@ export default function UserProfileScreen() {
 
       {/* Name + Handle */}
       <div className="text-center -mt-2 mb-3">
-        <p className="font-bold text-xl text-black">{userName}</p>
+        <p className="font-bold text-xl text-black dark:text-white">{userName}</p>
         <p className="text-sm text-gray-400">{userHandle}</p>
       </div>
 
@@ -502,7 +510,7 @@ export default function UserProfileScreen() {
               <motion.div
                 layoutId={`highlight-container-${h.id}`}
                 style={{ borderRadius: 9999 }}
-                className="relative w-16 h-16 shrink-0 border-2 border-gray-200 overflow-hidden bg-gray-100"
+                className="relative w-16 h-16 shrink-0 border-2 border-gray-200 dark:border-zinc-800 overflow-hidden bg-gray-100 dark:bg-zinc-900"
               >
                 {h.photos[0]?.url ? (
                   <HighlightStillMedia
@@ -540,8 +548,8 @@ export default function UserProfileScreen() {
                         type="button"
                         onClick={() => setShowcaseTab(t.id)}
                         className={[
-                          "px-4 py-2 rounded-full text-sm font-extrabold transition-colors",
-                          sel ? "bg-black text-white" : "bg-transparent text-gray-400",
+                          "px-4 py-2 rounded-full text-sm font-extrabold transition-colors border-none",
+                          sel ? "bg-black dark:bg-white text-white dark:text-black" : "bg-transparent text-gray-400",
                         ].join(" ")}
                       >
                         {t.label}
@@ -555,46 +563,16 @@ export default function UserProfileScreen() {
             )}
 
             {showcaseTab === "functions" ? (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-4">
                 {hostedFunctions.map((fn) => (
-                  <div
+                  <FunctionCard
                     key={fn.id}
-                    className="w-full rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden text-left flex gap-3 p-3"
-                  >
-                    <div className="w-20 h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
-                      {fn.image_url ? (
-                        <img src={fn.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                          <Store size={22} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-extrabold text-black truncate">{fn.title}</p>
-                      <p className="text-sm text-gray-400 font-semibold truncate">
-                        {fn.date ? new Date(fn.date).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" }) : "Anytime"}
-                        {fn.location ? ` · ${fn.location}` : ""}
-                      </p>
-                      <p className="text-sm text-black font-extrabold mt-1">KSH {fn.amount_per_person.toLocaleString()}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => navigate("/home", { state: { focus: { kind: "function", id: fn.id } } })}
-                          className="h-10 px-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-black font-extrabold transition-colors"
-                        >
-                          View
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleJoinHostedFunction(fn)}
-                          className="h-10 px-4 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
-                        >
-                          Join
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                    eventFunction={fn}
+                    currentUserId={user?.id}
+                    onNavigateToHost={() => {}}
+                    onJoinFunction={(f) => void handleJoinHostedFunction(f)}
+                    onOpenTicket={(f) => setTicketFunction(f)}
+                  />
                 ))}
               </div>
             ) : (
@@ -610,7 +588,7 @@ export default function UserProfileScreen() {
                   return (
                   <div
                     key={listing.id}
-                    className="rounded-3xl border border-gray-100 bg-white shadow-md overflow-hidden text-left"
+                    className="rounded-3xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-md overflow-hidden text-left"
                   >
                     <div
                       role="button"
@@ -628,7 +606,7 @@ export default function UserProfileScreen() {
                         {carouselItems.length > 0 ? (
                           <FixedMediaCarousel items={carouselItems} />
                         ) : (
-                          <div className="aspect-[4/5] bg-gray-100 relative">
+                          <div className="aspect-[4/5] bg-gray-100 dark:bg-zinc-800 relative">
                             <div className="absolute inset-0 flex items-center justify-center text-gray-300">
                               <Store size={34} />
                             </div>
@@ -661,18 +639,18 @@ export default function UserProfileScreen() {
                               <span className="text-xl font-bold mb-2">...</span>
                             </button>
                             {listingOptionsOpen === listing.id && (
-                              <div className="absolute top-12 right-0 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col py-1">
+                              <div className="absolute top-12 right-0 w-36 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-gray-100 dark:border-zinc-800 overflow-hidden flex flex-col py-1">
                                 {listing.listing_status !== "active" && (
-                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUpdateListingStatus(listing.id, "active"); }} className="px-4 py-2 text-sm font-bold text-left text-black hover:bg-gray-50 border-none bg-transparent">Re-list</button>
+                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUpdateListingStatus(listing.id, "active"); }} className="px-4 py-2 text-sm font-bold text-left text-black dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800 border-none bg-transparent">Re-list</button>
                                 )}
                                 {listing.listing_status !== "sold" && (
-                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUpdateListingStatus(listing.id, "sold"); }} className="px-4 py-2 text-sm font-bold text-left text-black hover:bg-gray-50 border-none bg-transparent">Mark Sold</button>
+                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUpdateListingStatus(listing.id, "sold"); }} className="px-4 py-2 text-sm font-bold text-left text-black dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800 border-none bg-transparent">Mark Sold</button>
                                 )}
                                 {listing.listing_status !== "paused" && (
-                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUpdateListingStatus(listing.id, "paused"); }} className="px-4 py-2 text-sm font-bold text-left text-black hover:bg-gray-50 border-none bg-transparent">Pause</button>
+                                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUpdateListingStatus(listing.id, "paused"); }} className="px-4 py-2 text-sm font-bold text-left text-black dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800 border-none bg-transparent">Pause</button>
                                 )}
-                                <div className="h-px bg-gray-100 my-1 mx-2" />
-                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteListing(listing.id); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">Delete</button>
+                                <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1 mx-2" />
+                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteListing(listing.id); }} className="px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 border-none bg-transparent">Delete</button>
                               </div>
                             )}
                           </div>
@@ -696,7 +674,7 @@ export default function UserProfileScreen() {
                       </div>
                     </div>
                     <div className="p-4 pb-5">
-                      <p className="font-extrabold text-black text-base leading-snug line-clamp-2">{listing.title}</p>
+                      <p className="font-extrabold text-black dark:text-white text-base leading-snug line-clamp-2">{listing.title}</p>
                       <p className="text-sm text-gray-600 mt-2 font-bold">KSH {listing.amount_per_person.toLocaleString()}</p>
                       <div className="mt-4 flex gap-3 items-stretch">
                         <button
@@ -705,7 +683,7 @@ export default function UserProfileScreen() {
                             if (!user || !targetUserId) return;
                             setListingInquiry(listing);
                           }}
-                          className="shrink-0 w-[3.25rem] rounded-2xl bg-gray-100 hover:bg-gray-200 text-black flex items-center justify-center transition-colors tap-scale disabled:opacity-40"
+                          className="shrink-0 w-[3.25rem] rounded-2xl bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-black dark:text-white flex items-center justify-center transition-colors tap-scale disabled:opacity-40"
                           aria-label="Message about listing"
                           title="Message seller"
                           disabled={!user || listing.listing_status === "sold"}
@@ -718,10 +696,10 @@ export default function UserProfileScreen() {
                             e.preventDefault();
                             e.stopPropagation();
                             if (!user || !targetUserId) return;
-                            setListingInquiry(listing); // Opens the DM flow instead of instant debit
+                            setListingInquiry(listing); // Opens the DM flow instead of instant pay
                           }}
                           disabled={listing.listing_status === "sold" || listing.listing_status === "paused"}
-                          className="flex-1 min-h-[3.25rem] rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors inline-flex items-center justify-center px-4 disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-500"
+                          className="flex-1 min-h-[3.25rem] rounded-2xl bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-extrabold transition-colors inline-flex items-center justify-center px-4 disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-500"
                         >
                           {listing.listing_status === "sold" 
                             ? "Sold Out" 
@@ -783,7 +761,7 @@ export default function UserProfileScreen() {
         {friendStatus === "friends" ? (
           <button
             onClick={() => void handleMessage()}
-            className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors shadow-lg shadow-black/10"
+            className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-lg shadow-black/10"
           >
             <MessageCircle size={20} /> Message
           </button>
@@ -794,8 +772,8 @@ export default function UserProfileScreen() {
               disabled={actionLoading || friendStatus !== "none"}
               className={`flex-1 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-black/10 ${
                 friendStatus === "none"
-                  ? "bg-black text-white hover:bg-gray-800"
-                  : "bg-gray-100 text-gray-500 shadow-none"
+                  ? "bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200"
+                  : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 shadow-none"
               }`}
             >
               {friendStatus === "pending" ? (
@@ -811,7 +789,7 @@ export default function UserProfileScreen() {
 
             <button
               onClick={() => void handleMessage()}
-              className="flex-1 py-4 bg-gray-100 text-black rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+              className="flex-1 py-4 bg-gray-100 dark:bg-zinc-800 text-black dark:text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
             >
               <MessageCircle size={20} /> Message
             </button>
@@ -1037,35 +1015,35 @@ export default function UserProfileScreen() {
       {reportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setReportModalOpen(false)}>
           <div 
-            className="w-full max-w-md bg-white rounded-t-3xl p-6 pb-8"
+            className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl p-6 pb-8 transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h3 className="text-xl font-bold text-black">Report User</h3>
-                <p className="text-xs text-gray-500 mt-1">This will be sent securely to our review team.</p>
+                <h3 className="text-xl font-bold text-black dark:text-white">Report User</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">This will be sent securely to our review team.</p>
               </div>
-              <button onClick={() => setReportModalOpen(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+              <button onClick={() => setReportModalOpen(false)} className="w-8 h-8 border-none rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-zinc-700">✕</button>
             </div>
             
             <textarea
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
               placeholder="Why are you reporting this user? (Spam, inappropriate behavior, etc.)"
-              className="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-2xl resize-none text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full h-32 p-4 bg-transparent border border-gray-200 dark:border-zinc-800 rounded-2xl resize-none text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white text-black dark:text-white placeholder:text-gray-400"
             />
             
             <div className="mt-4 flex gap-3">
               <button 
                 onClick={() => setReportModalOpen(false)}
-                className="flex-1 py-3.5 rounded-2xl bg-gray-100 text-black font-bold text-sm"
+                className="flex-1 py-3.5 border-none rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white hover:bg-gray-200 dark:hover:bg-zinc-700 font-bold text-sm"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleReportUser}
                 disabled={!reportReason.trim()}
-                className="flex-1 py-3.5 rounded-2xl bg-red-600 text-white font-bold text-sm disabled:opacity-50"
+                className="flex-1 py-3.5 border-none rounded-2xl bg-red-600 text-white font-bold text-sm disabled:opacity-50"
               >
                 Submit Report
               </button>

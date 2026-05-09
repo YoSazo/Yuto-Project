@@ -130,16 +130,18 @@ export function ShareRecipientsSheet({
         tasks.push(
           (async () => {
             const convo = await getOrCreateDmConversation(currentUserId, fid);
-            if (cap) await sendDmMessage(convo.id, currentUserId, cap);
+            // Send share first, then caption, so caption appears below card in chat
             await sendDmShareMessage(convo.id, currentUserId, sharePayload);
+            if (cap) await sendDmMessage(convo.id, currentUserId, cap);
           })(),
         );
       });
       groupSel.forEach((gid) => {
         tasks.push(
           (async () => {
-            if (cap) await sendGroupChatMessage(gid, currentUserId, cap);
+            // Send share first, then caption
             await sendGroupChatShareMessage(gid, currentUserId, sharePayload);
+            if (cap) await sendGroupChatMessage(gid, currentUserId, cap);
           })(),
         );
       });

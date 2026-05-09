@@ -110,19 +110,19 @@ export function ComposeAnywhereSheet({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-t-3xl w-full max-w-md flex flex-col"
+        className="bg-white dark:bg-zinc-900 rounded-t-3xl w-full max-w-md flex flex-col transition-colors"
         style={{ maxHeight: "85vh" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 dark:border-zinc-800">
           <div>
-            <h2 className="font-bold text-lg text-black">Talk about what?</h2>
+            <h2 className="font-bold text-lg text-black dark:text-white">Talk about what?</h2>
             <p className="text-xs text-gray-400">Start a chat or jump back into one</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+            className="w-8 h-8 border-none rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
             aria-label="Close"
           >
             <X size={16} />
@@ -139,7 +139,7 @@ export function ComposeAnywhereSheet({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search a friend, plan or function..."
-              className="w-full h-11 pl-9 pr-3 bg-gray-100 rounded-xl text-sm font-medium text-black placeholder:text-gray-400 outline-none"
+              className="w-full h-11 pl-9 pr-3 bg-gray-100 dark:bg-zinc-800 border-none rounded-xl text-sm font-medium text-black dark:text-white placeholder:text-gray-400 outline-none transition-colors"
             />
           </div>
         </div>
@@ -153,11 +153,11 @@ export function ComposeAnywhereSheet({
                 onClose();
                 navigate("/messages/group/new");
               }}
-              className="bg-black text-white rounded-2xl p-4 text-left flex flex-col gap-1 hover:bg-gray-900 transition-colors"
+              className="bg-black dark:bg-white text-white dark:text-black border-none rounded-2xl p-4 text-left flex flex-col gap-1 hover:bg-gray-900 dark:hover:bg-gray-200 transition-colors"
             >
               <Users size={18} />
               <p className="font-bold text-sm">New group</p>
-              <p className="text-[11px] text-white/60">Pick friends to chat with</p>
+              <p className="text-[11px] text-white/60 dark:text-black/60">Pick friends to chat with</p>
             </button>
             <button
               type="button"
@@ -165,7 +165,7 @@ export function ComposeAnywhereSheet({
                 onClose();
                 navigate("/home", { state: { openCompose: true } });
               }}
-              className="bg-gray-100 text-black rounded-2xl p-4 text-left flex flex-col gap-1 hover:bg-gray-200 transition-colors"
+              className="bg-gray-100 dark:bg-zinc-800 border-none text-black dark:text-white rounded-2xl p-4 text-left flex flex-col gap-1 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
             >
               <Sparkles size={18} />
               <p className="font-bold text-sm">Post a Plan</p>
@@ -190,7 +190,7 @@ export function ComposeAnywhereSheet({
                       type="button"
                       disabled={busyId === f.id}
                       onClick={() => void openDmWithFriend(f.id)}
-                      className="w-full bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors disabled:opacity-60"
+                      className="w-full border-none bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-3 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-60"
                     >
                       <UserAvatar
                         name={f.display_name || "User"}
@@ -198,7 +198,7 @@ export function ComposeAnywhereSheet({
                         size="md"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="font-bold text-black truncate">
+                        <p className="font-bold text-black dark:text-white truncate">
                           {f.display_name || "User"}
                         </p>
                         <p className="text-xs text-gray-400 truncate">
@@ -221,9 +221,9 @@ export function ComposeAnywhereSheet({
                       key={`${t.kind}:${t.id}`}
                       type="button"
                       onClick={() => openThread(t)}
-                      className="w-full bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
+                      className="w-full border-none bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-3 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
                     >
-                      <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center shrink-0 text-gray-500">
+                      <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 text-gray-500">
                         {t.kind === "plan" ? (
                           <Calendar size={16} />
                         ) : t.kind === "function" ? (
@@ -235,7 +235,7 @@ export function ComposeAnywhereSheet({
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-bold text-black truncate">{t.title}</p>
+                        <p className="font-bold text-black dark:text-white truncate">{t.title}</p>
                         <p className="text-xs text-gray-400 truncate">
                           {t.contextLabel || (t.kind === "dm" ? "Direct message" : "Group chat")}
                         </p>

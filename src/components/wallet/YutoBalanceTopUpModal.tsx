@@ -174,13 +174,13 @@ export function YutoBalanceTopUpModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-      <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+      <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
         <div className="flex justify-between items-start gap-3 mb-4">
           <div className="min-w-0">
-            <h2 className="font-bold text-xl text-black">{title}</h2>
-            {contextLine && <p className="text-sm text-gray-500 mt-2 leading-snug">{contextLine}</p>}
+            <h2 className="font-bold text-xl text-black dark:text-white">{title}</h2>
+            {contextLine && <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 leading-snug">{contextLine}</p>}
           </div>
-          <button type="button" onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none shrink-0">
+          <button type="button" onClick={onClose} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none shrink-0">
             ✕
           </button>
         </div>
@@ -195,7 +195,7 @@ export function YutoBalanceTopUpModal({
                 value={amountStr}
                 onChange={(e) => setAmountStr(e.target.value.replace(/\D/g, ""))}
                 placeholder="0"
-                className="text-[48px] font-bold text-center text-black bg-transparent border-none outline-none w-full mb-4"
+                className="text-[48px] font-bold text-center text-black dark:text-white bg-transparent border-none outline-none w-full mb-4 placeholder:text-gray-300 dark:placeholder:text-gray-700"
               />
               <div className="flex gap-2 w-full mb-2">
                 {presets.map((preset) => (
@@ -203,7 +203,7 @@ export function YutoBalanceTopUpModal({
                     key={preset}
                     type="button"
                     onClick={() => setAmountStr(String(preset))}
-                    className="flex-1 py-3 rounded-2xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors active:scale-95"
+                    className="flex-1 py-3 rounded-2xl font-bold text-sm border-none bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors active:scale-95"
                   >
                     +{preset}
                   </button>
@@ -225,7 +225,7 @@ export function YutoBalanceTopUpModal({
               type="button"
               onClick={handleTopUp}
               disabled={isSending || !amountStr || !phoneOk}
-              className="w-full py-4 bg-black text-white rounded-full font-bold text-lg disabled:opacity-50 transition-all active:scale-[0.98]"
+              className="w-full py-4 bg-black dark:bg-white text-white dark:text-black border-none rounded-full font-bold text-lg disabled:opacity-50 transition-all active:scale-[0.98]"
             >
               {isSending ? "Sending..." : "Top Up"}
             </button>
@@ -237,15 +237,15 @@ export function YutoBalanceTopUpModal({
                 <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-2xl">📲</div>
                 <div className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-20" />
               </div>
-              <p className="font-bold text-base text-black mb-1">Check your phone</p>
-              <p className="text-sm text-gray-500 px-4">Enter your M-PESA PIN to confirm.</p>
+              <p className="font-bold text-base text-black dark:text-white mb-1">Check your phone</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 px-4">Enter your M-PESA PIN to confirm.</p>
 
               <div className="flex items-center justify-center gap-1.5 mt-5">
                 {[0, 1, 2].map((i) => (
                   <span
                     key={i}
                     className={`w-2 h-2 rounded-full transition-colors ${
-                      pollCount > i ? "bg-green-500" : "bg-gray-200"
+                      pollCount > i ? "bg-green-500" : "bg-gray-200 dark:bg-zinc-700"
                     }`}
                   />
                 ))}
@@ -267,12 +267,12 @@ export function YutoBalanceTopUpModal({
                   type="button"
                   onClick={() => void handleRetry()}
                   disabled={isSending}
-                  className="w-full py-4 bg-black text-white rounded-full font-bold text-base disabled:opacity-50 transition-all active:scale-[0.98]"
+                  className="w-full py-4 border-none bg-black dark:bg-white text-white dark:text-black rounded-full font-bold text-base disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
                   {isSending ? "Working..." : retryCtaLabel}
                 </button>
               )}
-              <button type="button" onClick={onClose} className="w-full py-3 text-gray-500 text-sm font-semibold hover:text-black">
+              <button type="button" onClick={onClose} className="w-full py-3 bg-transparent border-none text-gray-500 text-sm font-semibold hover:text-black dark:hover:text-white">
                 Close
               </button>
             </div>

@@ -34,10 +34,10 @@ export function PlanCard({
   const joinedCount = pm.length;
   const slotsLeft = plan.slots ? plan.slots - joinedCount : null;
   const allIn = plan.slots ? joinedCount >= plan.slots : false;
-  const canYutoIt = isMine && plan.amount && pm.length > 0;
+  const canYutoIt = isMine && plan.amount && pm.length > 0 && plan.status !== "completed" && !plan.yuto_group_id;
 
   return (
-    <div id={`plan-${plan.id}`} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+    <div id={`plan-${plan.id}`} className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm">
       <div
         className="flex items-center gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
         onClick={() => onNavigateToCreator?.(plan.creator.id)}
@@ -52,8 +52,8 @@ export function PlanCard({
       >
         <UserAvatar name={plan.creator.display_name} avatarUrl={plan.creator.avatar_url} size="sm" />
         <div className="flex-1">
-          <p className="font-semibold text-sm text-black">{plan.creator.display_name}</p>
-          <p className="text-xs text-gray-400">
+          <p className="font-semibold text-sm text-black dark:text-white">{plan.creator.display_name}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
             {new Date(plan.created_at).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" })}
           </p>
         </div>
@@ -92,7 +92,7 @@ export function PlanCard({
         );
       })()}
 
-      <p className="font-bold text-black text-lg mb-2">{plan.title}</p>
+      <p className="font-bold text-black dark:text-white text-lg mb-2">{plan.title}</p>
 
       <div className="flex items-center gap-3 mb-2 flex-wrap">
         {plan.amount && (
@@ -139,7 +139,7 @@ export function PlanCard({
                     e.stopPropagation();
                     onSharePlan(plan);
                   }}
-                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                   aria-label={`Share ${plan.title}`}
                   title="Share in messages"
                 >
@@ -150,7 +150,7 @@ export function PlanCard({
                 <button
                   type="button"
                   onClick={() => onOpenPlanChat(plan)}
-                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                   aria-label={`Chat about ${plan.title}`}
                   title="Open chat"
                 >
@@ -169,7 +169,7 @@ export function PlanCard({
               type="button"
               onClick={() => void onJoinOrLeavePlan(plan)}
               disabled={joiningPlanId === plan.id}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${isMember ? "bg-gray-100 text-gray-600" : "bg-black text-white"}`}
+              className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${isMember ? "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400" : "bg-black dark:bg-white text-white dark:text-black"}`}
             >
               {joiningPlanId === plan.id ? (
                 "…"
@@ -186,7 +186,7 @@ export function PlanCard({
             <button
               type="button"
               onClick={() => onNavigateToYutoGroup(plan.yuto_group_id!)}
-              className="flex-1 py-2.5 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors"
+              className="flex-1 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
             >
               <span className="flex items-center justify-center gap-1.5">
                 <Rocket size={15} /> Join Yuto

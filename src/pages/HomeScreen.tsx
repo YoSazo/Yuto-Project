@@ -689,7 +689,7 @@ export default function HomeScreen() {
   return (
     <div
       ref={pullRefresh.scrollRef}
-      className="flex flex-col overflow-y-auto pb-28 px-5 pt-6"
+      className="flex flex-col overflow-y-auto pb-28 px-5 pt-6 bg-white dark:bg-black text-black dark:text-white transition-colors"
       style={{ touchAction: pullRefresh.pullDistance > 0 ? "none" : "auto" }}
       onTouchStart={pullRefresh.onTouchStart}
       onTouchMove={pullRefresh.onTouchMove}
@@ -714,13 +714,13 @@ export default function HomeScreen() {
       <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
-          <span className="text-2xl font-bold text-black">Home</span>
+          <span className="text-2xl font-bold text-black dark:text-white">Home</span>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => navigate("/notifications")}
-            className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
             aria-label="Notifications"
             title="Notifications"
           >
@@ -736,7 +736,7 @@ export default function HomeScreen() {
           <button
             type="button"
             onClick={() => navigate("/messages")}
-            className="w-11 h-11 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
             aria-label="Messages"
             title="Messages"
           >
@@ -914,7 +914,7 @@ export default function HomeScreen() {
   </button>
   <button
     onClick={() => setShowComposeAnywhere(true)}
-    className="w-12 h-12 bg-white border border-gray-200 text-black rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+    className="w-12 h-12 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-black dark:text-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
     aria-label="Message someone"
     title="Start a conversation"
   >
