@@ -84,7 +84,7 @@ export function DmSharedProfileCard({ viewerUserId, sharedUserId }: { viewerUser
 
   if (loading) {
     return (
-      <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm w-full max-w-[15rem] mx-auto text-center text-gray-400 text-sm font-semibold">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm w-full max-w-[15rem] mx-auto text-center text-gray-400 dark:text-gray-500 text-sm font-semibold">
         Loading…
       </div>
     );
@@ -92,7 +92,7 @@ export function DmSharedProfileCard({ viewerUserId, sharedUserId }: { viewerUser
 
   if (!profile) {
     return (
-      <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm w-full max-w-[15rem] mx-auto text-center text-gray-400 text-sm font-semibold">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm w-full max-w-[15rem] mx-auto text-center text-gray-400 dark:text-gray-500 text-sm font-semibold">
         Profile unavailable
       </div>
     );
@@ -104,13 +104,13 @@ export function DmSharedProfileCard({ viewerUserId, sharedUserId }: { viewerUser
   const showPendingLock = friendship === "pending" && !sentRequestThisSession;
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm w-full max-w-[min(100%,17rem)] mx-auto overflow-hidden">
+    <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm w-full max-w-[min(100%,17rem)] mx-auto overflow-hidden">
       <div className="flex flex-col items-center text-center gap-1.5 mb-4">
         <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-black/5 shrink-0">
           <UserAvatar name={name} avatarUrl={profile.avatar_url} size="lg" className="!w-full !h-full" />
         </div>
-        <p className="font-bold text-base text-black leading-tight">{name}</p>
-        {handle && <p className="text-xs text-gray-400">{handle}</p>}
+        <p className="font-bold text-base text-black dark:text-white leading-tight">{name}</p>
+        {handle && <p className="text-xs text-gray-400 dark:text-gray-500">{handle}</p>}
       </div>
 
       <div className="flex items-stretch gap-2">
@@ -120,7 +120,7 @@ export function DmSharedProfileCard({ viewerUserId, sharedUserId }: { viewerUser
               type="button"
               disabled={actionBusy}
               onClick={() => void openDmWithSharedPerson()}
-              className="flex-1 py-2.5 px-3 rounded-xl text-sm font-bold bg-black text-white shadow-md shadow-black/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
+              className="flex-1 py-2.5 px-3 rounded-xl text-sm font-bold bg-black dark:bg-white text-white dark:text-black shadow-md shadow-black/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               <MessageCircle size={16} />
               Message
@@ -128,7 +128,7 @@ export function DmSharedProfileCard({ viewerUserId, sharedUserId }: { viewerUser
             <button
               type="button"
               onClick={() => navigate(`/user/${sharedUserId}`)}
-              className="flex-1 py-2.5 px-3 rounded-xl text-sm font-bold bg-gray-100 text-black flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 px-3 rounded-xl text-sm font-bold bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center gap-2"
             >
               View profile
             </button>
@@ -140,7 +140,7 @@ export function DmSharedProfileCard({ viewerUserId, sharedUserId }: { viewerUser
               disabled={actionBusy || showPendingLock}
               onClick={() => void onAddFriend()}
               className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 shadow-md shadow-black/10 ${
-                showPendingLock ? "bg-gray-100 text-gray-400 shadow-none cursor-not-allowed" : "bg-black text-white"
+                showPendingLock ? "bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 shadow-none cursor-not-allowed" : "bg-black dark:bg-white text-white dark:text-black"
               }`}
             >
               {showPendingLock ? (
@@ -156,7 +156,7 @@ export function DmSharedProfileCard({ viewerUserId, sharedUserId }: { viewerUser
             <button
               type="button"
               onClick={() => navigate(`/user/${sharedUserId}`)}
-              className="flex-1 py-2.5 px-3 rounded-xl text-sm font-bold bg-gray-100 text-black flex items-center justify-center"
+              className="flex-1 py-2.5 px-3 rounded-xl text-sm font-bold bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center"
             >
               View profile
             </button>

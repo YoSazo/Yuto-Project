@@ -316,16 +316,16 @@ export function TransactionReceiptModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-      <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md modal-slide-up overflow-hidden max-h-[92vh] flex flex-col">
+      <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md modal-slide-up overflow-hidden max-h-[92vh] flex flex-col transition-colors">
         <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
           <div className="flex items-center gap-2">
             <Receipt size={18} />
-            <h2 className="font-bold text-lg text-black">Receipt</h2>
+            <h2 className="font-bold text-lg text-black dark:text-white">Receipt</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+            className="w-8 h-8 rounded-full bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center"
             aria-label="Close"
           >
             <X size={16} />
@@ -334,14 +334,14 @@ export function TransactionReceiptModal({
 
         <div className="px-5 pb-5 overflow-y-auto">
           {/* Hero: amount + direction + status */}
-          <div className="rounded-3xl bg-gray-50 border border-gray-100 p-6 flex flex-col items-center text-center">
+          <div className="rounded-3xl bg-gray-50 dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 p-6 flex flex-col items-center text-center">
             <div
               className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${
                 isPositive
                   ? "bg-green-50 text-green-600"
                   : isZero
-                    ? "bg-gray-100 text-gray-700"
-                    : "bg-gray-100 text-black"
+                    ? "bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-300"
+                    : "bg-gray-100 dark:bg-zinc-700 text-black dark:text-white"
               }`}
             >
               {kindIcon(tx.kind, isPositive)}
@@ -352,15 +352,15 @@ export function TransactionReceiptModal({
             </p>
             <p
               className={`mt-1 text-4xl font-bold tracking-tight ${
-                isPositive ? "text-green-600" : isZero ? "text-gray-700" : "text-black"
+                isPositive ? "text-green-600 dark:text-green-400" : isZero ? "text-gray-700 dark:text-gray-300" : "text-black dark:text-white"
               }`}
             >
               {isZero
                 ? "Free / gifted"
                 : `${isPositive ? "+" : "−"}KES ${formatKes(amount)}`}
             </p>
-            <p className="mt-3 font-bold text-black">{title}</p>
-            {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
+            <p className="mt-3 font-bold text-black dark:text-white">{title}</p>
+            {subtitle && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
 
             <div className="mt-4 flex items-center gap-2">
               <span
@@ -369,7 +369,7 @@ export function TransactionReceiptModal({
                 {chip.icon}
                 {chip.label}
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-gray-100 text-gray-700">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-300">
                 {method.icon}
                 {method.label}
               </span>
@@ -383,9 +383,9 @@ export function TransactionReceiptModal({
                   size="sm"
                 />
                 <div className="text-left">
-                  <p className="text-sm font-bold text-black leading-tight">{counterpartyLabel}</p>
+                  <p className="text-sm font-bold text-black dark:text-white leading-tight">{counterpartyLabel}</p>
                   {counterpartyHandle && (
-                    <p className="text-xs text-gray-400 font-semibold leading-tight">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold leading-tight">
                       {counterpartyHandle}
                     </p>
                   )}
@@ -395,48 +395,48 @@ export function TransactionReceiptModal({
           </div>
 
           {/* Sender / Recipient — the directional truth, separately from amount */}
-          <div className="mt-4 rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="grid grid-cols-2 divide-x divide-gray-100">
+          <div className="mt-4 rounded-2xl border border-gray-100 dark:border-zinc-800 overflow-hidden">
+            <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-zinc-800">
               <div className="p-4">
                 <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">From</p>
-                <p className="mt-1 font-bold text-black truncate">{senderLabel}</p>
+                <p className="mt-1 font-bold text-black dark:text-white truncate">{senderLabel}</p>
               </div>
               <div className="p-4">
                 <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">To</p>
-                <p className="mt-1 font-bold text-black truncate">{recipientLabel}</p>
+                <p className="mt-1 font-bold text-black dark:text-white truncate">{recipientLabel}</p>
               </div>
             </div>
           </div>
 
           {/* Detail rows — only render fields we actually have */}
           <dl className="mt-4 grid grid-cols-2 gap-y-3 text-sm">
-            <dt className="text-gray-400 font-semibold flex items-center gap-1.5"><Calendar size={12} /> Date</dt>
-            <dd className="text-black font-semibold text-right">{formatDateTime(tx.created_at)}</dd>
+            <dt className="text-gray-400 dark:text-gray-500 font-semibold flex items-center gap-1.5"><Calendar size={12} /> Date</dt>
+            <dd className="text-black dark:text-white font-semibold text-right">{formatDateTime(tx.created_at)}</dd>
 
-            <dt className="text-gray-400 font-semibold flex items-center gap-1.5"><Hash size={12} /> Reference</dt>
-            <dd className="text-black font-semibold text-right tracking-wider">YUTO-{shortId(tx.id)}</dd>
+            <dt className="text-gray-400 dark:text-gray-500 font-semibold flex items-center gap-1.5"><Hash size={12} /> Reference</dt>
+            <dd className="text-black dark:text-white font-semibold text-right tracking-wider">YUTO-{shortId(tx.id)}</dd>
 
-            <dt className="text-gray-400 font-semibold">Account</dt>
-            <dd className="text-black font-semibold text-right truncate">{ownerName}</dd>
+            <dt className="text-gray-400 dark:text-gray-500 font-semibold">Account</dt>
+            <dd className="text-black dark:text-white font-semibold text-right truncate">{ownerName}</dd>
 
             {mpesaReceipt && (
               <>
                 <dt className="text-gray-400 font-semibold">M-PESA receipt</dt>
-                <dd className="text-black font-semibold text-right tracking-wider">{mpesaReceipt}</dd>
+                <dd className="text-black dark:text-white font-semibold text-right tracking-wider">{mpesaReceipt}</dd>
               </>
             )}
 
             {phone && (
               <>
                 <dt className="text-gray-400 font-semibold">Phone</dt>
-                <dd className="text-black font-semibold text-right">{phone}</dd>
+                <dd className="text-black dark:text-white font-semibold text-right">{phone}</dd>
               </>
             )}
 
             {intaSendId && (
               <>
                 <dt className="text-gray-400 font-semibold">Provider id</dt>
-                <dd className="text-black font-semibold text-right truncate font-mono text-xs">
+                <dd className="text-black dark:text-white font-semibold text-right truncate font-mono text-xs">
                   {intaSendId}
                 </dd>
               </>
@@ -445,7 +445,7 @@ export function TransactionReceiptModal({
             {trackingId && trackingId !== intaSendId && (
               <>
                 <dt className="text-gray-400 font-semibold">Tracking id</dt>
-                <dd className="text-black font-semibold text-right truncate font-mono text-xs">
+                <dd className="text-black dark:text-white font-semibold text-right truncate font-mono text-xs">
                   {trackingId}
                 </dd>
               </>
@@ -454,49 +454,49 @@ export function TransactionReceiptModal({
             {ticketCount != null && (
               <>
                 <dt className="text-gray-400 font-semibold">Tickets</dt>
-                <dd className="text-black font-semibold text-right">{ticketCount}</dd>
+                <dd className="text-black dark:text-white font-semibold text-right">{ticketCount}</dd>
               </>
             )}
 
             {perPersonKes != null && (
               <>
                 <dt className="text-gray-400 font-semibold">Per person</dt>
-                <dd className="text-black font-semibold text-right">KSH {formatKes(perPersonKes)}</dd>
+                <dd className="text-black dark:text-white font-semibold text-right">KSH {formatKes(perPersonKes)}</dd>
               </>
             )}
 
             {totalKes != null && (
               <>
                 <dt className="text-gray-400 font-semibold">Group total</dt>
-                <dd className="text-black font-semibold text-right">KSH {formatKes(totalKes)}</dd>
+                <dd className="text-black dark:text-white font-semibold text-right">KSH {formatKes(totalKes)}</dd>
               </>
             )}
 
             {planTitle && (
               <>
                 <dt className="text-gray-400 font-semibold">Plan</dt>
-                <dd className="text-black font-semibold text-right truncate">{planTitle}</dd>
+                <dd className="text-black dark:text-white font-semibold text-right truncate">{planTitle}</dd>
               </>
             )}
 
             {groupName && !planTitle && (
               <>
                 <dt className="text-gray-400 font-semibold">Group</dt>
-                <dd className="text-black font-semibold text-right truncate">{groupName}</dd>
+                <dd className="text-black dark:text-white font-semibold text-right truncate">{groupName}</dd>
               </>
             )}
 
             {functionTitle && (
               <>
                 <dt className="text-gray-400 font-semibold">Function</dt>
-                <dd className="text-black font-semibold text-right truncate">{functionTitle}</dd>
+                <dd className="text-black dark:text-white font-semibold text-right truncate">{functionTitle}</dd>
               </>
             )}
 
             {reason && (
               <>
                 <dt className="text-gray-400 font-semibold">Reason</dt>
-                <dd className="text-black font-semibold text-right truncate">
+                <dd className="text-black dark:text-white font-semibold text-right truncate">
                   {reason.replace(/_/g, " ")}
                 </dd>
               </>
@@ -514,7 +514,7 @@ export function TransactionReceiptModal({
                     haptics.tap();
                     link.onClick();
                   }}
-                  className="w-full h-11 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-bold text-black flex items-center justify-center gap-2"
+                  className="w-full h-11 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors text-sm font-bold text-black dark:text-white flex items-center justify-center gap-2"
                 >
                   {link.icon}
                   {link.label}
@@ -528,7 +528,7 @@ export function TransactionReceiptModal({
               type="button"
               onClick={() => void handleShare()}
               disabled={sharing}
-              className="flex-1 h-12 rounded-2xl bg-black text-white font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors disabled:opacity-60"
+              className="flex-1 h-12 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-bold flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-60"
             >
               <Share2 size={16} />
               {sharing ? "Sharing..." : "Share receipt"}
@@ -536,7 +536,7 @@ export function TransactionReceiptModal({
             <button
               type="button"
               onClick={() => void handleCopy()}
-              className="h-12 px-4 rounded-2xl bg-gray-100 text-black font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+              className="h-12 px-4 rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white font-bold flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
               aria-label="Copy receipt"
               title="Copy receipt"
             >

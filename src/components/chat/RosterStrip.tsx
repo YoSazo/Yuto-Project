@@ -63,7 +63,7 @@ export function RosterStrip({
       : `${total} joined${slots ? ` · ${Math.max(0, slots - total)} spot${slots - total === 1 ? "" : "s"} left` : ""}`;
 
   return (
-    <div className="border-b border-gray-100 bg-gradient-to-b from-white to-gray-50/50">
+    <div className="border-b border-gray-100 dark:border-zinc-800 bg-gradient-to-b from-white to-gray-50/50 dark:from-black dark:to-zinc-900/80">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -74,29 +74,29 @@ export function RosterStrip({
             <div key={m.user_id} className="relative">
               <div
                 className={[
-                  "rounded-full ring-2 ring-white",
+                  "rounded-full ring-2 ring-white dark:ring-black",
                   mode === "split" && !m.paid ? "opacity-50" : "opacity-100",
                 ].join(" ")}
               >
                 <UserAvatar name={m.name} avatarUrl={m.avatar_url} size="sm" />
               </div>
               {mode === "split" && m.paid && (
-                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 ring-2 ring-white flex items-center justify-center">
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 ring-2 ring-white dark:ring-black flex items-center justify-center">
                   <Check size={8} strokeWidth={4} className="text-white" />
                 </span>
               )}
             </div>
           ))}
           {total > 5 && (
-            <div className="w-9 h-9 rounded-full bg-gray-100 ring-2 ring-white flex items-center justify-center text-xs font-extrabold text-gray-500">
+            <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 ring-2 ring-white dark:ring-black flex items-center justify-center text-xs font-extrabold text-gray-500 dark:text-gray-400">
               +{total - 5}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-extrabold text-sm text-black truncate">{headerLine}</p>
+          <p className="font-extrabold text-sm text-black dark:text-white truncate">{headerLine}</p>
           {mode === "split" && unpaidCount > 0 && (
-            <p className="text-xs text-gray-400 truncate">
+            <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
               Waiting on{" "}
               {sorted
                 .filter((m) => !m.paid)
@@ -121,7 +121,7 @@ export function RosterStrip({
 
       {expanded && (
         <div className="px-4 pb-3 max-h-56 overflow-y-auto">
-          <ul className="flex flex-col divide-y divide-gray-100">
+          <ul className="flex flex-col divide-y divide-gray-100 dark:divide-zinc-800">
             {sorted.map((m) => {
               const isHost = hostUserId && m.user_id === hostUserId;
               const isMe = currentUserId && m.user_id === currentUserId;
@@ -129,23 +129,23 @@ export function RosterStrip({
                 <li key={m.user_id} className="py-2 flex items-center gap-3">
                   <UserAvatar name={m.name} avatarUrl={m.avatar_url} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-black truncate">
+                    <p className="text-sm font-bold text-black dark:text-white truncate">
                       {isMe ? "You" : m.name}
                       {isHost ? <span className="ml-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Host</span> : null}
                     </p>
                   </div>
                   {mode === "split" ? (
                     m.paid ? (
-                      <span className="text-[11px] font-extrabold text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                      <span className="text-[11px] font-extrabold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/15 px-2 py-1 rounded-full">
                         Paid
                       </span>
                     ) : (
-                      <span className="text-[11px] font-extrabold text-amber-700 bg-amber-50 px-2 py-1 rounded-full">
+                      <span className="text-[11px] font-extrabold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/15 px-2 py-1 rounded-full">
                         Unpaid
                       </span>
                     )
                   ) : (
-                    <span className="text-[11px] font-extrabold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                    <span className="text-[11px] font-extrabold text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-full">
                       In
                     </span>
                   )}

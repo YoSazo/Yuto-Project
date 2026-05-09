@@ -592,7 +592,7 @@ export default function GroupChatScreen() {
 
       let action: ReactNode;
       if (!offer) {
-        action = <div className={`${tallBtn} bg-gray-100 text-gray-400 flex items-center justify-center`}>Loading…</div>;
+        action = <div className={`${tallBtn} bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 flex items-center justify-center`}>Loading…</div>;
       } else if (isSender) {
         if (accepted) {
           action = (
@@ -639,7 +639,7 @@ export default function GroupChatScreen() {
             }}
             disabled={!canAccept}
             className={`${tallBtn} whitespace-nowrap ${
-              canAccept ? "bg-black hover:bg-gray-800 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              canAccept ? "bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 text-white dark:text-black" : "bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 cursor-not-allowed"
             }`}
           >
             Accept
@@ -652,13 +652,13 @@ export default function GroupChatScreen() {
 
       return (
         <div className="max-w-[99%] w-[99%] md:w-[760px]">
-          <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden">
             <div className="p-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Money</p>
-              <p className="mt-1 font-extrabold text-black text-lg truncate">{noteDisplay}</p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="mt-1 font-extrabold text-black dark:text-white text-lg truncate">{noteDisplay}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Amount:{" "}
-                <span className="font-bold text-black">KSH {amountDisplay}</span>
+                <span className="font-bold text-black dark:text-white">KSH {amountDisplay}</span>
               </p>
               <div className="mt-4">{action}</div>
             </div>
@@ -673,7 +673,7 @@ export default function GroupChatScreen() {
       const paid = !!groupPaidById[share.group_id];
       return (
         <div className="w-full">
-          <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden">
             {(share as any).media_url ? (
               <FixedMediaCarousel
                 items={[
@@ -687,15 +687,15 @@ export default function GroupChatScreen() {
             ) : null}
             <div className="p-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Split request</p>
-              <p className="mt-1 font-extrabold text-black text-lg truncate">{title}</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Amount: <span className="font-bold text-black">KSH {Number(amt).toLocaleString("en-KE")}</span>
+              <p className="mt-1 font-extrabold text-black dark:text-white text-lg truncate">{title}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Amount: <span className="font-bold text-black dark:text-white">KSH {Number(amt).toLocaleString("en-KE")}</span>
               </p>
               <div className="mt-4 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => navigate(`/yuto/${share.group_id}`)}
-                className="flex-1 inline-flex items-center justify-center min-h-[4.25rem] px-5 py-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-black font-bold transition-colors"
+                className="flex-1 inline-flex items-center justify-center min-h-[4.25rem] px-5 py-4 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-white font-bold transition-colors"
               >
                 View split
               </button>
@@ -725,7 +725,7 @@ export default function GroupChatScreen() {
                       toast.error(msg || "Couldn't reach the wallet — try again.");
                     }
                   }}
-                  className="flex-1 inline-flex items-center justify-center min-h-[4.25rem] px-5 py-4 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors whitespace-nowrap"
+                  className="flex-1 inline-flex items-center justify-center min-h-[4.25rem] px-5 py-4 rounded-2xl bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 text-white dark:text-black font-extrabold transition-colors whitespace-nowrap"
                 >
                   Pay your share
                 </button>
@@ -803,15 +803,15 @@ export default function GroupChatScreen() {
             />
           )
         ) : (shareCache as any)[shareKey] === null ? (
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-500 font-semibold">This item was deleted.</div>
+          <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm text-gray-500 dark:text-gray-400 font-semibold">This item was deleted.</div>
         ) : (
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 font-semibold">Loading…</div>
+          <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm text-gray-400 dark:text-gray-500 font-semibold">Loading…</div>
         )}
         <div className={`mt-2 flex ${flexBtn}`}>
           <button
             type="button"
             onClick={() => navigate("/home", { state: { focus: { kind: focusKind, id: focusId } } })}
-            className="text-xs font-bold text-gray-500 hover:text-black"
+            className="text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"
           >
             View on Home
           </button>
@@ -821,9 +821,9 @@ export default function GroupChatScreen() {
   };
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-white">
-      <div className="px-5 pt-6 pb-4 border-b border-gray-100 flex items-start gap-3 shrink-0">
-        <button type="button" onClick={() => navigate(-1)} className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+    <div className="h-[100dvh] flex flex-col bg-white dark:bg-black text-black dark:text-white transition-colors">
+      <div className="px-5 pt-6 pb-4 border-b border-gray-100 dark:border-zinc-800 flex items-start gap-3 shrink-0">
+        <button type="button" onClick={() => navigate(-1)} className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center shrink-0 mt-0.5 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors">
           <ArrowLeft size={18} />
         </button>
         <div className="min-w-0 flex-1 flex items-start justify-between gap-3">
@@ -831,13 +831,13 @@ export default function GroupChatScreen() {
             <button
               type="button"
               onClick={() => groupId && navigate(`/messages/group/${groupId}/members`)}
-              className="bg-transparent border-none p-0 text-left font-extrabold text-black truncate hover:opacity-80 transition-opacity"
+              className="bg-transparent border-none p-0 text-left font-extrabold text-black dark:text-white truncate hover:opacity-80 transition-opacity"
               aria-label="View members"
               title="View members"
             >
               {title}
             </button>
-            <p className="text-xs text-gray-400">Group</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Group</p>
           </div>
           {meta && (
             <button
@@ -846,7 +846,7 @@ export default function GroupChatScreen() {
                 setRenameDraft((meta.title || "").trim() || "Group chat");
                 setRenameOpen(true);
               }}
-              className="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
+              className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors shrink-0"
               aria-label="Rename group"
               title="Rename group"
             >
@@ -863,7 +863,7 @@ export default function GroupChatScreen() {
       >
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div ref={contentRef} className="w-full">
@@ -900,14 +900,14 @@ export default function GroupChatScreen() {
                   key={m.id}
                   className={`flex gap-2.5 items-start ${isShareRow ? "w-full" : "max-w-[85%]"} ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
                 >
-                  <UserAvatar name={avatarName} avatarUrl={avatarUrl} size="sm" className="ring-2 ring-white shrink-0" />
+                  <UserAvatar name={avatarName} avatarUrl={avatarUrl} size="sm" className="ring-2 ring-white dark:ring-black shrink-0" />
                   <div className={`min-w-0 flex flex-col gap-1 flex-1 ${mine ? "items-end" : "items-start"}`}>
-                    <span className="text-[11px] font-semibold text-gray-500 leading-none px-0.5">{label}</span>
+                    <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 leading-none px-0.5">{label}</span>
                     {mine && user && (
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteMessageId(m.id)}
-                        className="self-end -mt-1 mb-1 w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center"
+                        className="self-end -mt-1 mb-1 w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-gray-300 flex items-center justify-center"
                         aria-label="Delete message"
                         title="Delete"
                       >
@@ -931,14 +931,14 @@ export default function GroupChatScreen() {
                           }}
                         />
                       ) : (
-                        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 font-semibold">Loading…</div>
+                        <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm text-gray-400 dark:text-gray-500 font-semibold">Loading…</div>
                       )
                     ) : listedShare ? (
                       renderListedShareBlock(listedShare, shareKey || `share:${m.id}`, mine)
                     ) : (
                       <div
                         className={`px-4 py-3 rounded-2xl text-sm font-semibold whitespace-pre-wrap break-words ${
-                          mine ? "bg-black text-white rounded-br-md" : "bg-gray-100 text-black rounded-bl-md"
+                          mine ? "bg-black dark:bg-white text-white dark:text-black rounded-br-md" : "bg-gray-100 dark:bg-zinc-800 text-black dark:text-white rounded-bl-md"
                         }`}
                       >
                         {m.content}
@@ -972,12 +972,12 @@ export default function GroupChatScreen() {
         }}
       />
 
-      <div className="px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-3 border-t border-gray-100 shrink-0">
+      <div className="px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-3 border-t border-gray-100 dark:border-zinc-800 shrink-0">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setShowSharePicker(true)}
-            className="w-12 h-12 rounded-2xl bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
             aria-label="Share"
             title="Share"
           >
@@ -987,12 +987,12 @@ export default function GroupChatScreen() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Message the group…"
-            className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 outline-none font-semibold min-w-0"
+            className="flex-1 bg-gray-100 dark:bg-zinc-800 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-2xl px-4 py-3 outline-none font-semibold min-w-0"
             onKeyDown={(e) => {
               if (e.key === "Enter") void onSend();
             }}
           />
-          <button type="button" onClick={() => void onSend()} className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center" aria-label="Send">
+          <button type="button" onClick={() => void onSend()} className="w-12 h-12 rounded-2xl bg-black dark:bg-white text-white dark:text-black flex items-center justify-center" aria-label="Send">
             <Send size={18} />
           </button>
         </div>
@@ -1079,11 +1079,11 @@ export default function GroupChatScreen() {
           }}
           role="presentation"
         >
-          <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
-            <h3 className="font-bold text-lg text-black mb-2">Rename group</h3>
+          <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up transition-colors">
+            <h3 className="font-bold text-lg text-black dark:text-white mb-2">Rename group</h3>
             <p className="text-sm text-gray-500 mb-4">Shown in your messages list. Clear name to reset to “Group chat”.</p>
             <input
-              className="w-full bg-gray-100 rounded-2xl px-4 py-3 font-semibold outline-none mb-4 min-w-0"
+              className="w-full bg-gray-100 dark:bg-zinc-800 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-2xl px-4 py-3 font-semibold outline-none mb-4 min-w-0"
               value={renameDraft}
               maxLength={80}
               placeholder="Group chat"
@@ -1093,7 +1093,7 @@ export default function GroupChatScreen() {
             <div className="flex gap-2">
               <button
                 type="button"
-                className="flex-1 py-3 rounded-2xl font-bold bg-gray-100 text-black"
+                className="flex-1 py-3 rounded-2xl font-bold bg-gray-100 dark:bg-zinc-800 text-black dark:text-white hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                 disabled={renameSaving}
                 onClick={() => setRenameOpen(false)}
               >
@@ -1101,7 +1101,7 @@ export default function GroupChatScreen() {
               </button>
               <button
                 type="button"
-                className="flex-1 py-3 rounded-2xl font-bold bg-black text-white disabled:opacity-50"
+                className="flex-1 py-3 rounded-2xl font-bold bg-black dark:bg-white text-white dark:text-black disabled:opacity-50"
                 disabled={renameSaving}
                 onClick={() => {
                   void (async () => {

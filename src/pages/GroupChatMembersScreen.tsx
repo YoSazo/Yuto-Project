@@ -50,24 +50,24 @@ export default function GroupChatMembersScreen() {
   }, [groupId]);
 
   return (
-    <div className="min-h-[100dvh] bg-white px-5 pt-6 pb-8">
+    <div className="min-h-[100dvh] bg-white dark:bg-black text-black dark:text-white px-5 pt-6 pb-8 transition-colors">
       <div className="flex items-center gap-3 mb-6">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0"
+          className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white flex items-center justify-center shrink-0 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
         >
           <ArrowLeft size={18} />
         </button>
         <div className="min-w-0">
-          <p className="font-extrabold text-black truncate">{title}</p>
-          <p className="text-xs text-gray-400">Members</p>
+          <p className="font-extrabold text-black dark:text-white truncate">{title}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Members</p>
         </div>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent rounded-full animate-spin" />
         </div>
       ) : people.length === 0 ? (
         <div className="py-16 text-center text-gray-400 font-semibold">No members yet</div>
@@ -76,7 +76,7 @@ export default function GroupChatMembersScreen() {
           {people.map((p) => (
             <div
               key={p.id}
-              className="w-full rounded-2xl border border-gray-100 bg-white shadow-sm px-3 py-3 text-left flex items-center gap-3"
+              className="w-full rounded-2xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm px-3 py-3 text-left flex items-center gap-3"
             >
               <button
                 type="button"
@@ -85,8 +85,8 @@ export default function GroupChatMembersScreen() {
               >
                 <UserAvatar name={p.display_name} avatarUrl={p.avatar_url} size="md" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-extrabold text-black truncate">{p.display_name}</p>
-                  <p className="text-sm text-gray-400 truncate">@{p.username}</p>
+                  <p className="font-extrabold text-black dark:text-white truncate">{p.display_name}</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 truncate">@{p.username}</p>
                 </div>
               </button>
               {user && p.id !== user.id && (
@@ -97,7 +97,7 @@ export default function GroupChatMembersScreen() {
                     setAmountKes("");
                     setMemo("");
                   }}
-                  className="shrink-0 h-10 px-4 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors"
+                  className="shrink-0 h-10 px-4 rounded-2xl bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-extrabold transition-colors"
                 >
                   Request
                 </button>
@@ -115,10 +115,10 @@ export default function GroupChatMembersScreen() {
             aria-label="Dismiss"
             onClick={() => setRequesting(null)}
           />
-          <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-5 modal-slide-up">
-            <p className="font-extrabold text-black text-lg">Request a split</p>
-            <p className="text-sm text-gray-500 mt-1 font-semibold">
-              Ask <span className="font-extrabold text-black">{requesting.display_name}</span> to pay you back.
+          <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-5 modal-slide-up transition-colors">
+            <p className="font-extrabold text-black dark:text-white text-lg">Request a split</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-semibold">
+              Ask <span className="font-extrabold text-black dark:text-white">{requesting.display_name}</span> to pay you back.
             </p>
 
             <div className="mt-4">
@@ -128,7 +128,7 @@ export default function GroupChatMembersScreen() {
                 onChange={(e) => setAmountKes(e.target.value.replace(/[^\d]/g, ""))}
                 inputMode="numeric"
                 placeholder="500"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-xl font-extrabold focus:outline-none focus:border-black transition-colors"
+                className="w-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-xl px-4 py-3 text-xl font-extrabold focus:outline-none focus:border-black dark:focus:border-white transition-colors"
               />
             </div>
             <div className="mt-3">
@@ -137,7 +137,7 @@ export default function GroupChatMembersScreen() {
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 placeholder="Uber, drinks, coffee…"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base font-semibold focus:outline-none focus:border-black transition-colors"
+                className="w-full border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-xl px-4 py-3 text-base font-semibold focus:outline-none focus:border-black dark:focus:border-white transition-colors"
               />
             </div>
 
@@ -169,7 +169,7 @@ export default function GroupChatMembersScreen() {
                   setSubmitting(false);
                 }
               }}
-              className="mt-5 w-full h-12 rounded-2xl bg-black hover:bg-gray-800 text-white font-extrabold transition-colors disabled:opacity-50"
+              className="mt-5 w-full h-12 rounded-2xl bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-extrabold transition-colors disabled:opacity-50"
             >
               {submitting ? "Sending..." : `Request KSH ${Number(amountKes || 0).toLocaleString("en-KE") || ""}`.trim()}
             </button>

@@ -165,25 +165,25 @@ export function PlanMessagesModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50">
-      <div className="bg-white dark:bg-zinc-900 rounded-t-3xl w-full max-w-md flex flex-col" style={{ height: "75vh" }}>
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 gap-3">
+      <div className="bg-white dark:bg-zinc-900 rounded-t-3xl w-full max-w-md flex flex-col transition-colors" style={{ height: "75vh" }}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 dark:border-zinc-800 gap-3">
           <div className="min-w-0">
-            <h2 className="font-bold text-lg text-black truncate">{plan.title}</h2>
-            <p className="text-xs text-gray-400 truncate">{memberCount} people in this plan</p>
+            <h2 className="font-bold text-lg text-black dark:text-white truncate">{plan.title}</h2>
+            <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{memberCount} people in this plan</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {!isHost && (
               <button
                 type="button"
                 onClick={() => void openHostDm()}
-                className="flex items-center gap-1 h-8 px-3 rounded-full bg-gray-100 text-black text-xs font-bold hover:bg-gray-200 transition-colors"
+                className="flex items-center gap-1 h-8 px-3 rounded-full bg-gray-100 dark:bg-zinc-800 text-black dark:text-white text-xs font-bold hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                 title={hostName ? `DM ${hostName}` : "DM host"}
               >
                 <MessageSquare size={13} />
                 DM {hostName ? hostName.split(" ")[0] : "host"}
               </button>
             )}
-            <button type="button" onClick={onClose} className="text-gray-400 hover:text-black text-2xl bg-transparent border-none cursor-pointer">
+            <button type="button" onClick={onClose} className="text-gray-400 hover:text-black dark:hover:text-white text-2xl bg-transparent border-none cursor-pointer">
               ✕
             </button>
           </div>
@@ -201,7 +201,7 @@ export function PlanMessagesModal({
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
           {loadingMessages ? (
             <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-gray-200 border-t-black rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-gray-200 dark:border-zinc-700 border-t-black dark:border-t-white rounded-full animate-spin" />
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center py-10">
@@ -250,7 +250,7 @@ export function PlanMessagesModal({
           <div ref={bottomRef} />
         </div>
         {error && <p className="text-xs text-red-500 text-center px-4 pb-1">{error}</p>}
-        <div className="px-4 pb-6 pt-2 border-t border-gray-100 flex gap-2 items-center">
+        <div className="px-4 pb-6 pt-2 border-t border-gray-100 dark:border-zinc-800 flex gap-2 items-center">
           <input
             type="text"
             value={messageInput}
@@ -264,7 +264,7 @@ export function PlanMessagesModal({
             type="button"
             onClick={handleSend}
             disabled={!messageInput.trim() || sendingMessage}
-            className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center disabled:opacity-30 shrink-0"
+            className="w-10 h-10 bg-black dark:bg-white text-white dark:text-black rounded-full flex items-center justify-center disabled:opacity-30 shrink-0"
           >
             <Send size={16} />
           </button>

@@ -103,7 +103,7 @@ export function DmSharePickerModal({
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent rounded-full animate-spin" />
         </div>
       ) : tab === "plan" ? (
         <div className={`overflow-y-auto -mx-1 px-1 ${embedded ? "max-h-[48vh]" : "max-h-[55vh]"}`}>
@@ -112,12 +112,12 @@ export function DmSharePickerModal({
               key={p.id}
               type="button"
               onClick={() => onPickPlan(p)}
-              className="w-full flex items-center gap-3 py-3 px-2 rounded-2xl hover:bg-gray-50 transition-colors text-left bg-transparent border-none"
+              className="w-full flex items-center gap-3 py-3 px-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-left bg-transparent border-none"
             >
               <UserAvatar name={p.creator.display_name} avatarUrl={p.creator.avatar_url} size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-black truncate">{p.title}</p>
-                <p className="text-sm text-gray-400 truncate">{p.creator.display_name}</p>
+                <p className="font-bold text-black dark:text-white truncate">{p.title}</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 truncate">{p.creator.display_name}</p>
               </div>
             </button>
           ))}
@@ -130,12 +130,12 @@ export function DmSharePickerModal({
               key={f.id}
               type="button"
               onClick={() => onPickFunction(f, tab === "function" ? "function" : tab)}
-              className="w-full flex items-center gap-3 py-3 px-2 rounded-2xl hover:bg-gray-50 transition-colors text-left bg-transparent border-none"
+              className="w-full flex items-center gap-3 py-3 px-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-left bg-transparent border-none"
             >
               <UserAvatar name={f.host.display_name} avatarUrl={f.host.avatar_url} size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-black truncate">{f.title}</p>
-                <p className="text-sm text-gray-400 truncate">{f.host.display_name}</p>
+                <p className="font-bold text-black dark:text-white truncate">{f.title}</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 truncate">{f.host.display_name}</p>
               </div>
             </button>
           ))}
@@ -151,10 +151,10 @@ export function DmSharePickerModal({
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/60 backdrop-blur-sm">
       <button type="button" className="absolute inset-0 z-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={onClose} />
 
-      <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-5 modal-slide-up">
+      <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-5 modal-slide-up transition-colors">
         <div className="flex items-center justify-between mb-4">
-          <p className="font-extrabold text-black text-lg">Send…</p>
-          <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">
+          <p className="font-extrabold text-black dark:text-white text-lg">Send…</p>
+          <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none">
             ✕
           </button>
         </div>

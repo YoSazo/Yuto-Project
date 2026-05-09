@@ -26,20 +26,20 @@ export function DmSharedHighlightCard({
     <button
       type="button"
       onClick={onOpen}
-      className="w-full text-left rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden tap-scale"
+      className="w-full text-left rounded-2xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden tap-scale"
     >
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-50">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-50 dark:border-zinc-800">
         <UserAvatar name={ownerName} avatarUrl={ownerAvatarUrl} size="sm" />
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Highlight</p>
-          <p className="font-extrabold text-black truncate text-sm">{ownerName}</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Highlight</p>
+          <p className="font-extrabold text-black dark:text-white truncate text-sm">{ownerName}</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-0.5 bg-gray-100 aspect-[2.2/1]">
+      <div className="grid grid-cols-2 gap-0.5 bg-gray-100 dark:bg-zinc-800 aspect-[2.2/1]">
         {[p0, p1].map((p, i) => {
           const url = thumb(p);
           if (!url) {
-            return <div key={i} className="bg-gray-200" />;
+            return <div key={i} className="bg-gray-200 dark:bg-zinc-700" />;
           }
           const video = p && isHighlightVideoUrl(p.url);
           return (
@@ -53,7 +53,7 @@ export function DmSharedHighlightCard({
           );
         })}
       </div>
-      <p className="px-3 py-2 text-xs font-semibold text-gray-500">Tap to view</p>
+      <p className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Tap to view</p>
     </button>
   );
 }

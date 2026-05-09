@@ -7,6 +7,176 @@ import { PostPeoplePickerModal } from "./PostPeoplePickerModal";
 
 type TopMode = "create" | "post";
 
+const pad2 = (n: number) => n.toString().padStart(2, "0");
+
+function parseLocalDateTime(value: string) {
+  if (!value) return null;
+  const [datePart, timePart = ""] = value.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour = 18, minute = 0] = timePart.split(":").map(Number);
+  if (!year || !month || !day) return null;
+  return { year, month, day, hour, minute };
+}
+
+function formatLocalDateTime(parts: { year: number; month: number; day: number; hour: number; minute: number }) {
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}T${pad2(parts.hour)}:${pad2(parts.minute)}`;
+}
+
+function describeDateTime(value: string) {
+  const parsed = parseLocalDateTime(value);
+  if (!parsed) return "Pick date & time";
+  const dt = new Date(parsed.year, parsed.month - 1, parsed.day, parsed.hour, parsed.minute);
+  return dt.toLocaleString("en-KE", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function DateTimePickerModal({
+  open,
+  value,
+  onClose,
+  onApply,
+}: {
+  open: boolean;
+  value: string;
+  onClose: () => void;
+  onApply: (value: string) => void;
+}) {
+  const now = new Date();
+  const initial = parseLocalDateTime(value) ?? {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+    hour: 18,
+    minute: 0,
+  };
+  const [viewYear, setViewYear] = useState(initial.year);
+  const [viewMonth, setViewMonth] = useState(initial.month);
+  const [selectedDay, setSelectedDay] = useState(initial.day);
+  const [hour, setHour] = useState(initial.hour);
+  const [minute, setMinute] = useState(initial.minute);
+
+  useEffect(() => {
+    if (!open) return;
+    const next = parseLocalDateTime(value) ?? {
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      day: now.getDate(),
+      hour: 18,
+      minute: 0,
+    };
+    setViewYear(next.year);
+    setViewMonth(next.month);
+    setSelectedDay(next.day);
+    setHour(next.hour);
+    setMinute(next.minute);
+  }, [open, value]);
+
+  if (!open) return null;
+
+  const monthDate = new Date(viewYear, viewMonth - 1, 1);
+  const monthLabel = monthDate.toLocaleDateString("en-KE", { month: "long", year: "numeric" });
+  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+  const firstWeekday = monthDate.getDay();
+  const cells = [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  const moveMonth = (delta: number) => {
+    const next = new Date(viewYear, viewMonth - 1 + delta, 1);
+    const nextYear = next.getFullYear();
+    const nextMonth = next.getMonth() + 1;
+    setViewYear(nextYear);
+    setViewMonth(nextMonth);
+    setSelectedDay((day) => Math.min(day, new Date(nextYear, nextMonth, 0).getDate()));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm fade-in">
+      <button type="button" className="absolute inset-0 border-none bg-transparent" aria-label="Dismiss" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md rounded-t-3xl md:rounded-3xl bg-white dark:bg-zinc-900 p-5 modal-slide-up shadow-xl transition-colors">
+        <div className="flex items-center justify-between mb-4">
+          <p className="font-extrabold text-lg text-black dark:text-white">Date & time</p>
+          <button type="button" onClick={onClose} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none">
+            <X size={22} />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between mb-3">
+          <button type="button" onClick={() => moveMonth(-1)} className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white font-black">
+            {"<"}
+          </button>
+          <p className="font-extrabold text-black dark:text-white">{monthLabel}</p>
+          <button type="button" onClick={() => moveMonth(1)} className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white font-black">
+            {">"}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-center mb-4">
+          {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+            <span key={`${d}-${i}`} className="text-[11px] font-extrabold text-gray-400 dark:text-gray-500 py-1">
+              {d}
+            </span>
+          ))}
+          {cells.map((day, i) =>
+            day ? (
+              <button
+                key={`${viewMonth}-${day}`}
+                type="button"
+                onClick={() => setSelectedDay(day)}
+                className={`aspect-square rounded-2xl text-sm font-extrabold transition-colors ${
+                  selectedDay === day
+                    ? "bg-black dark:bg-white text-white dark:text-black"
+                    : "bg-gray-50 dark:bg-zinc-800 text-black dark:text-white hover:bg-gray-100 dark:hover:bg-zinc-700"
+                }`}
+              >
+                {day}
+              </button>
+            ) : (
+              <span key={`blank-${i}`} />
+            ),
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <label className="block">
+            <span className="text-xs text-gray-400 font-semibold mb-1 block">Hour</span>
+            <select value={hour} onChange={(e) => setHour(Number(e.target.value))} className="w-full h-12 rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-white px-3 font-bold outline-none">
+              {Array.from({ length: 24 }, (_, i) => (
+                <option key={i} value={i}>{pad2(i)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-400 font-semibold mb-1 block">Minute</span>
+            <select value={minute} onChange={(e) => setMinute(Number(e.target.value))} className="w-full h-12 rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-white px-3 font-bold outline-none">
+              {[0, 15, 30, 45].map((m) => (
+                <option key={m} value={m}>{pad2(m)}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            onApply(formatLocalDateTime({ year: viewYear, month: viewMonth, day: selectedDay, hour, minute }));
+            onClose();
+          }}
+          className="w-full h-12 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-extrabold"
+        >
+          Set date
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function HomeComposeSheet({
   open,
   onClose,
@@ -40,6 +210,7 @@ export function HomeComposeSheet({
   const [maxCapacity, setMaxCapacity] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const createMediaInputRef = useRef<HTMLInputElement | null>(null);
   const [createMediaFiles, setCreateMediaFiles] = useState<File[]>([]);
   const [createMediaPreviews, setCreateMediaPreviews] = useState<string[]>([]);
@@ -331,12 +502,13 @@ export function HomeComposeSheet({
                 <>
                   <div>
                     <p className="text-xs text-gray-400 mb-1 font-semibold">Date &amp; time</p>
-                    <input
-                      type="datetime-local"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black dark:focus:border-white transition-colors"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDatePicker(true)}
+                      className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base font-semibold text-left focus:outline-none focus:border-black dark:focus:border-white transition-colors"
+                    >
+                      {describeDateTime(date)}
+                    </button>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-1 font-semibold">Location</p>
@@ -519,6 +691,12 @@ export function HomeComposeSheet({
         selectedIds={taggedPeople.map((p) => p.id)}
         onChangeSelected={(people) => setTaggedPeople(people)}
       />
+      <DateTimePickerModal
+        open={showDatePicker}
+        value={date}
+        onClose={() => setShowDatePicker(false)}
+        onApply={setDate}
+      />
     </div>
   );
 }
@@ -643,3 +821,4 @@ function ComposeMediaPreview({
     </div>
   );
 }
+

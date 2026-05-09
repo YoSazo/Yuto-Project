@@ -141,19 +141,19 @@ export function FunctionMessagesModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 fade-in">
-      <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up max-h-[92vh] flex flex-col">
+      <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up max-h-[92vh] flex flex-col transition-colors">
         <div className="flex justify-between items-start gap-3 mb-4">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Questions</p>
-            <h2 className="font-bold text-xl text-black truncate">Ask about {functionItem.title}</h2>
-            <p className="text-sm text-gray-500 mt-1">The host can reply here.</p>
+            <h2 className="font-bold text-xl text-black dark:text-white truncate">Ask about {functionItem.title}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">The host can reply here.</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {!iAmHost && (
               <button
                 type="button"
                 onClick={() => void openHostDm()}
-                className="flex items-center gap-1 h-8 px-3 rounded-full bg-gray-100 text-black text-xs font-bold hover:bg-gray-200 transition-colors"
+                className="flex items-center gap-1 h-8 px-3 rounded-full bg-gray-100 dark:bg-zinc-800 text-black dark:text-white text-xs font-bold hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                 title={hostName ? `DM ${hostName}` : "DM host"}
               >
                 <MessageSquare size={13} />
@@ -163,7 +163,7 @@ export function FunctionMessagesModal({
             <button
               type="button"
               onClick={onClose}
-              className="text-2xl text-gray-400 hover:text-black bg-transparent border-none cursor-pointer"
+              className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none cursor-pointer"
             >
               ✕
             </button>
@@ -236,7 +236,7 @@ export function FunctionMessagesModal({
           )}
         </div>
 
-        <div className="border-t border-gray-100 pt-4">
+        <div className="border-t border-gray-100 dark:border-zinc-800 pt-4">
           <div className="flex gap-2 items-end">
             <textarea
               value={messageInput}
@@ -249,7 +249,7 @@ export function FunctionMessagesModal({
               type="button"
               onClick={handleSend}
               disabled={sendingMessage || !messageInput.trim()}
-              className="h-12 px-4 rounded-2xl bg-black text-white font-bold text-sm disabled:opacity-40 transition-opacity"
+              className="h-12 px-4 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-bold text-sm disabled:opacity-40 transition-opacity"
             >
               {sendingMessage ? "Sending" : "Send"}
             </button>

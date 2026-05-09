@@ -55,7 +55,7 @@ export function SmartReplies({
             haptics.light();
             onSelect(r);
           }}
-          className="shrink-0 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-semibold text-black whitespace-nowrap shadow-sm tap-scale"
+          className="shrink-0 px-4 py-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-full text-sm font-semibold text-black dark:text-white whitespace-nowrap shadow-sm tap-scale"
         >
           {r}
         </button>

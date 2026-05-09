@@ -175,10 +175,10 @@ export function ShareRecipientsSheet({
       }}
       role="presentation"
     >
-      <div className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md max-h-[min(92vh,720px)] flex flex-col modal-slide-up shadow-xl">
-        <div className="flex justify-between items-start gap-3 p-6 pb-2 shrink-0 border-b border-gray-100">
-          <h2 className="font-bold text-xl text-black">{title}</h2>
-          <button type="button" onClick={onClose} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none shrink-0 leading-none" aria-label="Close">
+      <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md max-h-[min(92vh,720px)] flex flex-col modal-slide-up shadow-xl transition-colors">
+        <div className="flex justify-between items-start gap-3 p-6 pb-2 shrink-0 border-b border-gray-100 dark:border-zinc-800">
+          <h2 className="font-bold text-xl text-black dark:text-white">{title}</h2>
+          <button type="button" onClick={onClose} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none shrink-0 leading-none" aria-label="Close">
             ✕
           </button>
         </div>
@@ -200,7 +200,7 @@ export function ShareRecipientsSheet({
                           type="button"
                           onClick={() => toggleFriend(friend.id)}
                           className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all tap-scale ${
-                            sel ? "bg-black border-black text-white" : "bg-white border-gray-200 text-black"
+                            sel ? "bg-black border-black text-white dark:bg-white dark:border-white dark:text-black" : "bg-white border-gray-200 text-black dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                           }`}
                         >
                           <UserAvatar name={friend.display_name} avatarUrl={friend.avatar_url} size="sm" className={sel ? "ring-2 ring-white" : ""} />
@@ -225,12 +225,12 @@ export function ShareRecipientsSheet({
                           type="button"
                           onClick={() => toggleGroup(g.id)}
                           className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all tap-scale max-w-[100%] ${
-                            sel ? "bg-black border-black text-white" : "bg-white border-gray-200 text-black"
+                            sel ? "bg-black border-black text-white dark:bg-white dark:border-white dark:text-black" : "bg-white border-gray-200 text-black dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                           }`}
                         >
                           <span
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                              sel ? "bg-white/10 text-white" : "bg-gray-100 text-black"
+                              sel ? "bg-white/10 text-white dark:bg-black/10 dark:text-black" : "bg-gray-100 dark:bg-zinc-700 text-black dark:text-white"
                             }`}
                           >
                             <Users size={18} />
@@ -246,7 +246,7 @@ export function ShareRecipientsSheet({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-gray-100 px-6 py-4 space-y-3 bg-white">
+        <div className="shrink-0 border-t border-gray-100 dark:border-zinc-800 px-6 py-4 space-y-3 bg-white dark:bg-zinc-900">
           {!emptyRecipients && !ready && (
             <p className="text-sm text-gray-500 text-center py-2">Choose one or more people or groups — then add an optional note and send.</p>
           )}
@@ -263,7 +263,7 @@ export function ShareRecipientsSheet({
                 rows={4}
                 maxLength={1200}
                 disabled={sending}
-                className="w-full min-h-[5.25rem] resize-none rounded-[1.75rem] bg-gray-100 px-4 py-3.5 font-semibold text-sm text-black placeholder:text-gray-400 outline-none ring-2 ring-transparent focus:ring-black/15 disabled:opacity-50"
+                className="w-full min-h-[5.25rem] resize-none rounded-[1.75rem] bg-gray-100 dark:bg-zinc-800 px-4 py-3.5 font-semibold text-sm text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none ring-2 ring-transparent focus:ring-black/15 dark:focus:ring-white/20 disabled:opacity-50"
               />
             </>
           )}
@@ -273,7 +273,7 @@ export function ShareRecipientsSheet({
             onClick={() => void onSend()}
             disabled={!ready || sending || emptyRecipients}
             className={`w-full py-4 rounded-full font-bold text-lg transition-all tap-scale ${
-              ready && !sending ? "bg-black text-white active:scale-[0.98]" : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              ready && !sending ? "bg-black dark:bg-white text-white dark:text-black active:scale-[0.98]" : "bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 cursor-not-allowed"
             }`}
           >
             {sending ? "Sending…" : "Send"}

@@ -23,14 +23,14 @@ export function ConfirmUnsendModal({
         aria-label="Dismiss"
         onClick={onClose}
       />
-      <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-5 modal-slide-up">
+      <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-5 modal-slide-up transition-colors">
         <div className="flex items-start gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+          <div className="w-11 h-11 rounded-2xl bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
             <Trash2 size={18} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-extrabold text-black text-lg">{title}</p>
-            <p className="text-sm text-gray-500 mt-1 font-semibold">This will remove it for everyone.</p>
+            <p className="font-extrabold text-black dark:text-white text-lg">{title}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-semibold">This will remove it for everyone.</p>
           </div>
         </div>
 
@@ -38,7 +38,7 @@ export function ConfirmUnsendModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 h-12 rounded-2xl bg-gray-100 hover:bg-gray-200 text-black font-extrabold transition-colors"
+            className="flex-1 h-12 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-white font-extrabold transition-colors"
           >
             Cancel
           </button>

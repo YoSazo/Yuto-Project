@@ -1164,7 +1164,7 @@ export default function ProfileScreen() {
           <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md h-[75vh] md:h-[600px] flex flex-col overflow-hidden modal-slide-up">
             <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-zinc-800 shrink-0">
               <h2 className="font-bold text-xl text-black dark:text-white">Wallet History</h2>
-              <button onClick={() => setShowHistoryModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+              <button onClick={() => setShowHistoryModal(false)} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
               {loadingHistory ? (
@@ -1226,22 +1226,22 @@ export default function ProfileScreen() {
           <div className="bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
             <div className="flex justify-between items-center mb-5">
               <h2 className="font-bold text-xl text-black dark:text-white">Withdraw to M-PESA</h2>
-              <button onClick={() => setShowWithdrawModal(false)} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+              <button onClick={() => setShowWithdrawModal(false)} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none">✕</button>
             </div>
             <div className="mb-6 flex flex-col items-center w-full">
               <span className="text-sm text-gray-400 font-semibold mb-2 uppercase tracking-wide">Amount (KSH)</span>
               <input type="text" inputMode="numeric" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value.replace(/\D/g, ""))} placeholder="0" className="text-[48px] font-bold text-center text-black dark:text-white bg-transparent border-none outline-none w-full mb-2" />
-              <p className="text-sm text-gray-500 font-medium mb-4">Available: KSH {points.toLocaleString()}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-4">Available: KSH {points.toLocaleString()}</p>
               <div className="flex gap-2 w-full mb-2">
                 {[100, 500, 'MAX'].map((preset) => (
-                  <button key={preset} onClick={() => setWithdrawAmount(preset === 'MAX' ? points.toString() : preset.toString())} className="flex-1 py-3 rounded-2xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors active:scale-95">
+                  <button key={preset} onClick={() => setWithdrawAmount(preset === 'MAX' ? points.toString() : preset.toString())} className="flex-1 py-3 rounded-2xl font-bold text-sm bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors active:scale-95">
                     {preset === 'MAX' ? 'MAX' : `+${preset}`}
                   </button>
                 ))}
               </div>
             </div>
             {withdrawError && <p className="text-sm text-center font-medium mb-4 text-red-500">{withdrawError}</p>}
-            <button onClick={handleWithdraw} disabled={isWithdrawing || !withdrawAmount || parseInt(withdrawAmount) > points} className="w-full py-4 bg-black text-white rounded-full font-bold text-lg disabled:opacity-50 transition-all active:scale-[0.98]">
+            <button onClick={handleWithdraw} disabled={isWithdrawing || !withdrawAmount || parseInt(withdrawAmount) > points} className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold text-lg disabled:opacity-50 transition-all active:scale-[0.98]">
               {isWithdrawing ? "Processing..." : "Withdraw"}
             </button>
           </div>
@@ -1264,7 +1264,7 @@ export default function ProfileScreen() {
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">To</p>
                 <div className="flex flex-wrap gap-3">
                   {sendFriends.map((fr) => (
-                    <button key={fr.id} type="button" onClick={() => setSendSelectedId(fr.id)} className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all tap-scale ${sendSelectedId === fr.id ? "border-black bg-black text-white" : "border-gray-200 bg-white text-black"}`}>
+                    <button key={fr.id} type="button" onClick={() => setSendSelectedId(fr.id)} className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all tap-scale ${sendSelectedId === fr.id ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-gray-200 bg-white text-black dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"}`}>
                       <UserAvatar name={fr.display_name} avatarUrl={fr.avatar_url} size="sm" />
                       <span className="text-sm font-bold">{fr.display_name}</span>
                     </button>
@@ -1274,7 +1274,7 @@ export default function ProfileScreen() {
               </div>
               <div className="mt-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Note (optional)</p>
-                <input value={sendNote} onChange={(e) => setSendNote(e.target.value)} placeholder="For lunch…" maxLength={60} className="w-full h-12 rounded-2xl border border-gray-200 px-4 text-sm outline-none focus:border-black transition-colors" />
+                <input value={sendNote} onChange={(e) => setSendNote(e.target.value)} placeholder="For lunch…" maxLength={60} className="w-full h-12 rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm outline-none focus:border-black dark:focus:border-white transition-colors" />
               </div>
             </div>
             {sendError && <p className="text-red-500 text-sm text-center mt-3">{sendError}</p>}
@@ -1292,7 +1292,7 @@ export default function ProfileScreen() {
                 setShowSendModal(false);
                 navigate(`/messages/${convo.id}`, { state: { otherUserId: sendSelectedId } });
               } catch (e) { setSendError(e instanceof Error ? e.message : "Couldn't send."); } finally { setSendBusy(false); }
-            }} className={`w-full mt-4 h-12 rounded-2xl font-extrabold text-base transition-colors ${sendBusy || !sendSelectedId || !sendAmount || Number(sendAmount || 0) > points ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-black text-white hover:bg-gray-800"}`}>
+            }} className={`w-full mt-4 h-12 rounded-2xl font-extrabold text-base transition-colors ${sendBusy || !sendSelectedId || !sendAmount || Number(sendAmount || 0) > points ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-zinc-800 dark:text-gray-500" : "bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"}`}>
               {sendBusy ? "Sending…" : `Send KSH ${Number(sendAmount || 0).toLocaleString("en-KE")}`}
             </button>
           </div>
@@ -1302,15 +1302,15 @@ export default function ProfileScreen() {
       {showHighlightCreate && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center fade-in bg-black/60 backdrop-blur-sm">
           <button type="button" className="absolute inset-0 z-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={closeHighlightCreate} />
-          <div className="relative z-10 bg-white rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up">
+          <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full max-w-md p-6 modal-slide-up transition-colors">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-xl text-black">New highlight</h2>
-              <button onClick={closeHighlightCreate} className="text-2xl text-gray-400 hover:text-black bg-transparent border-none">✕</button>
+              <h2 className="font-bold text-xl text-black dark:text-white">New highlight</h2>
+              <button onClick={closeHighlightCreate} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none">✕</button>
             </div>
-            <p className="text-sm text-gray-500 mb-4">Add exactly 2 photos or videos (max 30s). You can only have 2 highlights.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Add exactly 2 photos or videos (max 30s). You can only have 2 highlights.</p>
             <div className="grid grid-cols-2 gap-3 mb-4">
               {[0, 1].map((i) => (
-                <label key={i} className="rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden aspect-square flex items-center justify-center cursor-pointer">
+                <label key={i} className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 overflow-hidden aspect-square flex items-center justify-center cursor-pointer">
                   {highlightPreviews[i as 0 | 1] ? (
                     <HighlightStillMedia url={highlightPreviews[i as 0 | 1] as string} className="h-full w-full object-cover pointer-events-none" />
                   ) : (
@@ -1320,20 +1320,20 @@ export default function ProfileScreen() {
                 </label>
               ))}
             </div>
-            <div className="rounded-2xl border border-gray-200 p-4 mb-4">
+            <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 p-4 mb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-extrabold text-black">Shoppable sticker</p>
+                  <p className="text-sm font-extrabold text-black dark:text-white">Shoppable sticker</p>
                   <p className="text-xs text-gray-500">Optional “Buy now” pill on the highlight</p>
                 </div>
-                <button type="button" onClick={() => setHighlightStickerOpen((v) => !v)} className={`w-12 h-7 rounded-full p-1 transition-colors ${highlightStickerOpen ? "bg-black" : "bg-gray-200"}`}>
+                <button type="button" onClick={() => setHighlightStickerOpen((v) => !v)} className={`w-12 h-7 rounded-full p-1 transition-colors ${highlightStickerOpen ? "bg-black dark:bg-white" : "bg-gray-200 dark:bg-zinc-700"}`}>
                   <div className={`w-5 h-5 rounded-full bg-white transition-transform ${highlightStickerOpen ? "translate-x-5" : "translate-x-0"}`} />
                 </button>
               </div>
               {highlightStickerOpen && (
                 <div className="mt-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">Listing</label>
-                  <select value={highlightStickerListingId || ""} onChange={(e) => setHighlightStickerListingId(e.target.value || null)} className="w-full h-12 rounded-2xl border border-gray-200 px-4 text-sm font-semibold outline-none focus:border-black transition-colors bg-white">
+                  <select value={highlightStickerListingId || ""} onChange={(e) => setHighlightStickerListingId(e.target.value || null)} className="w-full h-12 rounded-2xl border border-gray-200 dark:border-zinc-700 px-4 text-sm font-semibold outline-none focus:border-black dark:focus:border-white transition-colors bg-white dark:bg-zinc-800 text-black dark:text-white">
                     <option value="">Pick a listing…</option>
                     {myListings.map((l) => (
                       <option key={l.id} value={l.id}>{l.title} · KSH {Number(l.amount_per_person || 0).toLocaleString("en-KE")}</option>
@@ -1342,7 +1342,7 @@ export default function ProfileScreen() {
                 </div>
               )}
             </div>
-            <button type="button" onClick={() => void handleCreateHighlight()} disabled={creatingHighlight || !highlightFiles[0] || !highlightFiles[1] || highlights.length >= 2} className="w-full py-4 bg-black text-white rounded-2xl font-bold disabled:opacity-40">
+            <button type="button" onClick={() => void handleCreateHighlight()} disabled={creatingHighlight || !highlightFiles[0] || !highlightFiles[1] || highlights.length >= 2} className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold disabled:opacity-40">
               {creatingHighlight ? "Creating..." : "Create highlight"}
             </button>
           </div>

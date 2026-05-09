@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── Verify caller is the group host ───────────────
   const { data: group, error: groupError } = await supabase
     .from("groups")
-    .select("id, created_by, total_amount, status")
+    .select("id, created_by, total_amount, collected_balance, status")
     .eq("id", group_id)
     .single();
 
@@ -84,17 +84,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // ── Deduct from host's Yuto Balance ───────────────
-  const { error: deductError } = await supabase.rpc("deduct_payout_balance", {
-    p_user_id: user_id,
-    p_amount: amount,
-    p_group_id: group_id,
-  });
+  // ── Reserve the split pool; do not debit the host's personal wallet ──
+  const collected = Number((group as { collected_balance?: number | string | null }).collected_balance ?? 0);
+  if (collected < Number(amount)) {
+    return res.status(400).json({
+      success: false,
+      message: `This split has KSH ${collected.toLocaleString("en-KE")} collected, but payout needs KSH ${Number(amount).toLocaleString("en-KE")}.`,
+    });
+  }
+
+  const { error: deductError } = await supabase
+    .from("groups")
+    .update({ collected_balance: collected - Number(amount) })
+    .eq("id", group_id)
+    .gte("collected_balance", Number(amount));
 
   if (deductError) {
     return res.status(400).json({
       success: false,
-      message: deductError.message || "Insufficient Yuto Balance to pay out",
+      message: deductError.message || "Could not reserve the split payout funds",
     });
   }
 
