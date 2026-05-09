@@ -952,6 +952,14 @@ export default function YutoGroupScreen() {
             Leave Split
           </button>
         )}
+        {isHost && members.length === 1 && (
+          <button 
+            onClick={handleLeave}
+            className="w-full py-3 text-sm font-bold text-gray-500 hover:text-red-500 transition-colors border-none bg-transparent"
+          >
+            Leave Split
+          </button>
+        )}
         {isHost && (groupStatus === "active" || groupStatus === "funded") && (
           <button 
             onClick={handleCancelGroup}
