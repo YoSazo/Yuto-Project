@@ -32,7 +32,7 @@ create table if not exists groups (
   total_amount integer not null default 0,
   per_person integer not null default 0,
   created_by uuid references profiles(id) on delete cascade not null,
-  status text check (status in ('active', 'completed')) default 'active',
+  status text check (status in ('active', 'completed', 'cancelled')) default 'active',
   group_type text check (group_type in ('single', 'multi')) default 'single',
   created_at timestamptz default now()
 );
@@ -157,6 +157,8 @@ create policy "Members can update group totals" on groups
     created_by = auth.uid()
     or id in (select auth_user_group_ids())
   );
+create policy "Creators can delete groups" on groups
+  for delete using (created_by = auth.uid());
 
 -- Group members: members can view co-members, auth users can add, users update own
 create policy "Members can view group members" on group_members

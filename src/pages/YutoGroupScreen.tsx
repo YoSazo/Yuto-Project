@@ -882,6 +882,11 @@ export default function YutoGroupScreen() {
             ✓ Split Complete
           </button>
 
+        ) : groupStatus === "cancelled" ? (
+          <button disabled className="w-full py-5 bg-red-50 text-red-500 rounded-full font-bold text-lg cursor-default">
+            Split Cancelled
+          </button>
+
         ) : !allJoined ? (
           // Still waiting for people to join
           <button disabled className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
@@ -929,10 +934,6 @@ export default function YutoGroupScreen() {
             💸 Pay Out KSH {totalAmount.toLocaleString()}
           </button>
 
-        ) : groupStatus === "cancelled" ? (
-          <button disabled className="w-full py-5 bg-red-50 text-red-500 rounded-full font-bold text-lg cursor-default">
-            Split Cancelled
-          </button>
         ) : (
           // All paid, not host — just wait
           <button disabled className="w-full py-5 bg-gray-100 text-gray-400 rounded-full font-bold text-lg cursor-not-allowed">
@@ -942,26 +943,24 @@ export default function YutoGroupScreen() {
       </div>
 
       {/* Secondary Actions (Leave / Cancel Entirely) */}
-      {(groupStatus === "active" || groupStatus === "funded") && (
-        <div className="mt-4 flex flex-col gap-2">
-          {!isHost && (
-            <button 
-              onClick={handleLeave}
-              className="w-full py-3 text-sm font-bold text-gray-500 hover:text-red-500 transition-colors border-none bg-transparent"
-            >
-              Leave Split
-            </button>
-          )}
-          {isHost && (
-            <button 
-              onClick={handleCancelGroup}
-              className="w-full py-3 text-sm font-bold text-gray-500 hover:text-red-500 transition-colors border-none bg-transparent"
-            >
-              Cancel Split Entirely
-            </button>
-          )}
-        </div>
-      )}
+      <div className="mt-4 flex flex-col gap-2">
+        {!isHost && (
+          <button 
+            onClick={handleLeave}
+            className="w-full py-3 text-sm font-bold text-gray-500 hover:text-red-500 transition-colors border-none bg-transparent"
+          >
+            Leave Split
+          </button>
+        )}
+        {isHost && (groupStatus === "active" || groupStatus === "funded") && (
+          <button 
+            onClick={handleCancelGroup}
+            className="w-full py-3 text-sm font-bold text-gray-500 hover:text-red-500 transition-colors border-none bg-transparent"
+          >
+            Cancel Split Entirely
+          </button>
+        )}
+      </div>
 
       {showBalanceTopUpModal && user && (
         <YutoBalanceTopUpModal

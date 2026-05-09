@@ -3,7 +3,7 @@ import type { DmMessage, ListingDmChargeRow } from "../../lib/supabase";
 import { getListingDmCharge, payListingDmCharge, releaseListingDmCharge, fetchYutoBalance } from "../../lib/supabase";
 import { toast } from "sonner";
 import { haptics } from "../../lib/haptics";
-import { Lock, ShieldCheck, BadgeDollarSign, Info } from "lucide-react";
+import { Lock, ShieldCheck, BadgeDollarSign, Info, Clock } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { YutoBalanceTopUpModal } from "../wallet/YutoBalanceTopUpModal";
 import { MIN_MPESA_TOPUP_KES } from "../../pages/home/computeTopUp";

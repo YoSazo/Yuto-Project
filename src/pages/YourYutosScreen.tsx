@@ -20,6 +20,7 @@ interface GroupData {
   per_person: number;
   status: string;
   created_at: string;
+  created_by: string;
   group_members: GroupMember[];
 }
 
@@ -137,12 +138,16 @@ export default function YourYutosScreen() {
   const activeGroups = groups.filter((g) => g.status === "active");
   const completedGroups = groups.filter((g) => g.status === "completed" || g.status === "funded" || g.status === "cancelled");
 
-  const handleDelete = async (groupId: string) => {
+  const handleDelete = async (groupId: string, createdBy: string) => {
     setGroups((prev) => prev.filter((g) => g.id !== groupId));
     try {
-      await supabase.from("groups").delete().eq("id", groupId);
+      if (user?.id === createdBy) {
+        await supabase.from("groups").delete().eq("id", groupId);
+      } else {
+        await supabase.rpc("leave_split_group", { p_group_id: groupId, p_user_id: user?.id });
+      }
     } catch (err) {
-      console.error("Failed to delete group:", err);
+      console.error("Failed to delete/leave group:", err);
     }
   };
 
@@ -210,7 +215,7 @@ export default function YourYutosScreen() {
                     key={g.id}
                     group={g}
                     onClick={() => navigate(`/yuto/${g.id}`)}
-                    onDelete={() => handleDelete(g.id)}
+                    onDelete={() => handleDelete(g.id, g.created_by)}
                   />
                 ))}
               </div>
