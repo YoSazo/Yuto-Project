@@ -333,13 +333,13 @@ export default function YutoGroupScreen() {
         // Auto-join
         // AFTER — guard against non-members entirely
         const me = gmem.find((gm: any) => gm.user_id === user.id);
-        if (!me) {
-          // Not a member of this group at all — redirect back
+        if (!me && data.created_by !== user.id) {
+          // Not a member of this group at all and not the host
           navigate(-1);
           toast.error("You're not part of this split.");
           return;
         }
-        if (!me.has_joined) {
+        if (me && !me.has_joined) {
           await joinGroup(groupId, user.id);
           setMembers((prev) => prev.map((m) => m.user_id === user.id ? { ...m, hasJoined: true } : m));
         }
@@ -915,7 +915,7 @@ export default function YutoGroupScreen() {
 
         ) : !youPaid ? (
           // Member needs to pay their share from Yuto Balance
-          <button onClick={handlePayShare} disabled={isPayingShare} className={`w-full py-5 rounded-full font-bold text-lg transition-colors tap-scale ${isPayingShare ? "bg-gray-800 text-gray-300" : "bg-black text-white hover:bg-gray-800"}`}>
+          <button onClick={handlePayShare} disabled={isPayingShare} className={`w-full py-5 rounded-full font-bold text-lg transition-colors tap-scale ${isPayingShare ? "bg-gray-800 text-gray-300 dark:bg-gray-200 dark:text-gray-500" : "bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"}`}>
             {isPayingShare ? "Paying..." : `Pay KSH ${perPersonAmount.toLocaleString()} from Yuto Balance`}
           </button>
 

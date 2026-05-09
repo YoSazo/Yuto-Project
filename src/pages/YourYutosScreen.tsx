@@ -63,7 +63,7 @@ function YutoCard({ group, onClick, onDelete }: { group: GroupData; onClick: () 
           >
             {isActive ? "Active" : isCancelled ? "Cancelled" : "Done"}
           </span>
-          {!isActive && onDelete && (
+          {(!isActive || members.length === 0) && onDelete && (
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
               className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors border-none cursor-pointer"
