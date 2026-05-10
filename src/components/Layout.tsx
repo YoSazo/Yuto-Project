@@ -61,10 +61,10 @@ export default function Layout() {
   }
 
   if (!user) {
-    // Guest mode: allow browsing the home feed (read-only) with a sign-up banner
-    const guestAllowedPaths = ["/home", "/"];
-    const isGuestAllowed = guestAllowedPaths.includes(location.pathname);
-    if (!isGuestAllowed) return <Navigate to="/auth" replace />;
+    // Guest mode: allow browsing key screens (read-only) with a sign-up banner
+    const guestAllowedPaths = ["/home", "/", "/split", "/activity", "/profile"];
+    const isGuestAllowed = guestAllowedPaths.some(p => location.pathname === p || location.pathname.startsWith("/user/"));
+    if (!isGuestAllowed) return <Navigate to="/home" replace />;
   }
 
   return (

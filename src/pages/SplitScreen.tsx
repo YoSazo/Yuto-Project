@@ -46,7 +46,11 @@ export default function SplitScreen() {
     selectedFriends.length > 0;
 
   const handleSplit = async () => {
-    if (!isValid || !user) return;
+    if (!user) {
+      navigate("/auth", { state: { defaultMode: "signup" } });
+      return;
+    }
+    if (!isValid) return;
     setIsCreating(true);
     setError("");
     try {
