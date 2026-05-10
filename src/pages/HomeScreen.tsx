@@ -113,9 +113,9 @@ export default function HomeScreen() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (!user) return;
     loadFeed();
 
+    if (!user) return;
     // Debounce feed reloads — on busy days, realtime fires constantly
     let reloadTimer: ReturnType<typeof setTimeout> | null = null;
     const debouncedReload = () => {
@@ -292,13 +292,12 @@ export default function HomeScreen() {
   }, [user, functionTicket, functionsFeed]);
 
   const loadFeed = async () => {
-    if (!user) return;
     setLoading(true);
     try {
       const tab = activeTabRef.current;
       const [planData, functionData, postsData] = await Promise.all([
-        tab === "public" ? getPlansPublic() : getPlansFriends(user.id),
-        tab === "public" ? getFunctionsPublic() : Promise.resolve([]),
+        tab === "public" || !user ? getPlansPublic() : getPlansFriends(user.id),
+        tab === "public" || !user ? getFunctionsPublic() : Promise.resolve([]),
         getPublicPosts(30).catch(() => []),
       ]);
       const planList = (planData as Plan[]) || [];
@@ -440,7 +439,11 @@ export default function HomeScreen() {
   const closeCompose = () => setShowCompose(false);
 
   const handleJoinFunction = async (eventFunction: FunctionListing) => {
-    if (!user) return;
+    if (!user) {
+      toast("Sign up to join functions");
+      navigate("/auth", { state: { defaultMode: "signup" } });
+      return;
+    }
 
     const isSell = eventFunction.location === "__SELL__";
     const isService = eventFunction.location === "__SERVICE__";
@@ -674,9 +677,13 @@ export default function HomeScreen() {
     }
   };
 
+  const [yutoingPlanId, setYutoingPlanId] = useState<string | null>(null);
+
   const handleYutoIt = async (plan: Plan) => {
     if (!user) return;
     if (!plan.amount) return;
+    if (yutoingPlanId) return; // Prevent double-tap
+    setYutoingPlanId(plan.id);
     const memberIds = [
       plan.creator_id,
       ...(plan.plan_members ?? []).map((m) => m.user_id).filter((id) => id !== plan.creator_id),
@@ -689,7 +696,15 @@ export default function HomeScreen() {
       });
       const group = await yutoItPlan(plan.id, user.id, plan.title, plan.amount, memberIds);
       navigate(`/yuto/${group.id}`);
-    } catch (err) { console.error(err); }
+    } catch (err: any) {
+      console.error(err);
+      if (err?.message?.includes("already")) {
+        toast("Already locked in — opening the split");
+        await loadFeed();
+      }
+    } finally {
+      setYutoingPlanId(null);
+    }
   };
 
   const handleDelete = async (planId: string) => {

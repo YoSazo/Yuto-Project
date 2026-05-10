@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, useLocation, Navigate } from "react-router-dom";
+import { Outlet, useLocation, Navigate, useNavigate } from "react-router-dom";
 import GlassNavBar from "./GlassNavBar";
 import { useAuth } from "../contexts/AuthContext";
 import { getPendingRequests, getMyAllUnreadTotal } from "../lib/supabase";
@@ -18,6 +18,7 @@ const TAB_ROUTES: Record<string, NavTab> = {
 
 export default function Layout() {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
   const activeTab = TAB_ROUTES[location.pathname];
   const showNav = !!activeTab;
@@ -59,17 +60,35 @@ export default function Layout() {
     );
   }
 
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) {
+    // Guest mode: allow browsing the home feed (read-only) with a sign-up banner
+    const guestAllowedPaths = ["/home", "/"];
+    const isGuestAllowed = guestAllowedPaths.includes(location.pathname);
+    if (!isGuestAllowed) return <Navigate to="/auth" replace />;
+  }
 
   return (
     <div className="min-h-[100dvh] bg-gray-100 dark:bg-black flex items-center justify-center transition-colors">
       <div id="app-shell" className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white dark:bg-black relative overflow-hidden md:rounded-[40px] md:shadow-2xl transition-colors">
+        {/* Guest sign-up banner */}
+        {!user && (
+          <div className="absolute top-0 left-0 right-0 z-40 bg-black dark:bg-white px-4 py-3 flex items-center justify-between">
+            <p className="text-white dark:text-black text-sm font-bold">Join Yuto to split, host & pay</p>
+            <button
+              type="button"
+              onClick={() => navigate("/auth", { state: { defaultMode: "signup" } })}
+              className="px-4 py-1.5 bg-white dark:bg-black text-black dark:text-white rounded-full text-xs font-bold border-none"
+            >
+              Sign up
+            </button>
+          </div>
+        )}
         {!isOnline && (
           <div className="absolute top-0 left-0 right-0 z-40 bg-amber-500 text-white text-xs font-bold text-center py-1.5 flex items-center justify-center gap-1.5">
             <WifiOff size={12} /> No internet — some features may not work
           </div>
         )}
-        <div className={`h-full overflow-y-auto ${showNav ? "pb-24" : ""} ${!isOnline ? "pt-7" : ""}`}>
+        <div className={`h-full overflow-y-auto ${showNav ? "pb-24" : ""} ${!isOnline ? "pt-7" : ""} ${!user ? "pt-12" : ""}`}>
           <Outlet />
         </div>
 

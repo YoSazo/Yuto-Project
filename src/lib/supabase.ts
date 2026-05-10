@@ -1146,6 +1146,21 @@ export async function leavePlan(planId: string, userId: string) {
 }
 
 export async function yutoItPlan(planId: string, creatorId: string, title: string, amount: number, memberIds: string[]) {
+  // Guard: check if plan was already "Yuto'd" (prevents duplicate splits)
+  const { data: planCheck } = await supabase
+    .from("plans")
+    .select("yuto_group_id, status")
+    .eq("id", planId)
+    .single();
+  
+  if (planCheck?.yuto_group_id) {
+    // Already has a group — return the existing one
+    return { id: planCheck.yuto_group_id };
+  }
+  if (planCheck?.status === "completed") {
+    throw new Error("This plan has already been locked in.");
+  }
+
   // Create the group
   const group = await createGroup(title, amount, Math.ceil(amount / memberIds.length), creatorId, memberIds);
   // Mark plan as completed
