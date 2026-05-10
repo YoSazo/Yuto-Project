@@ -1,7 +1,7 @@
 {
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/function/:functionId", "destination": "/api/share-function?functionId=:functionId" },
+    { "source": "/f/:functionId", "destination": "/api/share-function?functionId=:functionId" },
     { "source": "/og/function/:functionId.png", "destination": "/api/og-function?functionId=:functionId" },
     { "source": "/i/:username", "destination": "/api/share-invite?username=:username" },
     { "source": "/og/invite/:username.png", "destination": "/api/og-invite?username=:username" },

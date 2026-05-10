@@ -82,15 +82,17 @@ export default function MessagesScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"personal" | "money">(() => {
+  const [activeTab, setActiveTab] = useState<"personal" | "money" | "business">(() => {
     const t = searchParams.get("tab");
     if (t === "money") return "money";
+    if (t === "business") return "business";
     return "personal";
   });
 
   useEffect(() => {
     const t = searchParams.get("tab");
     if (t === "money") setActiveTab("money");
+    else if (t === "business") setActiveTab("business");
   }, [searchParams]);
   // Unified inbox: every chat surface (DMs + group chats + plan chats + function chats)
   // lives in a single sorted-by-recency list. The Personal tab renders this
@@ -305,6 +307,7 @@ export default function MessagesScreen() {
         tabs={[
           { id: "personal", label: "Personal", icon: <Users size={18} /> },
           { id: "money", label: "Money", icon: <Wallet size={18} /> },
+          { id: "business", label: "Business", icon: <Briefcase size={18} /> },
         ]}
         className="mb-4"
       />
@@ -345,6 +348,42 @@ export default function MessagesScreen() {
         <div className="py-20 text-center">
           <p className="font-bold text-black dark:text-white text-lg">No messages yet</p>
           <p className="text-gray-400 text-sm mt-1">Tap "Message" on someone's profile or start a group.</p>
+        </div>
+      ) : activeTab === "business" ? (
+        <div className="flex flex-col gap-4">
+          {businessItems.length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-zinc-800 mx-auto flex items-center justify-center mb-3">
+                <Briefcase size={22} className="text-gray-400 dark:text-gray-500" />
+              </div>
+              <p className="font-bold text-black dark:text-white text-lg">No business messages</p>
+              <p className="text-gray-400 dark:text-gray-500 text-sm mt-1 max-w-[260px] mx-auto">
+                Sell an item or offer a service on Yuto. When buyers message you, they'll show up here.
+              </p>
+            </div>
+          ) : (
+            businessItems.map(({ convo, other, otherId, ctx }) => (
+              <button
+                key={convo.id}
+                type="button"
+                onClick={() => navigate(`/messages/${convo.id}`, { state: { otherUserId: otherId } })}
+                className="w-full bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <UserAvatar name={other?.display_name || "Customer"} avatarUrl={other?.avatar_url || null} size="md" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-black dark:text-white truncate">{ctx.listing_title}</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 truncate">
+                    {ctx.listing_kind === "sell" ? "Sell" : "Service"} · {other?.display_name || "Customer"}
+                  </p>
+                </div>
+                {(unreadByConvo[convo.id] || 0) > 0 && (
+                  <span className="min-w-6 h-6 px-2 rounded-full bg-red-500 text-white text-xs font-extrabold flex items-center justify-center">
+                    {Math.min(99, unreadByConvo[convo.id])}
+                  </span>
+                )}
+              </button>
+            ))
+          )}
         </div>
       ) : user ? (
         filteredThreads.length === 0 ? (

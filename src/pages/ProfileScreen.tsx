@@ -43,6 +43,8 @@ import {
 import { useTheme } from "../contexts/ThemeContext";
 import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { HostFunctionDashboard } from "../components/profile/HostFunctionDashboard";
+import { HostListingDashboard } from "../components/profile/HostListingDashboard";
 
 function ChevronRight() {
   return (
@@ -251,6 +253,8 @@ export default function ProfileScreen() {
   const [ownShowcaseTab, setOwnShowcaseTab] = useState<"profile" | "functions" | "sell" | "service">("profile");
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
   const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
+  const [expandedFunctionId, setExpandedFunctionId] = useState<string | null>(null);
+  const [expandedListingId, setExpandedListingId] = useState<string | null>(null);
   const [bizDashboard, setBizDashboard] = useState<{
     revenueThisMonthKes: number;
     ordersThisMonth: number;
@@ -533,7 +537,11 @@ export default function ProfileScreen() {
   }, [user]);
 
   useEffect(() => {
-    const st = location.state as { openHighlightId?: string } | null;
+    const st = location.state as { openHighlightId?: string; openTab?: string } | null;
+    if (st?.openTab) {
+      setOwnShowcaseTab(st.openTab as any);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
     const hid = st?.openHighlightId;
     if (!hid || highlights.length === 0) return;
     const found = highlights.find((h) => h.id === hid);
@@ -1107,20 +1115,16 @@ export default function ProfileScreen() {
                   <div className="mt-4 pt-4 border-t border-gray-50 dark:border-zinc-800 flex gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setOwnShowcaseTab("functions");
-                        // Scroll to top so the user sees the function they're managing
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
+                      onClick={() => setExpandedFunctionId(fn.id)}
                       className="flex-[1.5] h-10 rounded-xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white border-none font-extrabold text-sm hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                     >
-                      Manage
+                      Attendees & Q&A
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         const shareOrigin = window.location.hostname === "localhost" || window.location.hostname.startsWith("127.") ? window.location.origin : "https://yuto.social";
-                        const link = `${shareOrigin}/function/${fn.id}`;
+                        const link = `${shareOrigin}/f/\$\{fn.id\}`;
                         if (navigator.share) navigator.share({ title: fn.title, url: link });
                         else { navigator.clipboard.writeText(link); toast.success("Link copied!"); }
                       }}
@@ -1246,8 +1250,15 @@ export default function ProfileScreen() {
                     </div>
                     <div className="p-4">
                       <p className="font-extrabold text-black dark:text-white text-lg">{listing.title}</p>
-                      <p className="text-base font-black mt-1">KSH {listing.amount_per_person.toLocaleString()}</p>
+                      <p className="text-base font-black mt-1 text-black dark:text-white">KSH {listing.amount_per_person.toLocaleString()}</p>
                       <p className="text-sm text-gray-400 mt-1 font-semibold">{listing.kind === "sell" ? "Storefront Listing" : "Service Booking"}</p>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedListingId(listing.id)}
+                        className="mt-3 w-full py-2.5 rounded-xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white font-bold text-sm border-none hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        {listing.kind === "sell" ? "Buyers & Inquiries" : "Bookings & Inquiries"}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1258,6 +1269,16 @@ export default function ProfileScreen() {
       )}
 
       {/* ── GLOBAL MODALS & OVERLAYS ── */}
+      {expandedFunctionId && user && (() => {
+        const fn = ownFunctions.find(f => f.id === expandedFunctionId);
+        if (!fn) return null;
+        return <HostFunctionDashboard fn={fn} userId={user.id} onClose={() => setExpandedFunctionId(null)} />;
+      })()}
+      {expandedListingId && user && (() => {
+        const listing = ownListings.find(l => l.id === expandedListingId);
+        if (!listing) return null;
+        return <HostListingDashboard listing={listing} userId={user.id} onClose={() => setExpandedListingId(null)} />;
+      })()}
       <ConfirmModal
         open={!!confirmModal}
         title={confirmModal?.title || ""}

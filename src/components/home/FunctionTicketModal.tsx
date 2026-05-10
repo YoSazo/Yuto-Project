@@ -86,7 +86,7 @@ export function FunctionTicketModal({
       window.location.hostname === "localhost" || window.location.hostname.startsWith("127.")
         ? window.location.origin
         : "https://yuto.social";
-    return `${shareOrigin}/function/${functionItem.id}`;
+    return `${shareOrigin}/f/${functionItem.id}`;
   }, [functionItem.id]);
 
   useEffect(() => {

@@ -143,7 +143,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   </g>
 
   <text x="110" y="165" font-size="26" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" fill="#E5E7EB" opacity="0.95">
-    ${isSell ? "🛍️" : isService ? "🛠️" : "🎉"} ${sanitizeForSvg(hostName)} ${isSell ? "is selling" : isService ? "offers" : "is hosting a function"}
+    ${isSell ? "SELL" : isService ? "SERVICE" : "FUNCTION"} by ${sanitizeForSvg(hostName)}
   </text>
 
   <text x="110" y="245" font-size="76" font-weight="800" letter-spacing="-1.5" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" fill="#FFFFFF">

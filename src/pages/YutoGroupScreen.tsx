@@ -645,6 +645,8 @@ export default function YutoGroupScreen() {
         toast.success(`${targetName} removed.`);
       } else if (type === "cancel") {
         await cancelSplitGroup(groupId);
+        // Also do a direct update so realtime fires for all other members
+        await supabase.from("groups").update({ status: "cancelled" }).eq("id", groupId);
         setGroupStatus("cancelled");
         toast.success("Split cancelled and refunds processed.");
       }

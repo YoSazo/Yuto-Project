@@ -89,7 +89,7 @@ export function FunctionCard({
       window.location.hostname === "localhost" || window.location.hostname.startsWith("127.")
         ? window.location.origin
         : "https://yuto.social";
-    const url = `${shareOrigin}/function/${f.id}`;
+    const url = `${shareOrigin}/f/${f.id}`;
 
     // Correct labels based on listing type
     let title = "";
@@ -464,7 +464,7 @@ export function FunctionCard({
                     isFunction ? "border-white/20 bg-white/10 text-white hover:bg-white/15" : "border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700",
                   ].join(" ")}
                 >
-                  Manage
+                  Dashboard
                 </button>
               </div>
             ) : suppressListingPay && isListing ? (

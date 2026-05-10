@@ -805,7 +805,7 @@ export default function HomeScreen() {
               acc[f.id] = f;
               return acc;
             }, {})}
-            onNavigateToHost={(hostId) => { if (hostId === "__manage__") navigate("/profile"); else navigate(`/user/${hostId}`); }}
+            onNavigateToHost={(hostId) => { if (hostId === "__manage__") navigate("/profile", { state: { openTab: "functions" } }); else navigate(`/user/${hostId}`); }}
             onJoinFunction={handleJoinFunction}
             onOpenTicket={(f) => setFunctionTicket(f)}
             onShareInMessages={user ? (payload) => setShareFeedPayload(payload) : undefined}
@@ -826,7 +826,7 @@ export default function HomeScreen() {
             loading={loading}
             currentUserId={user?.id}
             functionUnreadCounts={functionUnreadCounts}
-            onNavigateToHost={(hostId) => { if (hostId === "__manage__") navigate("/profile"); else navigate(`/user/${hostId}`); }}
+            onNavigateToHost={(hostId) => { if (hostId === "__manage__") navigate("/profile", { state: { openTab: "functions" } }); else navigate(`/user/${hostId}`); }}
             onOpenFunctionThread={setActiveFunctionThread}
             onOpenFunctionAttendeeChat={user ? openFunctionAttendeeChat : undefined}
             onJoinFunction={handleJoinFunction}

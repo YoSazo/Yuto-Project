@@ -1020,7 +1020,7 @@ export async function payForPlanWithLedger(
   void _ctx;
   const { error } = await supabase.rpc("pay_for_plan", {
     p_group_id: groupId,
-    p_amount: amount,
+    p_amount: Math.round(amount),
   });
   if (error) throw error;
 }

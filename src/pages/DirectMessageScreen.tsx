@@ -960,7 +960,7 @@ useEffect(() => {
                             currentUserId={user?.id}
                             unreadCount={0}
                             suppressListingPay={isListingInDm}
-                            onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
+                            onNavigateToHost={(hostId) => { if (hostId === "__manage__") navigate("/profile"); else navigate(`/user/${hostId}`); }}
                             onJoinFunction={(f) => void handleJoinFunction(f)}
                             onOpenTicket={(f) => setTicketFunction(f)}
                             onOpenFunctionAttendeeChat={async (f) => {

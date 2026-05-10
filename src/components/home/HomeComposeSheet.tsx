@@ -144,12 +144,16 @@ function DateTimePickerModal({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="grid grid-cols-3 gap-3 mb-5">
           <label className="block">
             <span className="text-xs text-gray-400 font-semibold mb-1 block">Hour</span>
-            <select value={hour} onChange={(e) => setHour(Number(e.target.value))} className="w-full h-12 rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-white px-3 font-bold outline-none">
-              {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>{pad2(i)}</option>
+            <select value={hour > 12 ? hour - 12 : hour === 0 ? 12 : hour} onChange={(e) => {
+              const h12 = Number(e.target.value);
+              const isPm = hour >= 12;
+              setHour(isPm ? (h12 === 12 ? 12 : h12 + 12) : (h12 === 12 ? 0 : h12));
+            }} className="w-full h-12 rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-white px-3 font-bold outline-none">
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                <option key={h} value={h}>{h}</option>
               ))}
             </select>
           </label>
@@ -159,6 +163,17 @@ function DateTimePickerModal({
               {[0, 15, 30, 45].map((m) => (
                 <option key={m} value={m}>{pad2(m)}</option>
               ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-400 font-semibold mb-1 block">AM/PM</span>
+            <select value={hour >= 12 ? "PM" : "AM"} onChange={(e) => {
+              const isPm = e.target.value === "PM";
+              const h12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour === 12 ? 12 : hour;
+              setHour(isPm ? (h12 === 12 ? 12 : h12 + 12) : (h12 === 12 ? 0 : h12));
+            }} className="w-full h-12 rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-black dark:text-white px-3 font-bold outline-none">
+              <option value="AM">AM</option>
+              <option value="PM">PM</option>
             </select>
           </label>
         </div>

@@ -69,7 +69,7 @@ export function DmChargeInline({
 
   if (!chargeId) {
     return (
-      <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm text-gray-400 text-sm font-semibold">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm text-gray-400 dark:text-gray-500 text-sm font-semibold">
         Invalid charge
       </div>
     );
@@ -84,12 +84,12 @@ export function DmChargeInline({
   const cancelled = effective?.status === "cancelled";
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm w-full max-w-[min(100%,18rem)] mx-auto overflow-hidden">
+    <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm w-full max-w-[min(100%,18rem)] mx-auto overflow-hidden">
       <div className="flex flex-col items-center text-center gap-1.5 mb-4">
-        <div className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 ${effective?.release_mode === "held" ? "bg-blue-50 text-blue-600" : "bg-emerald-50 text-emerald-600"}`}>
+        <div className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 ${effective?.release_mode === "held" ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"}`}>
           <BadgeDollarSign size={28} />
         </div>
-        <p className="font-extrabold text-2xl text-black leading-tight">
+        <p className="font-extrabold text-2xl text-black dark:text-white leading-tight">
           KSH {effective ? effective.amount_kes.toLocaleString("en-KE") : "—"}
         </p>
         <div className="flex items-center gap-1 justify-center">
@@ -99,18 +99,18 @@ export function DmChargeInline({
           </p>
         </div>
         {effective?.note && (
-          <p className="text-xs text-gray-500 font-semibold mt-1 px-2 line-clamp-2">{effective.note}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mt-1 px-2 line-clamp-2">{effective.note}</p>
         )}
       </div>
 
       <div className="flex flex-col gap-2">
         {cancelled && (
-          <div className="w-full py-2.5 rounded-xl bg-gray-50 text-gray-400 text-sm font-bold flex items-center justify-center">
+          <div className="w-full py-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-400 dark:text-gray-500 text-sm font-bold flex items-center justify-center">
             Cancelled
           </div>
         )}
         {done && (
-          <div className="w-full py-2.5 rounded-xl bg-emerald-50 text-emerald-600 text-sm font-bold flex items-center justify-center gap-1.5">
+          <div className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center justify-center gap-1.5">
             <Check size={16} /> Complete
           </div>
         )}
@@ -126,7 +126,7 @@ export function DmChargeInline({
         )}
 
         {pending && isSeller && (
-          <div className="w-full py-2.5 rounded-xl bg-amber-50 text-amber-700 text-sm font-bold flex items-center justify-center gap-1.5">
+          <div className="w-full py-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-sm font-bold flex items-center justify-center gap-1.5">
             <Clock size={16} /> Waiting for payment
           </div>
         )}
