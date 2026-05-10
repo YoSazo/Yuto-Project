@@ -91,30 +91,24 @@ export function FunctionCard({
         : "https://yuto.social";
     const url = `${shareOrigin}/f/${f.id}`;
 
-    // Correct labels based on listing type
     let title = "";
     if (isSell) title = `🛍️ ${f.host.display_name} is selling ${f.title}`;
     else if (isService) title = `🛠️ ${f.host.display_name} is offering ${f.title}`;
-    else title = `🎉 ${f.host.display_name} is hosting a ${f.title}`;
+    else title = `🎉 ${f.host.display_name} is hosting ${f.title}`;
 
-    const text = isListing
-      ? `KSH ${f.amount_per_person.toLocaleString("en-KE")}`
-      : `${formatEventDate(f.date)} · KSH ${f.amount_per_person.toLocaleString("en-KE")}`;
+    const fullText = `${title}\n${isListing ? `KSH ${f.amount_per_person.toLocaleString("en-KE")}` : `${formatEventDate(f.date)} · KSH ${f.amount_per_person.toLocaleString("en-KE")}`}\n\n${url}`;
 
     try {
       if (navigator.share) {
-        await navigator.share({ title, text, url });
+        await navigator.share({ text: fullText, url });
         return;
       }
     } catch {
-      // fall back
+      // fall back to WhatsApp direct
     }
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link copied!");
-    } catch {
-      toast.error("Couldn't copy link.");
-    }
+    // WhatsApp fallback
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
+    window.open(waUrl, "_blank");
   };
 
   return (

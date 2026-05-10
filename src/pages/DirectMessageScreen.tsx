@@ -1166,13 +1166,6 @@ useEffect(() => {
           <div className="pointer-events-auto bg-black text-white rounded-2xl px-4 py-3 shadow-lg max-w-md w-full">
             <p className="font-extrabold">{previewShare.title}</p>
             <p className="text-sm text-white/70">{previewShare.subtitle}</p>
-            <button
-              type="button"
-              className="mt-2 w-full py-2 rounded-xl bg-white text-black font-bold"
-              onClick={() => navigate("/home")}
-            >
-              View on Home
-            </button>
           </div>
         </div>
       )}

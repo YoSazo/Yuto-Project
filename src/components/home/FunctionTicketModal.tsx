@@ -248,31 +248,27 @@ export function FunctionTicketModal({
                 disabled={sharing}
                 onClick={async () => {
                   setSharing(true);
-                  const title = `🎟️ I'm going to ${functionItem.title}!`;
-                  const text = `Locked in my spot. Grab yours before it fills up 👀`;
+                  const text = `🎟️ I'm going to ${functionItem.title}!\n\nLocked in my spot. Grab yours before it fills up 👀\n\n${shareUrl}`;
+                  // Try native share first (works on mobile), fall back to WhatsApp URL
                   try {
                     if (navigator.share) {
-                      await navigator.share({ title, text, url: shareUrl });
+                      await navigator.share({ text, url: shareUrl });
                       return;
                     }
                   } catch {
-                    // fall back
+                    // fall back to WhatsApp direct
                   } finally {
                     setSharing(false);
                   }
-                  try {
-                    await navigator.clipboard.writeText(shareUrl);
-                    toast.success("Link copied!");
-                  } catch {
-                    toast.error("Couldn't copy link.");
-                  } finally {
-                    setSharing(false);
-                  }
+                  // Direct WhatsApp link as fallback
+                  const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                  window.open(waUrl, "_blank");
+                  setSharing(false);
                 }}
-                className="w-full mt-4 py-3.5 bg-black text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 tap-scale disabled:opacity-60"
+                className="w-full mt-4 py-3.5 bg-green-600 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 tap-scale disabled:opacity-60"
               >
                 <Send size={16} />
-                {sharing ? "Preparing..." : "Flex on WhatsApp 🔥"}
+                {sharing ? "Preparing..." : "Share on WhatsApp 🔥"}
               </button>
             )}
 

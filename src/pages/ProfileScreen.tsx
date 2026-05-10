@@ -937,10 +937,16 @@ export default function ProfileScreen() {
                 <p className="text-xs text-white/60 mt-4">Earn <span className="text-white font-semibold">KSH 10</span> when a new user signs up with your link and tops up for the first time.</p>
                 {profile?.username && (
                   <div className="mt-4 flex gap-2">
-                    <button type="button" onClick={handleCopyInvite} className="flex-1 flex justify-center items-center gap-1.5 bg-white text-black py-3 rounded-xl text-sm font-bold transition-colors active:bg-gray-200">
-                      {copiedLink ? <Check size={16} /> : <Copy size={16} />} {copiedLink ? "Copied!" : "Copy Link"}
+                    <button type="button" onClick={() => {
+                      const text = `Join me on Yuto — the social payment app for Kenyan youth 🇰🇪\n\nSplit bills, host events, sell stuff, all with M-PESA.\n\n${inviteUrl}`;
+                      const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                      window.open(waUrl, "_blank");
+                    }} className="flex-1 flex justify-center items-center gap-1.5 bg-green-500 text-white py-3 rounded-xl text-sm font-bold transition-colors active:bg-green-600">
+                      <Send size={16} /> Send via WhatsApp
                     </button>
-                    <button type="button" disabled className="flex-1 bg-white/10 text-white/60 py-3 rounded-xl text-sm font-bold cursor-not-allowed">Redeem (Soon)</button>
+                    <button type="button" onClick={handleCopyInvite} className="flex-1 flex justify-center items-center gap-1.5 bg-white/10 text-white py-3 rounded-xl text-sm font-bold transition-colors active:bg-white/20">
+                      {copiedLink ? <Check size={16} /> : <Copy size={16} />} {copiedLink ? "Copied!" : "Copy"}
+                    </button>
                   </div>
                 )}
               </div>

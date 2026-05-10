@@ -83,12 +83,12 @@ export default function AuthScreen() {
         </div>
 
         <h1 className="text-2xl font-bold text-black dark:text-white mb-1">
-          {mode === "login" ? "Welcome back" : "Create account"}
+          {mode === "login" ? "Welcome back" : "Join Yuto"}
         </h1>
         <p className="text-gray-400 text-sm mb-6">
           {mode === "login"
             ? "Log in to your Yuto account"
-            : "Join Yuto and start splitting with friends!"}
+            : "The social payment app for Kenyan youth"}
         </p>
 
         <div className="w-full space-y-3 mb-5">

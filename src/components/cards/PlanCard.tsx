@@ -1,7 +1,21 @@
 import UserAvatar from "../UserAvatar";
-import { MessageCircle, Rocket, Send, Trash2, UserCheck } from "lucide-react";
+import { MessageCircle, Rocket, Send, Share2, Trash2, UserCheck } from "lucide-react";
 import type { Plan } from "../../pages/home/types";
 import { FixedMediaCarousel } from "../media/FixedMediaCarousel";
+
+function sharePlanToWhatsApp(plan: Plan) {
+  const origin = window.location.hostname === "localhost" || window.location.hostname.startsWith("127.") ? window.location.origin : "https://yuto.social";
+  const url = `${origin}/p/${plan.id}`;
+  const text = `${plan.creator.display_name} is planning "${plan.title}" 🎉\n\n${plan.amount ? `KSH ${plan.amount.toLocaleString()} · ` : ""}${(plan.plan_members || []).length} people in\n\nJoin the crew:\n${url}`;
+  
+  if (navigator.share) {
+    navigator.share({ text, url }).catch(() => {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    });
+  } else {
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  }
+}
 
 export function PlanCard({
   plan,
@@ -132,6 +146,15 @@ export function PlanCard({
           </button>
           {(onSharePlan || onOpenPlanChat) && (
             <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); sharePlanToWhatsApp(plan); }}
+                className="relative w-10 h-10 shrink-0 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 flex items-center justify-center hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                aria-label="Share on WhatsApp"
+                title="Share on WhatsApp"
+              >
+                <Share2 size={16} />
+              </button>
               {onSharePlan && (
                 <button
                   type="button"
@@ -208,11 +231,20 @@ export function PlanCard({
 
         {pm.length === 0 && (onSharePlan || onOpenPlanChat) && (
           <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+            <button
+              type="button"
+              onClick={() => sharePlanToWhatsApp(plan)}
+              className="relative w-10 h-10 shrink-0 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 flex items-center justify-center hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+              aria-label="Share on WhatsApp"
+              title="Share on WhatsApp"
+            >
+              <Share2 size={16} />
+            </button>
             {onSharePlan && (
               <button
                 type="button"
                 onClick={() => onSharePlan(plan)}
-                className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                 aria-label={`Share ${plan.title}`}
                 title="Share in messages"
               >
@@ -223,7 +255,7 @@ export function PlanCard({
               <button
                 type="button"
                 onClick={() => onOpenPlanChat(plan)}
-                className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-700 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                 aria-label={`Chat about ${plan.title}`}
                 title="Open chat"
               >
