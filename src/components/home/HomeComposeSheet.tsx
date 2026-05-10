@@ -199,7 +199,7 @@ export function HomeComposeSheet({
     taggedUserIds: string[];
     mediaFiles: File[];
   }) => Promise<void>;
-  onSubmitAnnouncement?: (data: { content: string; imageUrl: string | null; allowReplies: boolean }) => Promise<void>;
+  onSubmitAnnouncement?: (data: { content: string; imageUrl: string | null; allowReplies: boolean; replyMode: "dm" | "public" }) => Promise<void>;
   currentUserId?: string;
 }) {
   // Master Toggle State
@@ -339,6 +339,10 @@ export function HomeComposeSheet({
   // Announcement state (dev only)
   const [announcementText, setAnnouncementText] = useState("");
   const [announcementAllowReplies, setAnnouncementAllowReplies] = useState(true);
+  const [announcementReplyMode, setAnnouncementReplyMode] = useState<"dm" | "public">("public");
+  const [announcementMediaFile, setAnnouncementMediaFile] = useState<File | null>(null);
+  const [announcementMediaPreview, setAnnouncementMediaPreview] = useState<string | null>(null);
+  const announcementMediaInputRef = useRef<HTMLInputElement | null>(null);
   const isDev = isDevUser(currentUserId);
 
   // The sliding segmented control for "Create" vs "Post" (+ "Update" for dev)
@@ -682,15 +686,73 @@ export function HomeComposeSheet({
                 maxLength={500}
               />
 
-              <label className="flex items-center gap-3 px-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={announcementAllowReplies}
-                  onChange={(e) => setAnnouncementAllowReplies(e.target.checked)}
-                  className="w-5 h-5 rounded accent-blue-500"
-                />
-                <span className="text-sm font-semibold text-black dark:text-white">Allow replies (users can DM you)</span>
-              </label>
+              {/* Media upload for announcement */}
+              {announcementMediaPreview ? (
+                <div className="relative rounded-2xl overflow-hidden bg-gray-100 dark:bg-zinc-800">
+                  {announcementMediaFile?.type.startsWith("video/") ? (
+                    <video src={announcementMediaPreview} className="w-full h-auto max-h-[200px] object-cover" muted playsInline />
+                  ) : (
+                    <img src={announcementMediaPreview} alt="" className="w-full h-auto max-h-[200px] object-cover" />
+                  )}
+                  <button type="button" onClick={() => { if (announcementMediaPreview) URL.revokeObjectURL(announcementMediaPreview); setAnnouncementMediaFile(null); setAnnouncementMediaPreview(null); }} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center border-none">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => announcementMediaInputRef.current?.click()}
+                  className="w-full bg-transparent py-3 border-2 border-dashed border-blue-200 dark:border-blue-800 rounded-2xl flex items-center justify-center gap-2 text-blue-400 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+                >
+                  <ImageIcon size={18} />
+                  <span className="text-sm font-medium">Add photo or video</span>
+                </button>
+              )}
+              <input
+                ref={announcementMediaInputRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (announcementMediaPreview) URL.revokeObjectURL(announcementMediaPreview);
+                  setAnnouncementMediaFile(file);
+                  setAnnouncementMediaPreview(URL.createObjectURL(file));
+                  e.currentTarget.value = "";
+                }}
+              />
+
+              {/* Reply settings */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 px-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={announcementAllowReplies}
+                    onChange={(e) => setAnnouncementAllowReplies(e.target.checked)}
+                    className="w-5 h-5 rounded accent-blue-500"
+                  />
+                  <span className="text-sm font-semibold text-black dark:text-white">Allow replies</span>
+                </label>
+                {announcementAllowReplies && (
+                  <div className="flex gap-2 pl-8">
+                    <button
+                      type="button"
+                      onClick={() => setAnnouncementReplyMode("public")}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${announcementReplyMode === "public" ? "bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300" : "bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400"}`}
+                    >
+                      Public Q&A
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAnnouncementReplyMode("dm")}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${announcementReplyMode === "dm" ? "bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300" : "bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400"}`}
+                    >
+                      Private DM
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
@@ -698,8 +760,21 @@ export function HomeComposeSheet({
                   if (!announcementText.trim() || isSubmitting) return;
                   setIsSubmitting(true);
                   try {
-                    await onSubmitAnnouncement?.({ content: announcementText.trim(), imageUrl: null, allowReplies: announcementAllowReplies });
+                    let imageUrl: string | null = null;
+                    if (announcementMediaFile) {
+                      const { uploadPlanOrFunctionMedia } = await import("../../lib/supabase");
+                      imageUrl = await uploadPlanOrFunctionMedia(currentUserId || "", "plan", announcementMediaFile);
+                    }
+                    await onSubmitAnnouncement?.({
+                      content: announcementText.trim(),
+                      imageUrl,
+                      allowReplies: announcementAllowReplies,
+                      replyMode: announcementReplyMode,
+                    });
                     setAnnouncementText("");
+                    if (announcementMediaPreview) URL.revokeObjectURL(announcementMediaPreview);
+                    setAnnouncementMediaFile(null);
+                    setAnnouncementMediaPreview(null);
                     onClose();
                   } catch (e) {
                     console.error(e);

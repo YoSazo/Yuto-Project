@@ -933,6 +933,7 @@ export default function HomeScreen() {
             content: data.content,
             image_url: data.imageUrl,
             allow_replies: data.allowReplies,
+            reply_mode: data.replyMode,
             active: true,
           });
         }}
