@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedUserId } from "./_auth";
 
 // IntaSend send-money API base. For live use `https://api.intasend.com`.
 const INTASEND_BASE = process.env.INTASEND_HOST || "https://sandbox.intasend.com";
@@ -43,6 +44,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (!INTASEND_SECRET_KEY) {
     return res.status(500).json({ success: false, message: "Missing INTASEND_SECRET_KEY" });
+  }
+
+  // Auth: verify the caller is the user they claim to be
+  const authUserId = await getAuthenticatedUserId(req);
+  if (!authUserId || authUserId !== user_id) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 
   const supabase = getSupabase();
@@ -173,25 +180,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status?: string;
       detail?: string;
       message?: string;
+      errors?: unknown[];
       [key: string]: unknown;
     };
 
     if (!initiateRes.ok) {
-      // IntaSend failed — refund the host's balance
-      await supabase.rpc("refund_payout_balance", {
-        p_user_id: user_id,
-        p_amount: amount,
-        p_group_id: group_id,
-      });
+      // Refund the host's balance
+      await supabase
+        .from("groups")
+        .update({ collected_balance: collected })
+        .eq("id", group_id);
+
+      // Surface the actual IntaSend error details
+      const errDetail =
+        (initiateData as any)?.errors?.[0]?.detail ||
+        (initiateData as any)?.errors?.[0]?.message ||
+        (initiateData as any)?.errors?.[0] ||
+        initiateData.detail ||
+        initiateData.message ||
+        JSON.stringify(initiateData);
+
       console.error("[payout] initiate failed:", {
         status: initiateRes.status,
         duration_ms: Date.now() - startedAt,
         provider,
-        body: initiateData,
+        body: JSON.stringify(initiateData),
       });
       return res.status(400).json({
         success: false,
-        message: initiateData.detail || initiateData.message || "IntaSend payout failed — balance refunded",
+        message: typeof errDetail === "string" ? errDetail : "IntaSend payout failed — balance refunded",
       });
     }
 
@@ -218,11 +235,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!approveRes.ok) {
         const approveData = (await approveRes.json()) as Record<string, unknown>;
-        await supabase.rpc("refund_payout_balance", {
-          p_user_id: user_id,
-          p_amount: amount,
-          p_group_id: group_id,
-        });
+        // Refund by restoring collected_balance
+        await supabase
+          .from("groups")
+          .update({ collected_balance: collected })
+          .eq("id", group_id);
         console.error("[payout] approve failed:", {
           status: approveRes.status,
           provider,
@@ -251,12 +268,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ success: true, message: "Payment sent successfully" });
   } catch (err) {
-    // Network crash — refund
-    await supabase.rpc("refund_payout_balance", {
-      p_user_id: user_id,
-      p_amount: amount,
-      p_group_id: group_id,
-    });
+    // Network crash — restore collected_balance
+    try {
+      await supabase
+        .from("groups")
+        .update({ collected_balance: collected })
+        .eq("id", group_id);
+    } catch (refundErr) {
+      console.error("[payout] refund on crash failed:", refundErr);
+    }
     console.error("IntaSend payout error:", err);
     return res.status(500).json({ success: false, message: "Network error — balance refunded" });
   }

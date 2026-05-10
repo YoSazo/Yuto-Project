@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedUserId } from "./_auth";
 
 const INTASEND_BASE = process.env.INTASEND_HOST || "https://sandbox.intasend.com";
 
@@ -10,6 +11,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!phone_number || !amount || !user_id) {
     return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  // Auth: verify the caller is the user they claim to be
+  const authUserId = await getAuthenticatedUserId(req);
+  if (!authUserId || authUserId !== user_id) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 
   // Enforce minimum wallet top-up

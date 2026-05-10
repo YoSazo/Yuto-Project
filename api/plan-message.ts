@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedUserId } from "./_auth";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -7,6 +8,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { plan_id, user_id, content } = req.body;
   if (!plan_id || !user_id || !content?.trim()) {
     return res.status(400).json({ success: false, message: "Missing fields" });
+  }
+
+  // Auth: verify the caller is the user they claim to be
+  const authUserId = await getAuthenticatedUserId(req);
+  if (!authUserId || authUserId !== user_id) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;

@@ -1,10 +1,17 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { getAuthenticatedUserId } from "./_auth";
 
 const INTASEND_BASE = process.env.INTASEND_HOST || "https://sandbox.intasend.com";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // Auth: require a logged-in user
+  const authUserId = await getAuthenticatedUserId(req);
+  if (!authUserId) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   const { invoice_id } = req.body as { invoice_id?: string };

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { haptics } from "../../lib/haptics";
 import { analytics } from "../../lib/analytics";
+import { authFetch } from "../../lib/supabase";
 
 const DEFAULT_PRESETS = [100, 250, 500, 1000] as const;
 
@@ -63,9 +64,8 @@ export function YutoBalanceTopUpModal({
     const iv = window.setInterval(async () => {
       if (stopped) return;
       try {
-        const res = await fetch("/api/status", {
+        const res = await authFetch("/api/status", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ invoice_id: invoiceId }),
         });
         const data = (await res.json()) as { state?: string };
@@ -125,9 +125,8 @@ export function YutoBalanceTopUpModal({
     setMessage("");
     setPollCount(0);
     try {
-      const res = await fetch("/api/charge", {
+      const res = await authFetch("/api/charge", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone_number: mpesaPhoneNumber.replace(/\D/g, ""),
           amount: amountNum,

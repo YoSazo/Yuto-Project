@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import webpush from "web-push";
 import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedUserId } from "./_auth";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -71,6 +72,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { function_id, host_id } = req.body as { function_id?: string; host_id?: string };
     if (!function_id || !host_id) return res.status(400).json({ success: false, message: "Missing function_id or host_id" });
+
+    // Auth: verify the caller is actually the host
+    const authUserId = await getAuthenticatedUserId(req);
+    if (!authUserId || authUserId !== host_id) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
 
     const supabase = getSupabase();
 

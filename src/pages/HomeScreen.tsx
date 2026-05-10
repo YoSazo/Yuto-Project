@@ -38,6 +38,7 @@ import {
   deletePublicPost,
   type PublicPost,
   type DmSharePayload,
+  authFetch,
 } from "../lib/supabase";
 import { ShareRecipientsSheet } from "../components/profile/ShareRecipientsSheet";
 import { FunctionTicketModal } from "../components/home/FunctionTicketModal";
@@ -414,9 +415,8 @@ export default function HomeScreen() {
       if (plan) {
         const memberIds = (plan.plan_members ?? []).map((m) => m.user_id);
         await Promise.all(memberIds.map((memberId) =>
-          fetch("/api/notify", {
+          authFetch("/api/notify", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               userId: memberId,
               title: "Yuto 📋",

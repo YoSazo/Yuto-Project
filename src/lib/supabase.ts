@@ -6,6 +6,20 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "placeholder-k
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+/**
+ * Authenticated fetch wrapper for API calls.
+ * Automatically includes the Supabase auth token so server-side
+ * endpoints can verify the caller's identity.
+ */
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const headers = new Headers(options.headers);
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(url, { ...options, headers });
+}
+
 // ─── Auth ────────────────────────────────────────────
 
 export async function signUp(username: string, password: string, displayName: string) {
@@ -799,9 +813,8 @@ export async function getFunctionMessages(functionId: string) {
 }
 
 export async function sendFunctionMessage(functionId: string, userId: string, content: string) {
-  const response = await fetch("/api/function-message", {
+  const response = await authFetch("/api/function-message", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ function_id: functionId, user_id: userId, content }),
   });
 
@@ -1097,9 +1110,8 @@ export async function joinPlan(planId: string, userId: string, joinerName: strin
   // Notify plan creator
   if (creatorId !== userId) {
     try {
-      await fetch("/api/notify", {
+      await authFetch("/api/notify", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: creatorId,
           title: "Yuto 🎉",
@@ -1133,9 +1145,8 @@ export async function yutoItPlan(planId: string, creatorId: string, title: strin
       .filter((uid) => uid && uid !== creatorId)
       .map(async (uid) => {
         try {
-          await fetch("/api/notify", {
+          await authFetch("/api/notify", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               userId: uid,
               title: "Plan locked in 🎉",
@@ -1225,9 +1236,8 @@ export async function getPlanMessages(planId: string) {
 }
 
 export async function sendPlanMessage(planId: string, userId: string, content: string) {
-  const response = await fetch("/api/plan-message", {
+  const response = await authFetch("/api/plan-message", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ plan_id: planId, user_id: userId, content }),
   });
   const data = (await response.json()) as { success?: boolean; message?: string };

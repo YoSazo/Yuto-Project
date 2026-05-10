@@ -19,6 +19,7 @@ import {
   uploadHighlightAsset,
   uploadAvatar,
   supabase,
+  authFetch,
   type Highlight,
 } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
@@ -363,9 +364,8 @@ export default function ProfileScreen() {
       if (dbError) throw new Error(dbError.message);
 
       // 2. Ping IntaSend B2C
-      const res = await fetch("/api/withdraw", {
+      const res = await authFetch("/api/withdraw", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone_number: phoneNumber,
           amount: amountNum,

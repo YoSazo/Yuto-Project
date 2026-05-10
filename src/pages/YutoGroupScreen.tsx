@@ -13,6 +13,7 @@ import {
   payForPlanWithLedger,
   cancelSplitGroup,
   leaveSplitGroup,
+  authFetch,
 } from "../lib/supabase";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { useAppResume } from "../hooks/useAppResume";
@@ -114,9 +115,8 @@ function PayOutModal({
     setStep("sending");
     setError("");
     try {
-      const res = await fetch("/api/payout", {
+      const res = await authFetch("/api/payout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           group_id: groupId,
           user_id: userId,
