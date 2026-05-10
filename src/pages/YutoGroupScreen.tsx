@@ -416,6 +416,14 @@ export default function YutoGroupScreen() {
           }
         }
       )
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "group_members", filter: `group_id=eq.${groupId}` },
+        (payload) => {
+          const deleted = payload.old as { user_id?: string };
+          if (deleted?.user_id) {
+            setMembers((prev) => prev.filter((m) => m.user_id !== deleted.user_id));
+          }
+        }
+      )
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "groups", filter: `id=eq.${groupId}` },
         (payload) => {
           const updated = payload.new as { status?: string };

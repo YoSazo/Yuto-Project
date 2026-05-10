@@ -2,10 +2,11 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { ComposeModeTabsBar, type ComposeMode } from "./ComposeModeTabsBar";
 import { X, Image as ImageIcon, Tag, Users, Send } from "lucide-react";
 import { DmSharePickerModal } from "../dm/DmSharePickerModal";
+import { isDevUser } from "./DevAnnouncementCard";
 import type { Plan, FunctionListing } from "../../pages/home/types";
 import { PostPeoplePickerModal } from "./PostPeoplePickerModal";
 
-type TopMode = "create" | "post";
+type TopMode = "create" | "post" | "update";
 
 const pad2 = (n: number) => n.toString().padStart(2, "0");
 
@@ -184,6 +185,7 @@ export function HomeComposeSheet({
   onSubmitPlan,
   onSubmitFunction,
   onSubmitPost,
+  onSubmitAnnouncement,
   currentUserId,
 }: {
   open: boolean;
@@ -197,6 +199,7 @@ export function HomeComposeSheet({
     taggedUserIds: string[];
     mediaFiles: File[];
   }) => Promise<void>;
+  onSubmitAnnouncement?: (data: { content: string; imageUrl: string | null; allowReplies: boolean }) => Promise<void>;
   currentUserId?: string;
 }) {
   // Master Toggle State
@@ -333,31 +336,29 @@ export function HomeComposeSheet({
     }
   };
 
-  // The sliding segmented control for "Create" vs "Post"
+  // Announcement state (dev only)
+  const [announcementText, setAnnouncementText] = useState("");
+  const [announcementAllowReplies, setAnnouncementAllowReplies] = useState(true);
+  const isDev = isDevUser(currentUserId);
+
+  // The sliding segmented control for "Create" vs "Post" (+ "Update" for dev)
+  const topModes: { id: TopMode; label: string }[] = isDev
+    ? [{ id: "create", label: "Create" }, { id: "post", label: "Post" }, { id: "update", label: "Update" }]
+    : [{ id: "create", label: "Create" }, { id: "post", label: "Post" }];
+
   const renderTopToggle = () => (
     <div className="flex justify-center mb-4">
-      <div className="relative flex w-[240px] bg-gray-100 dark:bg-zinc-800 rounded-full p-1">
-        {/* Sliding Background Pill */}
-        <div
-          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-zinc-700 rounded-full shadow-sm transition-transform duration-300 cubic-bezier(0.4, 0, 0.2, 1) ${topMode === "create" ? "translate-x-0" : "translate-x-[calc(100%+8px)]"
-            }`}
-        />
-        <button
-          type="button"
-          onClick={() => setTopMode("create")}
-          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 border-none bg-transparent ${topMode === "create" ? "text-black dark:text-white" : "text-gray-400 dark:text-gray-500"
-            }`}
-        >
-          Create
-        </button>
-        <button
-          type="button"
-          onClick={() => setTopMode("post")}
-          className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 border-none bg-transparent ${topMode === "post" ? "text-black dark:text-white" : "text-gray-400 dark:text-gray-500"
-            }`}
-        >
-          Post
-        </button>
+      <div className={`relative flex ${isDev ? "w-[300px]" : "w-[240px]"} bg-gray-100 dark:bg-zinc-800 rounded-full p-1`}>
+        {topModes.map((mode) => (
+          <button
+            key={mode.id}
+            type="button"
+            onClick={() => setTopMode(mode.id)}
+            className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-full transition-colors duration-300 border-none bg-transparent ${topMode === mode.id ? "text-black dark:text-white bg-white dark:bg-zinc-700 shadow-sm" : "text-gray-400 dark:text-gray-500"}`}
+          >
+            {mode.label}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -373,7 +374,7 @@ export function HomeComposeSheet({
         {/* Header & Toggle */}
         <div className="flex items-center justify-between mb-2">
           <p className="font-extrabold text-black dark:text-white text-lg">
-            {topMode === "create" ? "Post Something" : "Share…"}
+            {topMode === "create" ? "Post Something" : topMode === "update" ? "Team Update" : "Share…"}
           </p>
           <button onClick={onClose} className="text-2xl text-gray-400 hover:text-black dark:hover:text-white bg-transparent border-none">
             <X size={24} />
@@ -383,7 +384,7 @@ export function HomeComposeSheet({
         {renderTopToggle()}
 
         <div className="flex-1 overflow-y-auto overscroll-contain pb-safe">
-          {topMode === "create" ? (
+          {topMode === "create" && (
             /* --- CREATE MODE UI --- */
             <div className="flex flex-col gap-4 fade-in">
               <ComposeModeTabsBar composeMode={composeMode} onComposeModeChange={setComposeMode} />
@@ -547,7 +548,8 @@ export function HomeComposeSheet({
                 </span>
               </button>
             </div>
-          ) : (
+          )}
+          {topMode === "post" && (
             /* --- POST MODE UI --- */
             <div className="flex flex-col h-full min-h-[350px] fade-in">
               <textarea
@@ -667,6 +669,49 @@ export function HomeComposeSheet({
               )}
 
               {postError && <p className="mt-2 text-sm text-red-600">{postError}</p>}
+            </div>
+          )}
+          {topMode === "update" && isDev && (
+            /* --- UPDATE MODE UI (Dev only) --- */
+            <div className="flex flex-col gap-4 fade-in">
+              <textarea
+                value={announcementText}
+                onChange={(e) => setAnnouncementText(e.target.value)}
+                placeholder="What's new? Share updates, ask for feedback, announce features..."
+                className="w-full bg-transparent text-black dark:text-white border border-blue-200 dark:border-blue-800 rounded-2xl px-4 py-3 text-base resize-none h-32 focus:outline-none focus:border-blue-500 transition-colors"
+                maxLength={500}
+              />
+
+              <label className="flex items-center gap-3 px-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={announcementAllowReplies}
+                  onChange={(e) => setAnnouncementAllowReplies(e.target.checked)}
+                  className="w-5 h-5 rounded accent-blue-500"
+                />
+                <span className="text-sm font-semibold text-black dark:text-white">Allow replies (users can DM you)</span>
+              </label>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!announcementText.trim() || isSubmitting) return;
+                  setIsSubmitting(true);
+                  try {
+                    await onSubmitAnnouncement?.({ content: announcementText.trim(), imageUrl: null, allowReplies: announcementAllowReplies });
+                    setAnnouncementText("");
+                    onClose();
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                disabled={!announcementText.trim() || isSubmitting}
+                className="w-full border-none py-4 bg-blue-600 text-white rounded-2xl font-bold text-base disabled:opacity-40 transition-opacity"
+              >
+                {isSubmitting ? "Publishing..." : "Publish Update"}
+              </button>
             </div>
           )}
         </div>

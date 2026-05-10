@@ -59,7 +59,7 @@ export default function Layout() {
         </div>
 
         {showNav && (
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 z-30">
             <GlassNavBar activeTab={activeTab} pendingCount={pendingCount} dmUnreadCount={dmUnreadCount} />
           </div>
         )}

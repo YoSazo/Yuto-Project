@@ -57,6 +57,7 @@ import { haptics } from "../lib/haptics";
 import { analytics } from "../lib/analytics";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { ComposeAnywhereSheet } from "../components/messages/ComposeAnywhereSheet";
+import { DevAnnouncementCard, isDevUser } from "../components/home/DevAnnouncementCard";
 export default function HomeScreen() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -771,6 +772,20 @@ export default function HomeScreen() {
         className="mb-6"
       />
 
+      {/* Pinned dev announcement */}
+      {user && (
+        <DevAnnouncementCard
+          currentUserId={user.id}
+          onReply={async () => {
+            try {
+              const { getOrCreateDmConversation: getDm } = await import("../lib/supabase");
+              const convo = await getDm(user.id, "f5f5da38-c839-4ce4-94fc-10f3854674e0");
+              navigate(`/messages/${convo.id}`, { state: { otherUserId: "f5f5da38-c839-4ce4-94fc-10f3854674e0" } });
+            } catch { /* ignore */ }
+          }}
+        />
+      )}
+
       {activeTab === "public" && (
         <>
           <PostsFeedSection
@@ -788,7 +803,7 @@ export default function HomeScreen() {
               acc[f.id] = f;
               return acc;
             }, {})}
-            onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
+            onNavigateToHost={(hostId) => { if (hostId === "__manage__") navigate("/profile"); else navigate(`/user/${hostId}`); }}
             onJoinFunction={handleJoinFunction}
             onOpenTicket={(f) => setFunctionTicket(f)}
             onShareInMessages={user ? (payload) => setShareFeedPayload(payload) : undefined}
@@ -809,7 +824,7 @@ export default function HomeScreen() {
             loading={loading}
             currentUserId={user?.id}
             functionUnreadCounts={functionUnreadCounts}
-            onNavigateToHost={(hostId) => navigate(`/user/${hostId}`)}
+            onNavigateToHost={(hostId) => { if (hostId === "__manage__") navigate("/profile"); else navigate(`/user/${hostId}`); }}
             onOpenFunctionThread={setActiveFunctionThread}
             onOpenFunctionAttendeeChat={user ? openFunctionAttendeeChat : undefined}
             onJoinFunction={handleJoinFunction}
@@ -910,6 +925,16 @@ export default function HomeScreen() {
             tagPayload: tag_payload,
           });
           await loadFeed();
+        }}
+        onSubmitAnnouncement={async (data) => {
+          if (!user) return;
+          await supabase.from("dev_announcements").update({ active: false }).eq("active", true);
+          await supabase.from("dev_announcements").insert({
+            content: data.content,
+            image_url: data.imageUrl,
+            allow_replies: data.allowReplies,
+            active: true,
+          });
         }}
       />
 

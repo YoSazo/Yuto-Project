@@ -906,10 +906,10 @@ export default function ProfileScreen() {
 
             {walletTab === "balance" ? (
               <div className="relative z-10">
-                <div className="flex items-end justify-center">
+                <div className="flex items-end justify-center pr-12">
                   <div className={`text-center transition-all duration-300 ${balancePulse ? "scale-105" : "scale-100"}`}>
                     <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
-                    <span className={`text-5xl font-bold tracking-tight transition-colors duration-500 ${balancePulse ? "text-green-400" : "text-white"}`}>
+                    <span className={`text-4xl font-bold tracking-tight transition-colors duration-500 ${balancePulse ? "text-green-400" : "text-white"}`}>
                       {animatedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
