@@ -70,16 +70,16 @@ export default function Layout() {
   return (
     <div className="min-h-[100dvh] bg-gray-100 dark:bg-black flex items-center justify-center transition-colors">
       <div id="app-shell" className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white dark:bg-black relative overflow-hidden md:rounded-[40px] md:shadow-2xl transition-colors">
-        {/* Guest sign-up banner */}
+        {/* Guest browse banner */}
         {!user && (
           <div className="absolute top-0 left-0 right-0 z-40 bg-black dark:bg-white px-4 py-3 flex items-center justify-between">
-            <p className="text-white dark:text-black text-sm font-bold">Join Yuto to split, host & pay</p>
+            <p className="text-white dark:text-black text-sm font-bold">Yuto — split, host & pay together</p>
             <button
               type="button"
-              onClick={() => navigate("/auth", { state: { defaultMode: "signup" } })}
+              onClick={() => navigate("/auth")}
               className="px-4 py-1.5 bg-white dark:bg-black text-black dark:text-white rounded-full text-xs font-bold border-none"
             >
-              Sign up
+              Log in
             </button>
           </div>
         )}

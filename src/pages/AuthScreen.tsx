@@ -7,9 +7,19 @@ export default function AuthScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signUp, signIn } = useAuth();
+
+  // Secret bypass: ?key=yuto2026 allows signups
+  const params = new URLSearchParams(location.search);
+  const hasSecretKey = params.get("key") === "yuto2026";
+  const signupsOpen = hasSecretKey || !!sessionStorage.getItem("yuto_signup_key");
+
+  // Persist the key in session so navigating away doesn't lose it
+  useEffect(() => {
+    if (hasSecretKey) sessionStorage.setItem("yuto_signup_key", "1");
+  }, [hasSecretKey]);
   
   const [mode, setMode] = useState<"login" | "signup">(
-    location.state?.defaultMode === "signup" ? "signup" : "login"
+    location.state?.defaultMode === "signup" && signupsOpen ? "signup" : "login"
   );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -56,6 +66,11 @@ export default function AuthScreen() {
     setIsLoading(true);
     try {
       if (mode === "signup") {
+        if (!signupsOpen) {
+          setError("Signups are paused — we're launching soon. Follow us for updates!");
+          setIsLoading(false);
+          return;
+        }
         await signUp(username, password, displayName);
         sessionStorage.setItem("showPwaPrompt", "1");
       } else {
@@ -129,16 +144,23 @@ export default function AuthScreen() {
         </button>
 
         <p className="mt-6 text-sm text-gray-400">
-          {mode === "login" ? "Don't have an account? " : "Already have an account? "}
-          <button
-            onClick={() => {
-              setMode(mode === "login" ? "signup" : "login");
-              setError("");
-            }}
-            className="text-black dark:text-white font-semibold bg-transparent border-none cursor-pointer p-0"
-          >
-            {mode === "login" ? "Sign Up" : "Log In"}
-          </button>
+          {mode === "login" ? (
+            signupsOpen ? (
+              <>Don't have an account?{" "}
+                <button onClick={() => { setMode("signup"); setError(""); }} className="text-black dark:text-white font-semibold bg-transparent border-none cursor-pointer p-0">
+                  Sign Up
+                </button>
+              </>
+            ) : (
+              <>Signups opening soon — browse the app to see what's coming</>
+            )
+          ) : (
+            <>Already have an account?{" "}
+              <button onClick={() => { setMode("login"); setError(""); }} className="text-black dark:text-white font-semibold bg-transparent border-none cursor-pointer p-0">
+                Log In
+              </button>
+            </>
+          )}
         </p>
       </div>
     </div>
