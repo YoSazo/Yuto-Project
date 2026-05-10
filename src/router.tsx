@@ -1,53 +1,66 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
-import SplitScreen from "./pages/SplitScreen";
-import YourYutosScreen from "./pages/YourYutosScreen";
-import ProfileScreen from "./pages/ProfileScreen";
-import YutoGroupScreen from "./pages/YutoGroupScreen";
-import YutoChatScreen from "./pages/YutoChatScreen";
+
+// Eagerly loaded (critical path — first screen users see)
 import AuthScreen from "./pages/AuthScreen";
-import FriendsScreen from "./pages/FriendsScreen";
-import WelcomeScreen from "./pages/WelcomeScreen";
-import WaitlistThanksScreen from "./pages/WaitlistThanksScreen";
-import JoinGroupScreen from "./pages/JoinGroupScreen";
-import InviteScreen from "./pages/InviteScreen";
-import UserProfileScreen from "./pages/UserProfileScreen";
 import HomeScreen from "./pages/HomeScreen";
-import AddToHomeScreen from "./pages/AddToHomeScreen";
-import MessagesScreen from "./pages/MessagesScreen";
-import DirectMessageScreen from "./pages/DirectMessageScreen";
-import CreateGroupChatScreen from "./pages/CreateGroupChatScreen";
-import GroupChatScreen from "./pages/GroupChatScreen";
-import GroupChatMembersScreen from "./pages/GroupChatMembersScreen";
-import NotificationsScreen from "./pages/NotificationsScreen";
-import FunctionLandingScreen from "./pages/FunctionLandingScreen";
+
+// Lazy loaded (only downloaded when navigated to)
+const SplitScreen = lazy(() => import("./pages/SplitScreen"));
+const YourYutosScreen = lazy(() => import("./pages/YourYutosScreen"));
+const ProfileScreen = lazy(() => import("./pages/ProfileScreen"));
+const YutoGroupScreen = lazy(() => import("./pages/YutoGroupScreen"));
+const YutoChatScreen = lazy(() => import("./pages/YutoChatScreen"));
+const FriendsScreen = lazy(() => import("./pages/FriendsScreen"));
+const WelcomeScreen = lazy(() => import("./pages/WelcomeScreen"));
+const WaitlistThanksScreen = lazy(() => import("./pages/WaitlistThanksScreen"));
+const JoinGroupScreen = lazy(() => import("./pages/JoinGroupScreen"));
+const InviteScreen = lazy(() => import("./pages/InviteScreen"));
+const UserProfileScreen = lazy(() => import("./pages/UserProfileScreen"));
+const AddToHomeScreen = lazy(() => import("./pages/AddToHomeScreen"));
+const MessagesScreen = lazy(() => import("./pages/MessagesScreen"));
+const DirectMessageScreen = lazy(() => import("./pages/DirectMessageScreen"));
+const CreateGroupChatScreen = lazy(() => import("./pages/CreateGroupChatScreen"));
+const GroupChatScreen = lazy(() => import("./pages/GroupChatScreen"));
+const GroupChatMembersScreen = lazy(() => import("./pages/GroupChatMembersScreen"));
+const NotificationsScreen = lazy(() => import("./pages/NotificationsScreen"));
+const FunctionLandingScreen = lazy(() => import("./pages/FunctionLandingScreen"));
+
+function Lazy({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin" /></div>}>
+      {children}
+    </Suspense>
+  );
+}
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthScreen /> },
-  { path: "/welcome", element: <WelcomeScreen /> },
-  { path: "/waitlist-thanks", element: <WaitlistThanksScreen /> },
-  { path: "/join/:groupId", element: <JoinGroupScreen /> },
-  { path: "/invite/:username", element: <InviteScreen /> },
-  { path: "/function/:functionId", element: <FunctionLandingScreen /> },
+  { path: "/welcome", element: <Lazy><WelcomeScreen /></Lazy> },
+  { path: "/waitlist-thanks", element: <Lazy><WaitlistThanksScreen /></Lazy> },
+  { path: "/join/:groupId", element: <Lazy><JoinGroupScreen /></Lazy> },
+  { path: "/invite/:username", element: <Lazy><InviteScreen /></Lazy> },
+  { path: "/function/:functionId", element: <Lazy><FunctionLandingScreen /></Lazy> },
   {
     element: <Layout />,
     children: [
       { path: "/", element: <Navigate to="/home" replace /> },
-      { path: "/split", element: <SplitScreen /> },
-      { path: "/activity", element: <YourYutosScreen /> },
-      { path: "/profile", element: <ProfileScreen /> },
-      { path: "/friends", element: <FriendsScreen /> },
-      { path: "/yuto/:groupId", element: <YutoGroupScreen /> },
-      { path: "/yuto/:groupId/chat", element: <YutoChatScreen /> },
-      { path: "/user/:id", element: <UserProfileScreen /> },
+      { path: "/split", element: <Lazy><SplitScreen /></Lazy> },
+      { path: "/activity", element: <Lazy><YourYutosScreen /></Lazy> },
+      { path: "/profile", element: <Lazy><ProfileScreen /></Lazy> },
+      { path: "/friends", element: <Lazy><FriendsScreen /></Lazy> },
+      { path: "/yuto/:groupId", element: <Lazy><YutoGroupScreen /></Lazy> },
+      { path: "/yuto/:groupId/chat", element: <Lazy><YutoChatScreen /></Lazy> },
+      { path: "/user/:id", element: <Lazy><UserProfileScreen /></Lazy> },
       { path: "/home", element: <HomeScreen /> },
-      { path: "/messages", element: <MessagesScreen /> },
-      { path: "/notifications", element: <NotificationsScreen /> },
-      { path: "/messages/group/new", element: <CreateGroupChatScreen /> },
-      { path: "/messages/group/:groupId", element: <GroupChatScreen /> },
-      { path: "/messages/group/:groupId/members", element: <GroupChatMembersScreen /> },
-      { path: "/messages/:conversationId", element: <DirectMessageScreen /> },
-      { path: "/add-to-home", element: <AddToHomeScreen /> },
+      { path: "/messages", element: <Lazy><MessagesScreen /></Lazy> },
+      { path: "/notifications", element: <Lazy><NotificationsScreen /></Lazy> },
+      { path: "/messages/group/new", element: <Lazy><CreateGroupChatScreen /></Lazy> },
+      { path: "/messages/group/:groupId", element: <Lazy><GroupChatScreen /></Lazy> },
+      { path: "/messages/group/:groupId/members", element: <Lazy><GroupChatMembersScreen /></Lazy> },
+      { path: "/messages/:conversationId", element: <Lazy><DirectMessageScreen /></Lazy> },
+      { path: "/add-to-home", element: <Lazy><AddToHomeScreen /></Lazy> },
     ],
   },
 ]);

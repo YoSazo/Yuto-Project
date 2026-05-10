@@ -1,4 +1,4 @@
-import imgChatGptImageOct142025022518Pm1 from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import imgChatGptImageOct142025022518Pm1 from "../assets/yuto-mascot.webp";
 
 export default function IPhone16Pro() {
   return (

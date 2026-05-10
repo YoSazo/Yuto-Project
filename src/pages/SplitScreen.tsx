@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import imgYutoMascot from "../assets/yuto-mascot.webp";
 import { useAuth } from "../contexts/AuthContext";
 import { getFriends, createGroup, createGroupChat } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";

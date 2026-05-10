@@ -115,6 +115,18 @@ export function getSavedPhoneNumber(userId: string) {
   return window.localStorage.getItem(`${PHONE_STORAGE_PREFIX}${userId}`);
 }
 
+/**
+ * Normalize Kenyan phone numbers to 254XXXXXXXXX format.
+ * Handles: 0712..., +254712..., 254712..., 712...
+ */
+export function normalizeMpesaNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("0") && digits.length === 10) return "254" + digits.slice(1);
+  if (digits.startsWith("254")) return digits;
+  if (digits.length === 9) return "254" + digits;
+  return digits;
+}
+
 export function setSavedPhoneNumber(userId: string, phoneNumber: string) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(`${PHONE_STORAGE_PREFIX}${userId}`, phoneNumber);

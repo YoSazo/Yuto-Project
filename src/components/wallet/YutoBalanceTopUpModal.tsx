@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { haptics } from "../../lib/haptics";
 import { analytics } from "../../lib/analytics";
-import { authFetch } from "../../lib/supabase";
+import { authFetch, normalizeMpesaNumber } from "../../lib/supabase";
 
 const DEFAULT_PRESETS = [100, 250, 500, 1000] as const;
 
@@ -108,7 +108,7 @@ export function YutoBalanceTopUpModal({
     };
   }, [open, phase, onClose, onRetryAfterPaid]);
 
-  const phoneOk = mpesaPhoneNumber.replace(/\D/g, "").length >= 12;
+  const phoneOk = normalizeMpesaNumber(mpesaPhoneNumber).length >= 12;
 
   const handleTopUp = async () => {
     if (!phoneOk) {
@@ -128,7 +128,7 @@ export function YutoBalanceTopUpModal({
       const res = await authFetch("/api/charge", {
         method: "POST",
         body: JSON.stringify({
-          phone_number: mpesaPhoneNumber.replace(/\D/g, ""),
+          phone_number: normalizeMpesaNumber(mpesaPhoneNumber),
           amount: amountNum,
           user_id: userId,
           is_topup: true,

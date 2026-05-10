@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import imgYutoMascot from "../assets/yuto-mascot.webp";
 import { MessageCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import {

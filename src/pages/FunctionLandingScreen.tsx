@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, joinFunction } from "../lib/supabase";
-import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import imgYutoMascot from "../assets/yuto-mascot.webp";
 import UserAvatar from "../components/UserAvatar";
 import { Flame, MapPin, Users, CalendarDays, BadgeDollarSign, Sparkles } from "lucide-react";
 

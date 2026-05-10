@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import imgYutoMascot from "figma:asset/28c11cb437762e8469db46974f467144b8299a8c.png";
+import imgYutoMascot from "../assets/yuto-mascot.webp";
 import { useAuth } from "../contexts/AuthContext";
 import {
   supabase,
@@ -116,13 +116,20 @@ export default function HomeScreen() {
     if (!user) return;
     loadFeed();
 
+    // Debounce feed reloads — on busy days, realtime fires constantly
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedReload = () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => loadFeed(), 1500);
+    };
+
     const channel = supabase
       .channel("feed-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "plans" }, () => loadFeed())
-      .on("postgres_changes", { event: "*", schema: "public", table: "plan_members" }, () => loadFeed())
-      .on("postgres_changes", { event: "*", schema: "public", table: "functions" }, () => loadFeed())
-      .on("postgres_changes", { event: "*", schema: "public", table: "function_members" }, () => loadFeed())
-      .on("postgres_changes", { event: "*", schema: "public", table: "function_messages" }, () => loadFeed())
+      .on("postgres_changes", { event: "*", schema: "public", table: "plans" }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "plan_members" }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "functions" }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "function_members" }, debouncedReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "function_messages" }, debouncedReload)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_messages" }, () => {
         void getMyAllUnreadTotal(user.id).then(setDmUnreadTotal).catch(() => {});
       })
@@ -137,7 +144,7 @@ export default function HomeScreen() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(channel); if (reloadTimer) clearTimeout(reloadTimer); };
   }, [user, activeTab]);
 
   useEffect(() => {

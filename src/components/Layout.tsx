@@ -4,6 +4,7 @@ import GlassNavBar from "./GlassNavBar";
 import { useAuth } from "../contexts/AuthContext";
 import { getPendingRequests, getMyAllUnreadTotal } from "../lib/supabase";
 import { useAppResume } from "../hooks/useAppResume";
+import { WifiOff } from "lucide-react";
 
 type NavTab = "split" | "home" | "activity" | "profile";
 
@@ -22,6 +23,15 @@ export default function Layout() {
   const showNav = !!activeTab;
   const [pendingCount, setPendingCount] = useState(0);
   const [dmUnreadCount, setDmUnreadCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -54,7 +64,12 @@ export default function Layout() {
   return (
     <div className="min-h-[100dvh] bg-gray-100 dark:bg-black flex items-center justify-center transition-colors">
       <div id="app-shell" className="w-full max-w-md h-[100dvh] md:h-[844px] bg-white dark:bg-black relative overflow-hidden md:rounded-[40px] md:shadow-2xl transition-colors">
-        <div className={`h-full overflow-y-auto ${showNav ? "pb-24" : ""}`}>
+        {!isOnline && (
+          <div className="absolute top-0 left-0 right-0 z-40 bg-amber-500 text-white text-xs font-bold text-center py-1.5 flex items-center justify-center gap-1.5">
+            <WifiOff size={12} /> No internet — some features may not work
+          </div>
+        )}
+        <div className={`h-full overflow-y-auto ${showNav ? "pb-24" : ""} ${!isOnline ? "pt-7" : ""}`}>
           <Outlet />
         </div>
 
