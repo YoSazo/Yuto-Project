@@ -81,6 +81,7 @@ export default function HomeScreen() {
   const [showCompose, setShowCompose] = useState(false);
   const [initialComposeMode, setInitialComposeMode] = useState<string | null>(null);
   const [showComposeAnywhere, setShowComposeAnywhere] = useState(false);
+  const [announcementKey, setAnnouncementKey] = useState(0);
   const activeTabRef = useRef(activeTab);
   /** Auto-show entry ticket once per function per mount (manual “Ticket” still works). */
   const autoShownTicketFnIdRef = useRef<string | null>(null);
@@ -775,6 +776,7 @@ export default function HomeScreen() {
       {/* Pinned dev announcement */}
       {user && (
         <DevAnnouncementCard
+          key={announcementKey}
           currentUserId={user.id}
           onReply={async () => {
             try {
@@ -936,6 +938,8 @@ export default function HomeScreen() {
             reply_mode: data.replyMode,
             active: true,
           });
+          // Force announcement card to re-fetch
+          setAnnouncementKey((k) => k + 1);
         }}
       />
 
