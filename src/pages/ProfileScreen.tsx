@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { haptics } from "../lib/haptics";
 import {
   getUserHostedFunctions,
+  getBusinessDashboard,
   updateFunctionListingStatus,
   cancelHostListing,
   duplicateFunction,
@@ -40,6 +41,7 @@ import {
 } from "../lib/supabase";
 import { useTheme } from "../contexts/ThemeContext";
 import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 function ChevronRight() {
   return (
@@ -216,6 +218,15 @@ export default function ProfileScreen() {
   const [sendBusy, setSendBusy] = useState(false);
   const [sendError, setSendError] = useState("");
 
+  // Confirm modal state (replaces native window.confirm)
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    danger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
+
   // Highlights (max 2, 2 photos each)
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [showHighlightCreate, setShowHighlightCreate] = useState(false);
@@ -239,6 +250,13 @@ export default function ProfileScreen() {
   const [ownShowcaseTab, setOwnShowcaseTab] = useState<"profile" | "functions" | "sell" | "service">("profile");
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
   const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
+  const [bizDashboard, setBizDashboard] = useState<{
+    revenueThisMonthKes: number;
+    ordersThisMonth: number;
+    activeListings: number;
+    sellActive: number;
+    serviceActive: number;
+  } | null>(null);
   const animatedBalance = useCountUp(points, 1100);
   const prevBalanceRef = useRef<number | null>(null);
   const [balancePulse, setBalancePulse] = useState(false);
@@ -339,7 +357,7 @@ export default function ProfileScreen() {
     try {
       // 1. Lock funds in Supabase
       const { data: transactionId, error: dbError } = await supabase.rpc("initiate_withdrawal", {
-        p_amount: amountNum
+        p_amount: Math.round(amountNum)
       });
 
       if (dbError) throw new Error(dbError.message);
@@ -454,12 +472,14 @@ export default function ProfileScreen() {
           supabase.from("plans").select("id", { count: "exact", head: true }).eq("creator_id", user.id),
         ]);
 
-        const [listingRows, hostedRows] = await Promise.all([
+        const [listingRows, hostedRows, dashData] = await Promise.all([
           getUserListings(user.id, user.id).catch(() => []),
           getUserHostedFunctions(user.id).catch(() => []),
+          getBusinessDashboard(user.id).catch(() => null),
         ]);
         setOwnListings(listingRows as StorefrontListingItem[]);
         setOwnHostedFunctions(hostedRows as HostedFunctionItem[]);
+        setBizDashboard(dashData);
 
         const paidGroups = (groups as any[]).filter((g: any) =>
           (g.group_members ?? []).some((m: any) => m.user_id === user.id && m.has_paid)
@@ -649,14 +669,14 @@ export default function ProfileScreen() {
   // --- Compute Available Showcase Tabs ---
   const sellListings = ownListings.filter(l => l.kind === "sell");
   const serviceListings = ownListings.filter(l => l.kind === "service");
-  const hasFns = ownFunctions.length > 0;
 
+  // Always show all tabs — empty states guide users to create content
   const availableTabs: Array<{ id: "profile" | "functions" | "sell" | "service"; label: string }> = [
-    { id: "profile", label: "Profile" }
+    { id: "profile", label: "Profile" },
+    { id: "functions", label: "My Functions" },
+    { id: "sell", label: "My Marketplace" },
+    { id: "service", label: "My Services" },
   ];
-  if (hasFns) availableTabs.push({ id: "functions", label: "My Functions" });
-  if (sellListings.length > 0) availableTabs.push({ id: "sell", label: "My Marketplace" });
-  if (serviceListings.length > 0) availableTabs.push({ id: "service", label: "My Services" });
 
   return (
     <div className="flex flex-col min-h-full px-5 pt-10 pb-6 bg-white dark:bg-black text-black dark:text-white transition-colors">
@@ -975,6 +995,27 @@ export default function ProfileScreen() {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
           {ownShowcaseTab === "functions" && (
             <div className="space-y-4">
+              {/* Revenue mini-dashboard — always visible */}
+              <div className="bg-black dark:bg-zinc-900 rounded-2xl p-5 text-white mb-2">
+                <p className="text-xs text-white/50 font-semibold uppercase tracking-wider mb-2">This month</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-white/50 text-sm">KSH</span>
+                    <span className="text-3xl font-bold ml-1">{(bizDashboard?.revenueThisMonthKes || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold">{bizDashboard?.ordersThisMonth || 0}</p>
+                    <p className="text-xs text-white/50">tickets sold</p>
+                  </div>
+                </div>
+              </div>
+
+              {ownFunctions.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-gray-400 dark:text-gray-500 text-sm mb-2">No functions yet</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-xs">Create your first function from the Home feed</p>
+                </div>
+              )}
               {ownFunctions.map(fn => (
                 <div key={fn.id} className="flex flex-col p-4 rounded-3xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm relative overflow-hidden">
 
@@ -991,30 +1032,45 @@ export default function ProfileScreen() {
                     <>
                       <div className="fixed inset-0 z-20 cursor-default" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOwnListingOptionsOpen(null); }} />
                       <div className="absolute top-12 right-3 z-30 w-44 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-gray-100 dark:border-zinc-700 overflow-hidden flex flex-col py-1">
-                        {(fn as any).status !== "cancelled" && (
-                          <button type="button" onClick={async () => {
-                            if (!window.confirm("Cancel this event? Guests will be notified.")) return;
-                            try {
-                              await supabase.from("functions").update({ status: "cancelled" }).eq("id", fn.id);
-                              setOwnHostedFunctions(prev => prev.map(f => f.id === fn.id ? { ...f, status: "cancelled" } as any : f));
-                              toast.success("Event cancelled");
-                            } catch (e) { toast.error("Couldn't cancel event"); }
+                        {fn.status !== "cancelled" && (
+                          <button type="button" onClick={() => {
                             setOwnListingOptionsOpen(null);
+                            setConfirmModal({
+                              title: "Cancel this event?",
+                              message: "All guests will be notified and refunded to their Yuto Balance. This can't be undone.",
+                              confirmLabel: "Cancel Event",
+                              danger: true,
+                              onConfirm: async () => {
+                                setConfirmModal(null);
+                                try {
+                                  await supabase.from("functions").update({ status: "cancelled" }).eq("id", fn.id);
+                                  setOwnHostedFunctions(prev => prev.map(f => f.id === fn.id ? { ...f, status: "cancelled" } as any : f));
+                                  toast.success("Event cancelled");
+                                } catch (e) { toast.error("Couldn't cancel event"); }
+                              },
+                            });
                           }} className="px-4 py-2 text-sm font-bold text-left text-black dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800 border-none bg-transparent dark:bg-zinc-900">
-
                             Cancel Event
                           </button>
                         )}
-                        <div className="h-px bg-gray-100 my-1 mx-2" />
-                        <button type="button" onClick={async () => {
-                          if (!window.confirm("Delete this event permanently?")) return;
-                          try {
-                            await supabase.from("functions").delete().eq("id", fn.id);
-                            setOwnHostedFunctions(prev => prev.filter(f => f.id !== fn.id));
-                            toast.success("Event deleted");
-                          } catch (e) { toast.error("Couldn't delete event"); }
+                        <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1 mx-2" />
+                        <button type="button" onClick={() => {
                           setOwnListingOptionsOpen(null);
-                        }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">
+                          setConfirmModal({
+                            title: "Delete this event?",
+                            message: "This will permanently remove the event and all its data. This can't be undone.",
+                            confirmLabel: "Delete",
+                            danger: true,
+                            onConfirm: async () => {
+                              setConfirmModal(null);
+                              try {
+                                await supabase.from("functions").delete().eq("id", fn.id);
+                                setOwnHostedFunctions(prev => prev.filter(f => f.id !== fn.id));
+                                toast.success("Event deleted");
+                              } catch (e) { toast.error("Couldn't delete event"); }
+                            },
+                          });
+                        }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 border-none bg-transparent dark:bg-zinc-900">
                           Delete
                         </button>
                       </div>
@@ -1022,15 +1078,15 @@ export default function ProfileScreen() {
                   )}
 
                   <div className="flex gap-4">
-                    <div className="w-20 h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
+                    <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-zinc-800 overflow-hidden shrink-0 relative">
                       {fn.image_url ? (
                         <img src={fn.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-300 dark:text-gray-600">
                           <Store size={22} />
                         </div>
                       )}
-                      {(fn as any).status === "cancelled" && (
+                      {fn.status === "cancelled" && (
                         <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center backdrop-blur-[1px]">
                           <span className="px-2 py-1 bg-white text-black font-extrabold text-[10px] uppercase tracking-widest rounded-md -rotate-12">
                             DEAD
@@ -1039,31 +1095,36 @@ export default function ProfileScreen() {
                       )}
                     </div>
                     <div className="min-w-0 flex-1 py-0.5 pr-6">
-                      <p className={`font-extrabold text-lg truncate ${(fn as any).status === "cancelled" ? "text-gray-400 line-through" : "text-black"}`}>{fn.title}</p>
-                      <p className="text-sm text-gray-400 font-semibold truncate mt-0.5">
+                      <p className={`font-extrabold text-lg truncate ${fn.status === "cancelled" ? "text-gray-400 line-through" : "text-black dark:text-white"}`}>{fn.title}</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 font-semibold truncate mt-0.5">
                         {fn.date ? new Date(fn.date).toLocaleDateString("en-KE", { weekday: "short", month: "short", day: "numeric" }) : "Anytime"}
                         {fn.location ? ` · ${fn.location}` : ""}
                       </p>
-                      <p className="text-sm font-black mt-2">KSH {fn.amount_per_person.toLocaleString()}</p>
+                      <p className="text-sm font-black text-black dark:text-white mt-2">KSH {fn.amount_per_person.toLocaleString()}</p>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-gray-50 flex gap-2">
+                  <div className="mt-4 pt-4 border-t border-gray-50 dark:border-zinc-800 flex gap-2">
                     <button
                       type="button"
-                      onClick={() => navigate("/home", { state: { focus: { kind: "function", id: fn.id }, forcePublicTab: true } })}
-                      className="flex-[1.5] h-10 rounded-xl bg-gray-100 text-black border-none font-extrabold text-sm hover:bg-gray-200 transition-colors"
+                      onClick={() => {
+                        setOwnShowcaseTab("functions");
+                        // Scroll to top so the user sees the function they're managing
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="flex-[1.5] h-10 rounded-xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white border-none font-extrabold text-sm hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                     >
-                      View & Manage
+                      Manage
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        const link = `${window.location.origin}/join/${fn.id}`;
+                        const shareOrigin = window.location.hostname === "localhost" || window.location.hostname.startsWith("127.") ? window.location.origin : "https://yuto.social";
+                        const link = `${shareOrigin}/function/${fn.id}`;
                         if (navigator.share) navigator.share({ title: fn.title, url: link });
                         else { navigator.clipboard.writeText(link); toast.success("Link copied!"); }
                       }}
-                      className="flex-1 h-10 rounded-xl bg-gray-100 text-black border-none font-extrabold text-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-1.5"
+                      className="flex-1 h-10 rounded-xl bg-gray-100 dark:bg-zinc-800 text-black dark:text-white border-none font-extrabold text-sm hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-1.5"
                     >
                       Share
                     </button>
@@ -1078,7 +1139,7 @@ export default function ProfileScreen() {
                           setOwnHostedFunctions(rows as HostedFunctionItem[]);
                         } catch (e: any) { toast.error(e?.message || "Couldn't duplicate"); }
                       }}
-                      className="flex-1 h-10 rounded-xl bg-black border-none text-white font-extrabold text-sm hover:bg-gray-800 transition-colors"
+                      className="flex-1 h-10 rounded-xl bg-black dark:bg-white border-none text-white dark:text-black font-extrabold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
                     >
                       Run again
                     </button>
@@ -1090,8 +1151,50 @@ export default function ProfileScreen() {
 
           {(ownShowcaseTab === "sell" || ownShowcaseTab === "service") && (() => {
             const listings = ownShowcaseTab === "sell" ? sellListings : serviceListings;
+            const tabRevenue = bizDashboard ? bizDashboard.revenueThisMonthKes : 0;
+            const tabOrders = bizDashboard ? bizDashboard.ordersThisMonth : 0;
+            if (listings.length === 0) {
+              return (
+                <div className="text-center py-16 px-6">
+                  <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-zinc-800 mx-auto flex items-center justify-center mb-4">
+                    <Store size={28} className="text-gray-300 dark:text-gray-600" />
+                  </div>
+                  <p className="font-bold text-black dark:text-white text-lg mb-2">
+                    {ownShowcaseTab === "sell" ? "No listings yet" : "No services yet"}
+                  </p>
+                  <p className="text-gray-400 dark:text-gray-500 text-sm mb-6 max-w-[260px] mx-auto">
+                    {ownShowcaseTab === "sell"
+                      ? "Start selling on Yuto — list anything from food to fashion. Your friends see it first."
+                      : "Offer your skills on Yuto — photography, tutoring, braids, anything. Get booked and paid instantly."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate("/home", { state: { openCompose: true, composeMode: ownShowcaseTab === "sell" ? "sell" : "service" } });
+                    }}
+                    className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold text-sm"
+                  >
+                    {ownShowcaseTab === "sell" ? "Create a listing" : "Offer a service"}
+                  </button>
+                </div>
+              );
+            }
             return (
               <div className="flex flex-col gap-6">
+                {/* Revenue mini-dashboard — always visible */}
+                <div className="bg-black dark:bg-zinc-900 rounded-2xl p-5 text-white">
+                  <p className="text-xs text-white/50 font-semibold uppercase tracking-wider mb-2">This month</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-white/50 text-sm">KSH</span>
+                      <span className="text-3xl font-bold ml-1">{tabRevenue.toLocaleString()}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold">{tabOrders}</p>
+                      <p className="text-xs text-white/50">orders</p>
+                    </div>
+                  </div>
+                </div>
                 {listings.map(listing => (
                   <div key={listing.id} className="rounded-3xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-md overflow-hidden relative">
                     <div className="relative">
@@ -1136,7 +1239,7 @@ export default function ProfileScreen() {
                               <button type="button" onClick={async () => { await updateFunctionListingStatus(user!.id, listing.id, "paused"); setOwnListings(prev => prev.map(l => l.id === listing.id ? { ...l, listing_status: "paused" } : l)); setOwnListingOptionsOpen(null); toast.success("Paused!"); }} className="px-4 py-2 text-sm font-bold text-left hover:bg-gray-50 border-none bg-transparent">Pause</button>
                             )}
                             <div className="h-px bg-gray-100 my-1 mx-2" />
-                            <button type="button" onClick={async () => { if (!window.confirm("Delete this listing?")) return; await cancelHostListing(user!.id, listing.id); setOwnListings(prev => prev.filter(l => l.id !== listing.id)); setOwnListingOptionsOpen(null); toast.success("Deleted"); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 border-none bg-transparent">Delete</button>
+                            <button type="button" onClick={() => { setOwnListingOptionsOpen(null); setConfirmModal({ title: "Delete this listing?", message: "This will permanently remove the listing. Buyers who already paid won't be affected.", confirmLabel: "Delete", danger: true, onConfirm: async () => { setConfirmModal(null); await cancelHostListing(user!.id, listing.id); setOwnListings(prev => prev.filter(l => l.id !== listing.id)); toast.success("Deleted"); } }); }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 border-none bg-transparent dark:bg-zinc-900">Delete</button>
                           </div>
                         </>
                       )}
@@ -1155,6 +1258,15 @@ export default function ProfileScreen() {
       )}
 
       {/* ── GLOBAL MODALS & OVERLAYS ── */}
+      <ConfirmModal
+        open={!!confirmModal}
+        title={confirmModal?.title || ""}
+        message={confirmModal?.message || ""}
+        confirmLabel={confirmModal?.confirmLabel}
+        danger={confirmModal?.danger}
+        onConfirm={() => confirmModal?.onConfirm()}
+        onCancel={() => setConfirmModal(null)}
+      />
       {showTopUpModal && user && (
         <YutoBalanceTopUpModal open={showTopUpModal} onClose={() => setShowTopUpModal(false)} userId={user.id} mpesaPhoneNumber={phoneNumber} />
       )}
@@ -1428,8 +1540,44 @@ export default function ProfileScreen() {
                 })()}
               </div>
 
-              <button type="button" className="absolute inset-y-0 left-0 w-1/2 border-none bg-transparent z-40" onClick={() => { if (activeHighlightIdx === 1) { setActiveHighlightIdx(0); setActiveHighlightMediaReady(false); setHighlightViewerMuted(true); return; } setActiveHighlight(null); }} />
-              <button type="button" className="absolute inset-y-0 right-0 w-1/2 border-none bg-transparent z-40" onClick={() => { if (activeHighlightIdx === 0) { setActiveHighlightIdx(1); setActiveHighlightMediaReady(false); setHighlightViewerMuted(true); return; } setActiveHighlight(null); }} />
+              <button type="button" className="absolute inset-y-0 left-0 w-1/2 border-none bg-transparent z-40" onClick={() => {
+                if (activeHighlightIdx === 1) {
+                  // Go back to first photo in this highlight
+                  setActiveHighlightIdx(0); setActiveHighlightMediaReady(false); setHighlightViewerMuted(true); return;
+                }
+                // On first photo — try previous highlight
+                const currentSlot = activeHighlight.slot;
+                if (currentSlot === 2) {
+                  const prevHighlight = highlights.find(h => h.slot === 1);
+                  if (prevHighlight) {
+                    setActiveHighlightIdx(1); // Start at last photo of previous highlight
+                    setActiveHighlightMediaReady(false);
+                    setHighlightViewerMuted(true);
+                    setActiveHighlight(prevHighlight);
+                    return;
+                  }
+                }
+                setActiveHighlight(null);
+              }} />
+              <button type="button" className="absolute inset-y-0 right-0 w-1/2 border-none bg-transparent z-40" onClick={() => {
+                if (activeHighlightIdx === 0 && activeHighlight.photos?.length > 1) {
+                  // Go to second photo in this highlight
+                  setActiveHighlightIdx(1); setActiveHighlightMediaReady(false); setHighlightViewerMuted(true); return;
+                }
+                // On last photo — try next highlight
+                const currentSlot = activeHighlight.slot;
+                if (currentSlot === 1) {
+                  const nextHighlight = highlights.find(h => h.slot === 2);
+                  if (nextHighlight) {
+                    setActiveHighlightIdx(0); // Start at first photo of next highlight
+                    setActiveHighlightMediaReady(false);
+                    setHighlightViewerMuted(true);
+                    setActiveHighlight(nextHighlight);
+                    return;
+                  }
+                }
+                setActiveHighlight(null);
+              }} />
             </motion.div>
           </>
         )}

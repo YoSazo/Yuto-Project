@@ -27,7 +27,7 @@ export default function UserAvatar({ name, avatarUrl, size = "md", className = "
 
   return (
     <div
-      className={`${sizeClass} rounded-full bg-black flex items-center justify-center text-white font-bold flex-shrink-0 ${className}`}
+      className={`${sizeClass} rounded-full bg-black dark:bg-white flex items-center justify-center text-white dark:text-black font-bold flex-shrink-0 ${className}`}
     >
       {name.charAt(0).toUpperCase()}
     </div>

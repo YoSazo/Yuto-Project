@@ -76,13 +76,13 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 flex flex-col items-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center p-4 transition-colors">
+      <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-xl p-8 flex flex-col items-center">
         <div className="w-28 h-28 mb-4">
           <img alt="Yuto" className="w-full h-full object-contain" src={imgYutoMascot} />
         </div>
 
-        <h1 className="text-2xl font-bold text-black mb-1">
+        <h1 className="text-2xl font-bold text-black dark:text-white mb-1">
           {mode === "login" ? "Welcome back" : "Create account"}
         </h1>
         <p className="text-gray-400 text-sm mb-6">
@@ -98,7 +98,7 @@ export default function AuthScreen() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Your name"
-              className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+              className="w-full h-12 border border-gray-300 dark:border-zinc-700 rounded-full px-5 text-base outline-none focus:border-black dark:focus:border-white bg-transparent text-black dark:text-white transition-colors"
             />
           )}
           <input
@@ -107,14 +107,14 @@ export default function AuthScreen() {
             onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
             placeholder="Username"
             autoCapitalize="none"
-            className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+            className="w-full h-12 border border-gray-300 dark:border-zinc-700 rounded-full px-5 text-base outline-none focus:border-black dark:focus:border-white bg-transparent text-black dark:text-white transition-colors"
           />
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="w-full h-12 border border-gray-300 rounded-full px-5 text-base outline-none focus:border-black transition-colors"
+            className="w-full h-12 border border-gray-300 dark:border-zinc-700 rounded-full px-5 text-base outline-none focus:border-black dark:focus:border-white bg-transparent text-black dark:text-white transition-colors"
           />
         </div>
 
@@ -123,7 +123,7 @@ export default function AuthScreen() {
         <button
           onClick={handleSubmit}
           disabled={isLoading}
-          className="w-full py-4 bg-black text-white font-semibold text-lg rounded-full hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="w-full py-4 bg-black dark:bg-white text-white dark:text-black font-semibold text-lg rounded-full hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           {isLoading ? "Loading..." : mode === "login" ? "Log In" : "Sign Up"}
         </button>
@@ -135,7 +135,7 @@ export default function AuthScreen() {
               setMode(mode === "login" ? "signup" : "login");
               setError("");
             }}
-            className="text-black font-semibold bg-transparent border-none cursor-pointer p-0"
+            className="text-black dark:text-white font-semibold bg-transparent border-none cursor-pointer p-0"
           >
             {mode === "login" ? "Sign Up" : "Log In"}
           </button>

@@ -82,17 +82,15 @@ export default function MessagesScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"personal" | "money" | "business">(() => {
+  const [activeTab, setActiveTab] = useState<"personal" | "money">(() => {
     const t = searchParams.get("tab");
-    if (t === "business") return "business";
     if (t === "money") return "money";
     return "personal";
   });
 
   useEffect(() => {
     const t = searchParams.get("tab");
-    if (t === "business") setActiveTab("business");
-    else if (t === "money") setActiveTab("money");
+    if (t === "money") setActiveTab("money");
   }, [searchParams]);
   // Unified inbox: every chat surface (DMs + group chats + plan chats + function chats)
   // lives in a single sorted-by-recency list. The Personal tab renders this
@@ -307,7 +305,6 @@ export default function MessagesScreen() {
         tabs={[
           { id: "personal", label: "Personal", icon: <Users size={18} /> },
           { id: "money", label: "Money", icon: <Wallet size={18} /> },
-          { id: "business", label: "Business", icon: <Briefcase size={18} /> },
         ]}
         className="mb-4"
       />
@@ -348,160 +345,6 @@ export default function MessagesScreen() {
         <div className="py-20 text-center">
           <p className="font-bold text-black dark:text-white text-lg">No messages yet</p>
           <p className="text-gray-400 text-sm mt-1">Tap "Message" on someone's profile or start a group.</p>
-        </div>
-      ) : activeTab === "business" ? (
-        <div className="flex flex-col gap-6">
-          <div className="bg-black rounded-3xl p-6 text-white mb-0 relative overflow-hidden shadow-lg">
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative z-10 mb-5">
-              <div className="absolute left-0 top-0">
-                <Briefcase size={16} className="text-white/70" />
-              </div>
-              <div className="flex items-center justify-center gap-6 text-base font-extrabold">
-                <button
-                  type="button"
-                  onClick={() => setBizTab("revenue")}
-                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${bizTab === "revenue" ? "text-white" : "text-white/40"}`}
-                >
-                  Revenue
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBizTab("orders")}
-                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${bizTab === "orders" ? "text-white" : "text-white/40"}`}
-                >
-                  Orders
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBizTab("listings")}
-                  className={`bg-transparent border-none p-0 cursor-pointer transition-colors ${bizTab === "listings" ? "text-white" : "text-white/40"}`}
-                >
-                  Listings
-                </button>
-              </div>
-            </div>
-
-            {bizTab === "revenue" ? (
-              <div className="relative z-10 text-center">
-                <div className="flex items-end justify-center">
-                  <div className="text-center">
-                    <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
-                    <span className="text-5xl font-bold tracking-tight">
-                      {(bizDashboard?.revenueThisMonthKes || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </span>
-                    <p className="text-xs text-white/55 mt-2 font-semibold">Revenue this month</p>
-                  </div>
-                </div>
-              </div>
-            ) : bizTab === "orders" ? (
-              <div className="relative z-10 text-center">
-                <div className="mt-2">
-                  <span className="text-5xl font-bold tracking-tight">{(bizDashboard?.ordersThisMonth || 0).toLocaleString()}</span>
-                  <p className="text-xs text-white/55 mt-2 font-semibold">Orders this month</p>
-                </div>
-              </div>
-            ) : (
-              <div className="relative z-10 text-center">
-                <div className="mt-2">
-                  <span className="text-5xl font-bold tracking-tight">{(bizDashboard?.activeListings || 0).toLocaleString()}</span>
-                  <p className="text-xs text-white/55 mt-2 font-semibold">Active listings</p>
-                </div>
-                <p className="text-xs text-white/55 mt-2 font-semibold">
-                  {(bizDashboard?.sellActive || 0)} sell · {(bizDashboard?.serviceActive || 0)} service
-                </p>
-              </div>
-            )}
-          </div>
-
-          {bizTab === "listings" && user && (bizDashboard?.listings?.length ?? 0) > 0 && (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1">Active listings</p>
-              {(bizDashboard?.listings ?? []).map((row) => (
-                <div
-                  key={row.id}
-                  className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col gap-3"
-                >
-                  <div className="min-w-0">
-                    <p className="font-bold text-black dark:text-white truncate">{row.title}</p>
-                    <p className="text-sm text-gray-400">
-                      {row.kind === "sell" ? "Sell" : "Service"}
-                      {row.remaining != null ? ` · ${row.remaining} left` : ""}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate("/home", { state: { focus: { kind: "function", id: row.id }, forcePublicTab: true } })}
-                      className="px-4 py-2 rounded-full bg-black dark:bg-white text-white dark:text-black text-sm font-bold"
-                    >
-                      View
-                    </button>
-                    <button
-                      type="button"
-                      disabled={listingBusyId === row.id}
-                      onClick={async () => {
-                        if (!user) return;
-                        setListingBusyId(row.id);
-                        try {
-                          await cancelHostListing(user.id, row.id);
-                          const dash = await getBusinessDashboard(user.id).catch(() => null);
-                          setBizDashboard(dash);
-                        } catch (e) {
-                          console.error(e);
-                          toast.error("Couldn't update listing. Try again.");
-                        } finally {
-                          setListingBusyId(null);
-                        }
-                      }}
-                      className="px-4 py-2 rounded-full bg-gray-100 dark:bg-zinc-800 text-black dark:text-white text-sm font-bold disabled:opacity-50"
-                    >
-                      {listingBusyId === row.id ? "…" : "Mark inactive"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1">Orders & bookings</p>
-            {businessItems.length === 0 ? (
-              (bizDashboard?.activeListings || 0) === 0 ? (
-                <div className="py-10 text-center">
-                  <p className="text-gray-500 font-extrabold">No listings yet</p>
-                  <p className="text-gray-400 text-sm mt-1 font-semibold">
-                    Create a <span className="text-black">Service</span> or post a <span className="text-black">Sell</span> listing to start receiving business messages.
-                  </p>
-                </div>
-              ) : (
-                <div className="py-10 text-center text-gray-400 font-semibold">No business messages yet</div>
-              )
-            ) : (
-              businessItems.map(({ convo, other, otherId, ctx }) => (
-                <button
-                  key={convo.id}
-                  type="button"
-                  onClick={() => navigate(`/messages/${convo.id}`, { state: { otherUserId: otherId } })}
-                  className="w-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
-                >
-                  <UserAvatar name={other?.display_name || "Customer"} avatarUrl={other?.avatar_url || null} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-black truncate">{ctx.listing_title}</p>
-                    <p className="text-sm text-gray-400 truncate">
-                      {ctx.listing_kind === "sell" ? "Sell" : "Service"} · {other?.display_name || "Customer"}
-                    </p>
-                  </div>
-                  {(unreadByConvo[convo.id] || 0) > 0 && (
-                    <span className="min-w-6 h-6 px-2 rounded-full bg-red-500 text-white text-xs font-extrabold flex items-center justify-center">
-                      {Math.min(99, unreadByConvo[convo.id])}
-                    </span>
-                  )}
-                </button>
-              ))
-            )}
-          </div>
         </div>
       ) : user ? (
         filteredThreads.length === 0 ? (

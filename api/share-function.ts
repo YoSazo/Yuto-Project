@@ -104,20 +104,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? `🛍️ ${hostName} is selling ${data.title}`
       : isService
         ? `🛠️ ${hostName} offers ${data.title}`
-        : `🎉 ${hostName} is hosting a ${data.title}`;
+        : `🎉 ${hostName} is hosting ${data.title}`;
     const joinedCount = Array.isArray(data.function_members) ? data.function_members.length : 0;
     const spotsLeft =
       typeof data.max_capacity === "number" && data.max_capacity > 0
         ? Math.max(0, data.max_capacity - joinedCount)
         : null;
 
+    // Viral urgency copy for WhatsApp previews
+    const urgencyPart = spotsLeft != null && spotsLeft <= 5 && spotsLeft > 0
+      ? `🔥 Only ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left!`
+      : spotsLeft === 0
+        ? `❌ Sold out`
+        : joinedCount > 0
+          ? `${joinedCount} already going`
+          : "";
+
     const subLine = isSell
       ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Available now`.trim()
       : isService
         ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Book now`.trim()
-        : `${formatShareDate(data.date)} · KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} ${
-            spotsLeft != null ? `· ${spotsLeft} spots left` : ""
-          }`.trim();
+        : `${formatShareDate(data.date)} · KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} ${urgencyPart ? `· ${urgencyPart}` : ""}`.trim();
 
     const ogImageUrl = `${origin}/og/function/${encodeURIComponent(functionId)}.png`;
 

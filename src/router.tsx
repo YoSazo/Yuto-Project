@@ -20,6 +20,7 @@ import CreateGroupChatScreen from "./pages/CreateGroupChatScreen";
 import GroupChatScreen from "./pages/GroupChatScreen";
 import GroupChatMembersScreen from "./pages/GroupChatMembersScreen";
 import NotificationsScreen from "./pages/NotificationsScreen";
+import FunctionLandingScreen from "./pages/FunctionLandingScreen";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthScreen /> },
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
   { path: "/waitlist-thanks", element: <WaitlistThanksScreen /> },
   { path: "/join/:groupId", element: <JoinGroupScreen /> },
   { path: "/invite/:username", element: <InviteScreen /> },
+  { path: "/function/:functionId", element: <FunctionLandingScreen /> },
   {
     element: <Layout />,
     children: [

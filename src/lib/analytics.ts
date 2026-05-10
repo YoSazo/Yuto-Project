@@ -100,6 +100,25 @@ export const analytics = {
   groupPaidInFull: (props: { groupId: string; memberCount: number; totalKes: number }) =>
     track("group_paid_in_full", props),
 
+  // ─── Function viral loop events ──────────────────────────────────────
+  functionCreated: (props: { functionId: string; amountKes: number; hasMedia: boolean }) =>
+    track("function_created", props),
+
+  functionJoined: (props: { functionId: string; amountKes: number }) =>
+    track("function_joined", props),
+
+  functionTicketViewed: (props: { functionId: string }) =>
+    track("function_ticket_viewed", props),
+
+  functionShared: (props: { functionId: string; surface: "ticket" | "card" | "profile" }) =>
+    track("function_shared", props),
+
+  functionDuplicated: (props: { functionId: string }) =>
+    track("function_duplicated", props),
+
+  functionGroupBuy: (props: { functionId: string; friendCount: number; totalKes: number }) =>
+    track("function_group_buy", props),
+
   // Money flow signals — useful for diagnosing where M-PESA users bail.
   topupStkSent: (props: { amountKes: number; phoneSuffix?: string }) =>
     track("topup_stk_sent", props),

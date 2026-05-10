@@ -54,6 +54,13 @@ export function FunctionTicketModal({
   const [tick, setTick] = useState(() => Date.now());
   const [joiningChat, setJoiningChat] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(true);
+
+  // Confetti burst on ticket open — dopamine hit
+  useEffect(() => {
+    const t = setTimeout(() => setShowConfetti(false), 2500);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => setTick(Date.now()), 1500);
@@ -88,6 +95,23 @@ export function FunctionTicketModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center fade-in bg-black/70 backdrop-blur-sm">
+      {/* Confetti burst */}
+      {showConfetti && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-[70]">
+          {Array.from({ length: 24 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-2 h-2 rounded-full"
+              style={{
+                left: `${20 + Math.random() * 60}%`,
+                top: `-5%`,
+                backgroundColor: ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"][i % 6],
+                animation: `confettiFall ${1.5 + Math.random() * 1.5}s ease-out ${Math.random() * 0.5}s forwards`,
+              }}
+            />
+          ))}
+        </div>
+      )}
       <button type="button" className="absolute inset-0 cursor-default border-none bg-transparent" aria-label="Dismiss" onClick={onClose} />
       <div className="relative w-full max-w-md mx-4 mb-6 md:mb-0 ticket-live-ring rounded-[22px] shadow-2xl max-h-[90vh] overflow-visible">
         <div className="relative rounded-[20px] bg-white overflow-hidden m-[3px]">
@@ -224,8 +248,8 @@ export function FunctionTicketModal({
                 disabled={sharing}
                 onClick={async () => {
                   setSharing(true);
-                  const title = `🎟️ I just got my ticket to ${functionItem.title}`;
-                  const text = `Grab yours here: ${shareUrl}`;
+                  const title = `🎟️ I'm going to ${functionItem.title}!`;
+                  const text = `Locked in my spot. Grab yours before it fills up 👀`;
                   try {
                     if (navigator.share) {
                       await navigator.share({ title, text, url: shareUrl });
@@ -248,7 +272,7 @@ export function FunctionTicketModal({
                 className="w-full mt-4 py-3.5 bg-black text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 tap-scale disabled:opacity-60"
               >
                 <Send size={16} />
-                {sharing ? "Preparing..." : "Share / Invite Friends"}
+                {sharing ? "Preparing..." : "Flex on WhatsApp 🔥"}
               </button>
             )}
 

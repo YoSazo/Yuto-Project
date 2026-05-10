@@ -78,6 +78,7 @@ export default function HomeScreen() {
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
+  const [initialComposeMode, setInitialComposeMode] = useState<string | null>(null);
   const [showComposeAnywhere, setShowComposeAnywhere] = useState(false);
   const activeTabRef = useRef(activeTab);
   /** Auto-show entry ticket once per function per mount (manual “Ticket” still works). */
@@ -168,11 +169,14 @@ export default function HomeScreen() {
 
   // NEW: Listen for the "openCompose" intent from the ComposeAnywhereSheet
   useEffect(() => {
-    const state = location.state as { openCompose?: boolean } | null;
+    const state = location.state as { openCompose?: boolean; composeMode?: string } | null;
     if (state?.openCompose) {
       setShowCompose(true);
+      if (state.composeMode) {
+        setInitialComposeMode(state.composeMode as any);
+      }
       // Clear the state from the router history so it doesn't pop open again on back-navigation
-      navigate(location.pathname, { replace: true, state: { ...state, openCompose: undefined } });
+      navigate(location.pathname, { replace: true, state: { ...state, openCompose: undefined, composeMode: undefined } });
     }
   }, [location.state, navigate, location.pathname]);
 
@@ -261,7 +265,11 @@ export default function HomeScreen() {
           .map((f) => (f.requester_id === user.id ? f.addressee : f.requester))
           .filter(Boolean) as { id: string; username: string; display_name: string; avatar_url: string | null }[];
         const unpaid = list.filter(
-          (p) => !(fn.function_members ?? []).some((m) => m.user_id === p.id && m.has_paid),
+          (p) =>
+            // Exclude the host — you can't buy a ticket for the host
+            p.id !== fn.host_id &&
+            // Exclude friends who already paid
+            !(fn.function_members ?? []).some((m) => m.user_id === p.id && m.has_paid),
         );
         setGroupBuyFriends(unpaid);
       })
@@ -835,7 +843,8 @@ export default function HomeScreen() {
 
       <HomeComposeSheet
         open={showCompose}
-        onClose={closeCompose}
+        onClose={() => { setShowCompose(false); setInitialComposeMode(null); }}
+        initialMode={initialComposeMode as any}
         currentUserId={user?.id}
         onSubmitPlan={async (data) => {
           if (!user) return;
@@ -996,7 +1005,8 @@ export default function HomeScreen() {
             const fn = functionsFeed.find((f) => f.id === functionTicket.id) ?? functionTicket;
             const isListing = fn.location === "__SELL__" || fn.location === "__SERVICE__";
             const me = (fn.function_members ?? []).find((m) => m.user_id === user.id);
-            return !isListing && fn.mode === "pay" && !!me?.has_paid;
+            const isHost = fn.host_id === user.id;
+            return !isListing && !isHost && fn.mode === "pay" && !!me?.has_paid;
           })()}
           groupBuyFriends={groupBuyFriends}
           groupBuySelectedIds={groupBuySelectedIds}

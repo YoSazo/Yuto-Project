@@ -413,13 +413,39 @@ async function processIntaSendWebhook(payload: {
           );
           if (memErr) throw memErr;
         }
+
+        // ── "X just joined!" system message in attendee chat ──
+        // This creates social proof inside the chat — every new attendee
+        // triggers a visible event that makes the group feel alive.
+        if (chatGroupId) {
+          const joinerName = await getDisplayName(supabase, userId);
+          const { data: paidNow } = await supabase
+            .from("function_members")
+            .select("user_id")
+            .eq("function_id", groupId)
+            .eq("has_paid", true);
+          const attendeeCount = (paidNow || []).length;
+          const spotsLeft = typeof (fnRow as any).max_capacity === "number" && (fnRow as any).max_capacity > 0
+            ? Math.max(0, (fnRow as any).max_capacity - attendeeCount)
+            : null;
+          const urgency = spotsLeft !== null && spotsLeft <= 5 && spotsLeft > 0
+            ? ` · 🔥 ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left!`
+            : "";
+          
+          await supabase.from("group_chat_messages").insert({
+            group_id: chatGroupId,
+            sender_id: fnRow.host_id,
+            content: `🎉 ${joinerName} just joined! (${attendeeCount} going${urgency})`,
+            message_type: "text",
+          });
+        }
       }
     } catch (e) {
       console.error("[webhook] attendee chat provisioning failed:", e);
     }
   }
 
-  // Push notification for hosts: "X just paid KSH Y for Z"
+  // Push notification for hosts — emotionally charged to make hosting addictive
   try {
     const payerName = await getDisplayName(supabase, userId);
     const amount = extractKesAmount(payload as any) || (payload.invoice_id ? await fetchAmountFromStatus(String(payload.invoice_id)) : 0);
@@ -429,19 +455,44 @@ async function processIntaSendWebhook(payload: {
         await sendPushNotification(
           supabase,
           group.created_by,
-          "Payment received",
-          `${payerName} just paid KSH ${Math.round(amount || 0).toLocaleString("en-KE")} for ${group.name}.`,
+          "💰 Money in!",
+          `${payerName} just paid KSH ${Math.round(amount || 0).toLocaleString("en-KE")} for ${group.name}`,
         );
       }
     } else {
-      const { data: fn } = await supabase.from("functions").select("id, title, host_id").eq("id", groupId).maybeSingle();
+      const { data: fn } = await supabase.from("functions").select("id, title, host_id, max_capacity").eq("id", groupId).maybeSingle();
       if (fn?.host_id && fn.host_id !== userId) {
-        await sendPushNotification(
-          supabase,
-          fn.host_id,
-          "Payment received",
-          `${payerName} just paid KSH ${Math.round(amount || 0).toLocaleString("en-KE")} for ${fn.title}.`,
-        );
+        // Count total paid to show running total in notification
+        const { data: paidMembers } = await supabase
+          .from("function_members")
+          .select("user_id")
+          .eq("function_id", groupId)
+          .eq("has_paid", true);
+        const totalPaid = (paidMembers || []).length;
+        const totalEarned = totalPaid * (amount || 0);
+        const spotsLeft = typeof fn.max_capacity === "number" && fn.max_capacity > 0
+          ? Math.max(0, fn.max_capacity - totalPaid)
+          : null;
+        
+        // Emotionally escalating notifications based on momentum
+        let title = "💰 Cha-ching!";
+        let body = `${payerName} is in for "${fn.title}"`;
+        
+        if (totalPaid === 1) {
+          title = "🎉 First one in!";
+          body = `${payerName} just locked in for "${fn.title}" — you're live!`;
+        } else if (spotsLeft !== null && spotsLeft === 0) {
+          title = "🔥 SOLD OUT!";
+          body = `${payerName} grabbed the last spot for "${fn.title}"! ${totalPaid} people, KSH ${totalEarned.toLocaleString("en-KE")} earned.`;
+        } else if (spotsLeft !== null && spotsLeft <= 3) {
+          title = "🔥 Almost full!";
+          body = `${payerName} is in — only ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left for "${fn.title}"!`;
+        } else if (totalPaid >= 10) {
+          title = "🚀 ${fn.title} is popping!";
+          body = `${payerName} makes ${totalPaid} people in. KSH ${totalEarned.toLocaleString("en-KE")} earned so far.`;
+        }
+        
+        await sendPushNotification(supabase, fn.host_id, title, body);
       }
     }
   } catch (e) {

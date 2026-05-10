@@ -96,6 +96,7 @@ export interface FunctionListing {
   goal_count: number | null;
   deadline: string | null;
   status: "open" | "funded" | "cancelled";
+  listing_status?: "active" | "sold" | "paused" | null;
   is_public: boolean;
   created_at: string;
   host: {

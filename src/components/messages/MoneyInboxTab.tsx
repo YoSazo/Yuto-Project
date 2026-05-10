@@ -69,7 +69,7 @@ export function MoneyInboxTab({ userId }: { userId: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -85,11 +85,11 @@ export function MoneyInboxTab({ userId }: { userId: string }) {
   if (nothing) {
     return (
       <div className="py-20 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-gray-100 mx-auto flex items-center justify-center mb-3">
-          <Sparkles size={22} className="text-gray-400" />
+        <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-zinc-800 mx-auto flex items-center justify-center mb-3">
+          <Sparkles size={22} className="text-gray-400 dark:text-gray-500" />
         </div>
-        <p className="font-bold text-black text-lg">Nothing pending</p>
-        <p className="text-gray-400 text-sm mt-1">When someone sends, requests, or splits with you, it'll show up here.</p>
+        <p className="font-bold text-black dark:text-white text-lg">Nothing pending</p>
+        <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">When someone sends, requests, or splits with you, it'll show up here.</p>
       </div>
     );
   }
@@ -101,10 +101,18 @@ export function MoneyInboxTab({ userId }: { userId: string }) {
       haptics.success();
       toast.success("Money in your balance");
       await refresh();
-    } catch (e) {
-      console.error(e);
-      haptics.error();
-      toast.error(e instanceof Error ? e.message : "Couldn't accept. Try again.");
+    } catch (e: any) {
+      const msg = e?.message || "";
+      // If already accepted or insufficient balance on sender side, just refresh
+      // to clear the stale offer from the list
+      if (msg.includes("already") || msg.includes("Insufficient") || msg.includes("not found") || msg.includes("pending")) {
+        toast("Already claimed or expired — refreshing");
+        await refresh();
+      } else {
+        console.error(e);
+        haptics.error();
+        toast.error(msg || "Couldn't accept. Try again.");
+      }
     } finally {
       setAcceptingId(null);
     }
@@ -130,10 +138,10 @@ export function MoneyInboxTab({ userId }: { userId: string }) {
       {data.pendingOffersForMe.length > 0 && (
         <Section title="Money waiting for you">
           {data.pendingOffersForMe.map((o) => (
-            <div key={o.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+            <div key={o.id} className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center gap-3">
               <UserAvatar name={o.sender?.display_name || "Someone"} avatarUrl={o.sender?.avatar_url ?? null} size="md" />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-black truncate">
+                <p className="font-bold text-black dark:text-white truncate">
                   {o.sender?.display_name || o.sender?.username || "Someone"} sent {fmtKes(o.amount_kes)}
                 </p>
                 <p className="text-xs text-gray-400 truncate">
@@ -161,13 +169,13 @@ export function MoneyInboxTab({ userId }: { userId: string }) {
               key={s.group_id}
               type="button"
               onClick={() => navigate(`/yuto/${s.group_id}`)}
-              className="w-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
+              className="w-full bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
             >
               <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center shrink-0">
                 <ArrowUpRight size={22} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-black truncate">
+                <p className="font-bold text-black dark:text-white truncate">
                   {s.function_title || s.group_name || "Split"}
                 </p>
                 <p className="text-xs text-gray-400 truncate">
@@ -188,13 +196,13 @@ export function MoneyInboxTab({ userId }: { userId: string }) {
               key={s.group_id}
               type="button"
               onClick={() => navigate(`/yuto/${s.group_id}`)}
-              className="w-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
+              className="w-full bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
             >
               <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center shrink-0">
                 <ArrowDownLeft size={22} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-black truncate">
+                <p className="font-bold text-black dark:text-white truncate">
                   {s.function_title || s.group_name || "Split"}
                 </p>
                 <p className="text-xs text-gray-400 truncate">
@@ -207,15 +215,15 @@ export function MoneyInboxTab({ userId }: { userId: string }) {
         </Section>
       )}
 
-      {/* Recent transfers */}
+      {/* Recent Activity (Transfers & Split Receipts) */}
       {data.recentTransfers.length > 0 && (
-        <Section title="Recent activity">
+        <Section title="Activity">
           {data.recentTransfers.map((t) => {
             const positive = t.amount > 0;
             return (
               <div
                 key={t.id}
-                className="w-full bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3"
+                className="w-full bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center gap-3"
               >
                 {t.counterparty ? (
                   <UserAvatar
@@ -229,7 +237,7 @@ export function MoneyInboxTab({ userId }: { userId: string }) {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-black truncate">{labelForTx(t)}</p>
+                  <p className="font-bold text-black dark:text-white truncate">{labelForTx(t)}</p>
                   <p className="text-xs text-gray-400 truncate">{subtitleForTx(t)}</p>
                 </div>
                 <span className={`text-sm font-extrabold shrink-0 ${positive ? "text-green-600" : "text-black"}`}>
@@ -268,11 +276,15 @@ function labelForTx(t: { kind: string | null; counterparty: { display_name: stri
     case "wallet_offer_sent":
       return name ? `Offer to ${name}` : "Offer sent";
     case "split_pay":
-      return "Paid your split";
+    case "split_payment_sent":
+      return "Paid split";
     case "split_received":
-      return name ? `${name} paid you` : "Split paid";
+    case "split_payment_received":
+      return name ? `Payment from ${name}` : "Split payment";
+    case "referral_bonus":
+      return "Referral bonus";
     default:
-      return t.note?.slice(0, 60) || (t.amount >= 0 ? "Money in" : "Money out");
+      return t.note?.slice(0, 60) || (t.amount >= 0 ? "Money received" : "Money sent");
   }
 }
 

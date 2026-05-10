@@ -180,6 +180,7 @@ function DateTimePickerModal({
 export function HomeComposeSheet({
   open,
   onClose,
+  initialMode,
   onSubmitPlan,
   onSubmitFunction,
   onSubmitPost,
@@ -187,6 +188,7 @@ export function HomeComposeSheet({
 }: {
   open: boolean;
   onClose: () => void;
+  initialMode?: "plan" | "function" | "sell" | "service" | null;
   onSubmitPlan?: (data: any) => Promise<void>;
   onSubmitFunction?: (data: any) => Promise<void>;
   onSubmitPost?: (data: {
@@ -237,7 +239,7 @@ export function HomeComposeSheet({
   useEffect(() => {
     if (open) {
       setTopMode("create");
-      setComposeMode("plan");
+      setComposeMode(initialMode || "plan");
       setTitle("");
       setAmount("");
       setDescription("");

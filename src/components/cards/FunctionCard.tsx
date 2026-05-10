@@ -3,7 +3,7 @@ import {
   BadgeDollarSign,
   Briefcase,
   CalendarDays,
-  Copy,
+  Flame,
   MapPin,
   MessageCircle,
   Send,
@@ -12,6 +12,7 @@ import {
   Store,
   Ticket,
   Users,
+  Zap,
 } from "lucide-react";
 import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 import type { DmSharePayload } from "../../lib/supabase";
@@ -69,8 +70,10 @@ export function FunctionCard({
   const paidCount = fm.filter((m) => m.has_paid).length;
   const joinedCount = fm.length;
   const isFull = eventFunction.max_capacity ? joinedCount >= eventFunction.max_capacity && !isMember : false;
-  const canJoin = !isHost && !isMember && !isFull;
-  const canPay = isMember && !me?.has_paid;
+  const isCancelled = (eventFunction as any).status === "cancelled";
+  const isPastEvent = !!(eventFunction.date && new Date(eventFunction.date).getTime() < Date.now());
+  const canJoin = !isHost && !isMember && !isFull && !isCancelled && !isPastEvent;
+  const canPay = isMember && !me?.has_paid && !isCancelled;
   const uc = unreadCount || 0;
   const isSell = eventFunction.location === "__SELL__";
   const isService = eventFunction.location === "__SERVICE__";
@@ -172,7 +175,7 @@ export function FunctionCard({
         <p 
           className={`font-bold text-lg flex-1 min-w-0 ${isFunction ? "text-white" : "text-black dark:text-white"} ${
             (isListing && eventFunction.listing_status && eventFunction.listing_status !== "active") || 
-            (isFunction && (eventFunction as any).status === "cancelled") 
+            isCancelled
               ? "opacity-60 line-through" 
               : ""
           }`}
@@ -225,7 +228,7 @@ export function FunctionCard({
                 </span>
               </div>
             )}
-            {isFunction && (eventFunction as any).status === "cancelled" && (
+            {isFunction && isCancelled && (
               <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center backdrop-blur-[2px] pointer-events-none">
                 <span className="px-4 py-2 bg-white text-black font-extrabold text-lg uppercase tracking-widest rounded-xl -rotate-6 shadow-sm">
                   CANCELLED
@@ -238,6 +241,47 @@ export function FunctionCard({
       {cleanedDescription && (
         <p className={["text-sm mb-3", isFunction ? "text-white/80" : "text-gray-600 dark:text-gray-400"].join(" ")}>{cleanedDescription}</p>
       )}
+
+      {/* Host revenue indicator */}
+      {isHost && paidCount > 0 && (
+        <div className={["flex items-center gap-2 mb-3 px-3 py-2 rounded-2xl", isFunction ? "bg-white/8 border border-white/10" : "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"].join(" ")}>
+          <span className={["text-xs font-bold", isFunction ? "text-emerald-300" : "text-emerald-700 dark:text-emerald-400"].join(" ")}>
+            💰 KSH {(paidCount * eventFunction.amount_per_person).toLocaleString()} earned · {paidCount} paid
+          </span>
+        </div>
+      )}
+
+      {/* Countdown for upcoming events */}
+      {isFunction && eventFunction.date && (() => {
+        const eventTime = new Date(eventFunction.date).getTime();
+        const now = Date.now();
+        const diff = eventTime - now;
+        if (diff <= 0) {
+          // Event has passed — show "happened" state
+          const daysSince = Math.floor((now - eventTime) / (24 * 60 * 60 * 1000));
+          if (daysSince <= 7) {
+            return (
+              <div className={["flex items-center gap-2 mb-3 px-3 py-2 rounded-2xl", isFunction ? "bg-white/8 border border-white/10" : "bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800"].join(" ")}>
+                <span className={["text-xs font-bold", isFunction ? "text-purple-300" : "text-purple-700 dark:text-purple-400"].join(" ")}>
+                  {daysSince === 0 ? "🎊 Happening today!" : daysSince === 1 ? "✨ Was yesterday — how was it?" : `✨ ${daysSince} days ago — post your highlights!`}
+                </span>
+              </div>
+            );
+          }
+          return null;
+        }
+        if (diff > 7 * 24 * 60 * 60 * 1000) return null; // Only show within 7 days
+        const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        const label = days > 0 ? `${days}d ${hours}h` : hours > 0 ? `${hours}h` : "Soon!";
+        return (
+          <div className={["flex items-center gap-2 mb-3 px-3 py-2 rounded-2xl", isFunction ? "bg-white/8 border border-white/10" : "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"].join(" ")}>
+            <span className={["text-xs font-bold", isFunction ? "text-blue-300" : "text-blue-700 dark:text-blue-400"].join(" ")}>
+              ⏰ Starts in {label}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* No contact/booking pill on listings (DM flow handles it). */}
 
@@ -252,9 +296,19 @@ export function FunctionCard({
         </span>
         {isListing ? (
           <>
-            {remainingStock != null && (
+            {remainingStock != null && remainingStock <= 5 && remainingStock > 0 && (
+              <span className="bg-red-50 text-red-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 animate-pulse">
+                <Flame size={14} /> Only {remainingStock} left!
+              </span>
+            )}
+            {remainingStock != null && remainingStock > 5 && (
               <span className="bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                 <Sparkles size={14} /> {remainingStock} {isService ? "spots left" : "left"}
+              </span>
+            )}
+            {remainingStock === 0 && (
+              <span className="bg-red-100 text-red-700 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                <Zap size={14} /> Sold out
               </span>
             )}
             {paidCount > 0 && (
@@ -264,22 +318,30 @@ export function FunctionCard({
             )}
           </>
         ) : (
-          <button
-            type="button"
-            onClick={() => onOpenPeople?.(eventFunction.id, `${joinedCount} going`)}
-            className={[
-              "font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border",
-              isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-transparent",
-            ].join(" ")}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <Users size={14} /> {joinedCount} joining
-            </span>
-            <span className={["font-semibold px-0.5", isFunction ? "text-white/40" : "text-gray-400"].join(" ")} aria-hidden>
-              ·
-            </span>
-            <span>{paidCount} paid</span>
-          </button>
+          <>
+            {/* FOMO: spots left urgency for functions */}
+            {eventFunction.max_capacity && (eventFunction.max_capacity - joinedCount) <= 5 && (eventFunction.max_capacity - joinedCount) > 0 && (
+              <span className="bg-red-50 text-red-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 animate-pulse">
+                <Flame size={14} /> {eventFunction.max_capacity - joinedCount} spots left!
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => onOpenPeople?.(eventFunction.id, `${joinedCount} going`)}
+              className={[
+                "font-bold text-sm px-3 py-1.5 rounded-full inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border",
+                isFunction ? "bg-white/12 text-white/90 border-white/15" : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-transparent",
+              ].join(" ")}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Users size={14} /> {joinedCount} joining
+              </span>
+              <span className={["font-semibold px-0.5", isFunction ? "text-white/40" : "text-gray-400"].join(" ")} aria-hidden>
+                ·
+              </span>
+              <span>{paidCount} paid</span>
+            </button>
+          </>
         )}
         {eventFunction.location && !isSell && !isService && (
           <span
@@ -291,7 +353,7 @@ export function FunctionCard({
             <MapPin size={14} /> {eventFunction.location}
           </span>
         )}
-        {eventFunction.max_capacity && !isSell && (
+        {eventFunction.max_capacity && !isSell && !(eventFunction.max_capacity && (eventFunction.max_capacity - joinedCount) <= 5 && (eventFunction.max_capacity - joinedCount) > 0) && (
           <span
             className={[
               "font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 border",
@@ -303,9 +365,25 @@ export function FunctionCard({
         )}
       </div>
 
+      {/* Social proof: show first 3 attendee avatars with names */}
+      {isFunction && paidCount > 0 && paidCount <= 8 && (
+        <div className={["flex items-center gap-2 mb-3 px-1", isFunction ? "text-white/70" : "text-gray-500"].join(" ")}>
+          <div className="flex -space-x-2">
+            {fm.filter(m => m.has_paid).slice(0, 3).map((m) => (
+              <UserAvatar key={m.user_id} name={m.profiles.display_name} avatarUrl={m.profiles.avatar_url} size="sm" className="ring-2 ring-black w-7 h-7 text-[10px]" />
+            ))}
+          </div>
+          <span className="text-xs font-semibold">
+            {fm.filter(m => m.has_paid).slice(0, 2).map(m => m.profiles.display_name.split(' ')[0]).join(', ')}
+            {paidCount > 2 && ` +${paidCount - 2} more`}
+            {" "}already in
+          </span>
+        </div>
+      )}
+
       {isMember && !me?.has_paid && (
-        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-50 border border-amber-200">
-          <span className="text-amber-800 text-xs font-bold">Spot reserved — complete payment to confirm</span>
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+          <span className="text-amber-800 dark:text-amber-300 text-xs font-bold">⚡ Your spot expires soon — pay now to lock it in</span>
         </div>
       )}
 
@@ -365,9 +443,30 @@ export function FunctionCard({
             )}
 
             {isHost ? (
-              <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>
-                Hosting
-              </span>
+              <div className="flex items-center gap-2">
+                {onDuplicate && !isCancelled && !isPastEvent && (
+                  <button
+                    type="button"
+                    onClick={() => onDuplicate(eventFunction)}
+                    className={[
+                      "px-3 py-2 rounded-xl font-bold text-xs transition-colors border",
+                      isFunction ? "border-white/20 bg-white/10 text-white hover:bg-white/15" : "border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700",
+                    ].join(" ")}
+                  >
+                    Run again
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onNavigateToHost("__manage__")}
+                  className={[
+                    "px-3 py-2 rounded-xl font-bold text-xs transition-colors border",
+                    isFunction ? "border-white/20 bg-white/10 text-white hover:bg-white/15" : "border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700",
+                  ].join(" ")}
+                >
+                  Manage
+                </button>
+              </div>
             ) : suppressListingPay && isListing ? (
               <span className={["text-xs font-semibold text-center max-w-[11rem]", isFunction ? "text-white/55" : "text-gray-400"].join(" ")}>
                 Pay in chat when ready
@@ -389,7 +488,10 @@ export function FunctionCard({
                 {eventFunction.listing_status === "sold" ? "Sold Out" : eventFunction.listing_status === "paused" ? "Paused" : "Message"}
               </button>
             ) : isMember && me?.has_paid ? (
-              <span className={["text-sm font-semibold", isFunction ? "text-emerald-300" : "text-green-600"].join(" ")}>You&apos;re in</span>
+              <span className={["text-sm font-bold flex items-center gap-1.5", isFunction ? "text-emerald-300" : "text-green-600"].join(" ")}>
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                You&apos;re in
+              </span>
             ) : canPay ? (
               <button
                 type="button"
@@ -404,22 +506,22 @@ export function FunctionCard({
             ) : canJoin ? (
               <button
                 type="button"
-                disabled={isFunction && (eventFunction as any).status === "cancelled"}
+                disabled={isCancelled || isPastEvent}
                 onClick={() => onJoinFunction?.(eventFunction)}
                 className={[
                   "px-4 py-2 rounded-xl font-bold text-sm transition-colors",
-                  isFunction && (eventFunction as any).status === "cancelled"
+                  isCancelled || isPastEvent
                     ? "bg-white/10 text-white/40 cursor-not-allowed"
                     : isFunction 
                       ? "bg-white text-black hover:bg-white/90" 
                       : "bg-black text-white hover:bg-gray-800",
                 ].join(" ")}
               >
-                {isFunction && (eventFunction as any).status === "cancelled" ? "Cancelled" : isSell ? "Purchase" : isService ? "Book" : "Join Function"}
+                {isCancelled ? "Cancelled" : isPastEvent ? "Event ended" : isSell ? "Purchase" : isService ? "Book" : isFull ? "Join Waitlist" : "Lock in my spot"}
               </button>
             ) : (
               <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>
-                {isFunction && (eventFunction as any).status === "cancelled" ? "Cancelled" : isFull ? "Full" : "Joined"}
+                {isCancelled ? "Cancelled" : isPastEvent ? "Ended" : isFull ? "Full" : "Joined"}
               </span>
             )}
           </div>
@@ -430,12 +532,27 @@ export function FunctionCard({
             type="button"
             onClick={() => onOpenTicket(eventFunction)}
             className={[
-              "mt-3 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition-colors tap-scale border",
-              isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-green-200 bg-green-50 text-green-800 hover:bg-green-100",
+              "mt-3 w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all tap-scale border",
+              isFunction ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/20" : "border-green-300 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-300 hover:from-green-100 hover:to-emerald-100 dark:hover:from-green-900/30 dark:hover:to-emerald-900/30 shadow-sm",
             ].join(" ")}
           >
             <Ticket size={16} aria-hidden />
-            {isSell ? "Show proof" : isService ? "Show proof" : "Show ticket"}
+            {isSell ? "Show proof of purchase" : isService ? "Show booking proof" : "🎟️ Show your ticket"}
+          </button>
+        )}
+
+        {/* Host: show ticket button too so they can preview what attendees see */}
+        {isHost && paidCount > 0 && onOpenTicket && (
+          <button
+            type="button"
+            onClick={() => onOpenTicket(eventFunction)}
+            className={[
+              "mt-3 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-xs transition-colors tap-scale border",
+              isFunction ? "border-white/10 bg-white/5 text-white/60 hover:bg-white/10" : "border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700",
+            ].join(" ")}
+          >
+            <Ticket size={14} aria-hidden />
+            Preview attendee ticket
           </button>
         )}
       </div>

@@ -68,25 +68,25 @@ export default function AddToHomeScreen() {
   };
 
   return (
-    <div className="min-h-full flex flex-col items-center px-6 pt-12 pb-8">
+    <div className="min-h-full flex flex-col items-center px-6 pt-12 pb-8 bg-white dark:bg-black transition-colors">
       <div className="w-20 h-20 mb-6">
         <img alt="Yuto" className="w-full h-full object-contain" src={imgYutoMascot} />
       </div>
 
-      <h1 className="text-xl font-bold text-black text-center mb-1">
+      <h1 className="text-xl font-bold text-black dark:text-white text-center mb-1">
         Add Yuto to your home screen
       </h1>
-      <p className="text-gray-500 text-sm text-center mb-8 max-w-[280px]">
+      <p className="text-gray-500 dark:text-gray-400 text-sm text-center mb-8 max-w-[280px]">
         Get the full app experience — opens like a native app, no browser bar.
       </p>
 
       {/* Platform toggle if we couldn't detect */}
       {!detected && (
-        <div className="flex bg-gray-100 rounded-full p-1 mb-6">
+        <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-full p-1 mb-6">
           <button
             onClick={() => setPlatform("ios")}
             className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-              platform === "ios" ? "bg-white shadow text-black" : "text-gray-500"
+              platform === "ios" ? "bg-white dark:bg-zinc-700 shadow text-black dark:text-white" : "text-gray-500 dark:text-gray-400"
             }`}
           >
             iPhone
@@ -94,7 +94,7 @@ export default function AddToHomeScreen() {
           <button
             onClick={() => setPlatform("android")}
             className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-              platform === "android" ? "bg-white shadow text-black" : "text-gray-500"
+              platform === "android" ? "bg-white dark:bg-zinc-700 shadow text-black dark:text-white" : "text-gray-500 dark:text-gray-400"
             }`}
           >
             Android
@@ -107,60 +107,60 @@ export default function AddToHomeScreen() {
         {platform === "ios" ? (
           <>
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center flex-shrink-0">
                 <ShareIcon />
               </div>
               <div>
-                <p className="font-semibold text-black text-[15px]">Tap the Share button</p>
-                <p className="text-gray-500 text-sm">The box with an arrow at the bottom of Safari</p>
+                <p className="font-semibold text-black dark:text-white text-[15px]">Tap the Share button</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">The box with an arrow at the bottom of Safari</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center flex-shrink-0">
                 <AddIcon />
               </div>
               <div>
-                <p className="font-semibold text-black text-[15px]">Tap &quot;Add to Home Screen&quot;</p>
-                <p className="text-gray-500 text-sm">Scroll down to find it</p>
+                <p className="font-semibold text-black dark:text-white text-[15px]">Tap &quot;Add to Home Screen&quot;</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Scroll down to find it</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0 text-lg font-bold">
+              <div className="w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center flex-shrink-0 text-lg font-bold">
                 3
               </div>
               <div>
-                <p className="font-semibold text-black text-[15px]">Tap &quot;Add&quot;</p>
-                <p className="text-gray-500 text-sm">Top right — you&apos;re done!</p>
+                <p className="font-semibold text-black dark:text-white text-[15px]">Tap &quot;Add&quot;</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Top right — you&apos;re done!</p>
               </div>
             </div>
           </>
         ) : (
           <>
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center flex-shrink-0">
                 <MenuIcon />
               </div>
               <div>
-                <p className="font-semibold text-black text-[15px]">Tap the menu (⋮)</p>
-                <p className="text-gray-500 text-sm">Top right of Chrome or your browser</p>
+                <p className="font-semibold text-black dark:text-white text-[15px]">Tap the menu (⋮)</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Top right of Chrome or your browser</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center flex-shrink-0">
                 <AddIcon />
               </div>
               <div>
-                <p className="font-semibold text-black text-[15px]">Tap &quot;Add to Home screen&quot;</p>
-                <p className="text-gray-500 text-sm">Or &quot;Install app&quot;</p>
+                <p className="font-semibold text-black dark:text-white text-[15px]">Tap &quot;Add to Home screen&quot;</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Or &quot;Install app&quot;</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0 text-lg font-bold">
+              <div className="w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center flex-shrink-0 text-lg font-bold">
                 3
               </div>
               <div>
-                <p className="font-semibold text-black text-[15px]">Tap &quot;Add&quot; or &quot;Install&quot;</p>
-                <p className="text-gray-500 text-sm">You&apos;re done!</p>
+                <p className="font-semibold text-black dark:text-white text-[15px]">Tap &quot;Add&quot; or &quot;Install&quot;</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">You&apos;re done!</p>
               </div>
             </div>
           </>
@@ -169,7 +169,7 @@ export default function AddToHomeScreen() {
 
       <button
         onClick={handleDone}
-        className="w-full max-w-[280px] py-4 bg-black text-white font-semibold text-base rounded-full active:bg-gray-800"
+        className="w-full max-w-[280px] py-4 bg-black dark:bg-white text-white dark:text-black font-semibold text-base rounded-full active:bg-gray-800 dark:active:bg-gray-100"
       >
         Got it
       </button>

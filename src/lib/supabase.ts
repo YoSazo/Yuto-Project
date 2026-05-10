@@ -613,6 +613,7 @@ export type HostedFunctionItem = {
   location: string | null;
   amount_per_person: number;
   image_url: string | null;
+  status: string;
   media: FunctionMediaRow[];
 };
 
@@ -624,7 +625,7 @@ export async function getUserHostedFunctions(userId: string): Promise<HostedFunc
       "id, title, date, location, amount_per_person, image_url, status, is_public, host_id, media:function_media(id, media_url, media_type, sort_index)",
     )
     .eq("host_id", userId)
-    .eq("status", "open")
+    .in("status", ["open", "funded", "cancelled"])
     .neq("location", "__SELL__")
     .neq("location", "__SERVICE__")
     .order("created_at", { ascending: false });
@@ -636,6 +637,7 @@ export async function getUserHostedFunctions(userId: string): Promise<HostedFunc
     location: r.location ?? null,
     amount_per_person: Number(r.amount_per_person) || 0,
     image_url: r.image_url ?? null,
+    status: r.status ?? "open",
     media: ((r.media || []) as FunctionMediaRow[])
       .slice()
       .sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0)),

@@ -38,6 +38,7 @@ import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModa
 import { FixedMediaCarousel, type CarouselMediaItem } from "../components/media/FixedMediaCarousel";
 import { FunctionCard } from "../components/cards/FunctionCard";
 import { toast } from "sonner";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 const STAT_POSITIONS = [
   { id: "splits", angle: -2.4, label: "Splits" },
@@ -84,6 +85,13 @@ export default function UserProfileScreen() {
   const [highlightReplySending, setHighlightReplySending] = useState(false);
   const [highlightViewerMuted, setHighlightViewerMuted] = useState(true);
   const [listingOptionsOpen, setListingOptionsOpen] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    danger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
 
   const handleReportUser = async () => {
     if (!targetUserId || !reportReason.trim()) return;
@@ -114,15 +122,24 @@ export default function UserProfileScreen() {
 
   const handleDeleteListing = async (listingId: string) => {
     if (!user) return;
-    if (!window.confirm("Are you sure you want to delete this listing?")) return;
-    try {
-      await cancelHostListing(user.id, listingId);
-      setUserListings((prev) => prev.filter((l) => l.id !== listingId));
-      toast.success("Listing deleted");
-    } catch (e) {
-      console.error(e);
-      toast.error("Couldn't delete listing.");
-    }
+    setListingOptionsOpen(null);
+    setConfirmModal({
+      title: "Delete this listing?",
+      message: "This will permanently remove the listing. This can't be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try {
+          await cancelHostListing(user.id, listingId);
+          setUserListings((prev) => prev.filter((l) => l.id !== listingId));
+          toast.success("Listing deleted");
+        } catch (e) {
+          console.error(e);
+          toast.error("Couldn't delete listing.");
+        }
+      },
+    });
     setListingOptionsOpen(null);
   };
 
@@ -1051,6 +1068,16 @@ export default function UserProfileScreen() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmModal}
+        title={confirmModal?.title || ""}
+        message={confirmModal?.message || ""}
+        confirmLabel={confirmModal?.confirmLabel}
+        danger={confirmModal?.danger}
+        onConfirm={() => confirmModal?.onConfirm()}
+        onCancel={() => setConfirmModal(null)}
+      />
     </div>
   );
 }
