@@ -73,6 +73,8 @@ type TransactionRow = {
   } | null;
 };
 
+const MIN_WITHDRAW_KES = 20;
+
 function describeTransaction(tx: TransactionRow): { title: string; subtitle: string | null } {
   const cp = tx.counterparty;
   const name = cp ? (cp.display_name?.trim() || cp.username || "someone") : null;
@@ -345,8 +347,8 @@ export default function ProfileScreen() {
       return;
     }
     const amountNum = parseInt(withdrawAmount);
-    if (!amountNum || amountNum < 100) {
-      setWithdrawError("Minimum withdrawal is KSH 100.");
+    if (!amountNum || amountNum < MIN_WITHDRAW_KES) {
+      setWithdrawError(`Minimum withdrawal is KSH ${MIN_WITHDRAW_KES}.`);
       return;
     }
     if (amountNum > points) {
@@ -1372,7 +1374,7 @@ export default function ProfileScreen() {
               <input type="text" inputMode="numeric" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value.replace(/\D/g, ""))} placeholder="0" className="text-[48px] font-bold text-center text-black dark:text-white bg-transparent border-none outline-none w-full mb-2" />
               <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-4">Available: KSH {points.toLocaleString()}</p>
               <div className="flex gap-2 w-full mb-2">
-                {[100, 500, 'MAX'].map((preset) => (
+                {[MIN_WITHDRAW_KES, 500, 'MAX'].map((preset) => (
                   <button key={preset} onClick={() => setWithdrawAmount(preset === 'MAX' ? points.toString() : preset.toString())} className="flex-1 py-3 rounded-2xl font-bold text-sm bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors active:scale-95">
                     {preset === 'MAX' ? 'MAX' : `+${preset}`}
                   </button>
