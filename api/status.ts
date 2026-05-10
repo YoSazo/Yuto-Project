@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAuthenticatedUserId } from "./_auth";
+import { getAuthenticatedUserId } from "./_auth.js";
 
 const INTASEND_BASE = process.env.INTASEND_HOST || "https://sandbox.intasend.com";
 

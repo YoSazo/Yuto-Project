@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { getAuthenticatedUserId } from "./_auth";
+import { getAuthenticatedUserId } from "./_auth.js";
 
 // IntaSend send-money API base. For live use `https://api.intasend.com`.
 const INTASEND_BASE = process.env.INTASEND_HOST || "https://sandbox.intasend.com";
