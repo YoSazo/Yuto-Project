@@ -363,6 +363,19 @@ async function processIntaSendWebhook(payload: {
     );
   }
 
+  // Check if already paid (idempotency for retried webhooks)
+  const { data: currentMember } = await supabase
+    .from(membershipTable)
+    .select("has_paid")
+    .eq(parentIdColumn, groupId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (currentMember?.has_paid) {
+    console.log(`Webhook: already paid for ${membershipTable} parent_id=${groupId} user_id=${userId} — skipping`);
+    return;
+  }
+
   const { error: updateError } = await supabase
     .from(membershipTable)
     .update({ has_paid: true, paid_at: new Date().toISOString() })

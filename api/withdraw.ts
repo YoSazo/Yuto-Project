@@ -37,8 +37,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabase();
 
   try {
+    // Read the canonical amount from the transaction row — don't trust client body
+    const { data: txRow, error: txErr } = await supabase
+      .from("transactions")
+      .select("id, amount, status")
+      .eq("id", transaction_id)
+      .eq("user_id", user_id)
+      .eq("status", "pending")
+      .eq("kind", "withdrawal")
+      .single();
+
+    if (txErr || !txRow) {
+      return res.status(400).json({ success: false, message: "Transaction not found or already processed" });
+    }
+
+    // Use the DB amount (absolute value), not the client-provided amount
+    const verifiedAmount = Math.abs(Number(txRow.amount));
+    if (verifiedAmount <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid transaction amount" });
+    }
+
     // ── Call IntaSend's B2C Transfer API ──────────────────
-    // IMPORTANT: 'provider' is required. For M-Pesa withdrawals, it's 'MPESA-B2C'.
     const startedAt = Date.now();
     const initiateRes = await fetch(`${INTASEND_BASE}/api/v1/send-money/initiate/`, {
       method: "POST",
@@ -52,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         transactions: [{
           name: "Yuto User",
           account: phone_number,
-          amount: Number(amount),
+          amount: verifiedAmount,
           narrative: "Yuto Balance Withdrawal"
         }],
         requires_approval: "NO"
@@ -134,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: "settled",
         method: "mpesa_b2c",
         kind: "withdrawal",
-        note: `Withdrawal to M-PESA · KSH ${Math.round(Number(amount)).toLocaleString("en-KE")}`,
+        note: `Withdrawal to M-PESA · KSH ${verifiedAmount.toLocaleString("en-KE")}`,
         metadata: {
           provider: "intasend",
           phone: phone_number,
