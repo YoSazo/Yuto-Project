@@ -27,6 +27,7 @@ const GroupChatMembersScreen = lazy(() => import("./pages/GroupChatMembersScreen
 const NotificationsScreen = lazy(() => import("./pages/NotificationsScreen"));
 const FunctionLandingScreen = lazy(() => import("./pages/FunctionLandingScreen"));
 const PlanLandingScreen = lazy(() => import("./pages/PlanLandingScreen"));
+const TermsScreen = lazy(() => import("./pages/TermsScreen"));
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return (
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
   { path: "/invite/:username", element: <Lazy><InviteScreen /></Lazy> },
   { path: "/function/:functionId", element: <Lazy><FunctionLandingScreen /></Lazy> },
   { path: "/plan/:planId", element: <Lazy><PlanLandingScreen /></Lazy> },
+  { path: "/terms", element: <Lazy><TermsScreen /></Lazy> },
   {
     element: <Layout />,
     children: [

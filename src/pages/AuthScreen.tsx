@@ -143,6 +143,13 @@ export default function AuthScreen() {
           {isLoading ? "Loading..." : mode === "login" ? "Log In" : "Sign Up"}
         </button>
 
+        {mode === "signup" && (
+          <p className="mt-3 text-xs text-gray-400 text-center">
+            By signing up, you agree to our{" "}
+            <a href="/terms" target="_blank" className="text-black dark:text-white font-semibold underline">Terms of Service</a>
+          </p>
+        )}
+
         <p className="mt-6 text-sm text-gray-400">
           {mode === "login" ? (
             signupsOpen ? (
