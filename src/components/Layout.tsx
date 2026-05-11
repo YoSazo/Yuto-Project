@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, useLocation, Navigate, useNavigate } from "react-router-dom";
 import GlassNavBar from "./GlassNavBar";
 import { useAuth } from "../contexts/AuthContext";
-import { getPendingRequests, getMyAllUnreadTotal } from "../lib/supabase";
+import { getPendingRequests, getMyAllUnreadTotal, supabase } from "../lib/supabase";
 import { useAppResume } from "../hooks/useAppResume";
 import { WifiOff } from "lucide-react";
 
@@ -24,6 +24,7 @@ export default function Layout() {
   const showNav = !!activeTab;
   const [pendingCount, setPendingCount] = useState(0);
   const [dmUnreadCount, setDmUnreadCount] = useState(0);
+  const [newSplitCount, setNewSplitCount] = useState(0);
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
 
   useEffect(() => {
@@ -35,6 +36,13 @@ export default function Layout() {
   }, []);
 
   useEffect(() => {
+    if (location.pathname === "/activity" && user) {
+      setNewSplitCount(0);
+      localStorage.setItem(`yuto_last_activity_visit_${user.id}`, String(Date.now()));
+    }
+  }, [location.pathname, user]);
+
+  useEffect(() => {
     if (!user) return;
     const fetchCounts = () => {
       getPendingRequests(user.id).then((data) => setPendingCount(data.length)).catch(() => {});
@@ -42,7 +50,24 @@ export default function Layout() {
     };
     fetchCounts();
     const interval = setInterval(fetchCounts, 15000);
-    return () => clearInterval(interval);
+
+    // Listen for new splits being created (group_members INSERT)
+    const splitKey = `yuto_last_activity_visit_${user.id}`;
+    const lastVisit = Number(localStorage.getItem(splitKey) || 0);
+    const splitChannel = supabase
+      .channel(`new-splits-${user.id}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "group_members",
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        const insertedAt = new Date((payload.new as any).joined_at || Date.now()).getTime();
+        if (insertedAt > lastVisit) setNewSplitCount((c) => c + 1);
+      })
+      .subscribe();
+
+    return () => { clearInterval(interval); supabase.removeChannel(splitChannel); };
   }, [user, location.pathname]);
 
   // When the PWA comes back foregrounded (e.g. after STK PIN), wake up the app.
@@ -94,7 +119,7 @@ export default function Layout() {
 
         {showNav && (
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 z-30">
-            <GlassNavBar activeTab={activeTab} pendingCount={pendingCount} dmUnreadCount={dmUnreadCount} />
+            <GlassNavBar activeTab={activeTab} pendingCount={pendingCount} dmUnreadCount={dmUnreadCount} newSplitCount={newSplitCount} />
           </div>
         )}
       </div>

@@ -9,6 +9,7 @@ interface GlassNavBarProps {
   activeTab: NavTab;
   pendingCount?: number;
   dmUnreadCount?: number;
+  newSplitCount?: number;
 }
 
 function SplitIcon({ color }: { color: string }) {
@@ -54,7 +55,7 @@ const tabs: { id: NavTab; label: string; path: string; Icon: typeof SplitIcon }[
 
 const TAB_COUNT = tabs.length;
 
-export default function GlassNavBar({ activeTab, pendingCount = 0, dmUnreadCount = 0 }: GlassNavBarProps) {
+export default function GlassNavBar({ activeTab, pendingCount = 0, dmUnreadCount = 0, newSplitCount = 0 }: GlassNavBarProps) {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const activeIndex = tabs.findIndex((t) => t.id === activeTab);
@@ -208,6 +209,11 @@ export default function GlassNavBar({ activeTab, pendingCount = 0, dmUnreadCount
                 {tab.id === "home" && dmUnreadCount > 0 && (
                   <div className="absolute -top-1 -right-1.5 min-w-4 h-4 px-0.5 bg-red-500 rounded-full flex items-center justify-center">
                     <span className="text-[9px] font-bold text-white">{dmUnreadCount > 99 ? "99+" : dmUnreadCount}</span>
+                  </div>
+                )}
+                {tab.id === "activity" && newSplitCount > 0 && (
+                  <div className="absolute -top-1 -right-1.5 min-w-4 h-4 px-0.5 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-[9px] font-bold text-white">{newSplitCount > 99 ? "99+" : newSplitCount}</span>
                   </div>
                 )}
                 {tab.id === "profile" && pendingCount > 0 && (

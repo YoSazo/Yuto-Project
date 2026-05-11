@@ -48,8 +48,6 @@ async function creditWallet(
   } else {
     await supabase.from("wallets").update({ balance: next }).eq("id", w.id);
   }
-  // Canonical refund ledger entry — receipts can now show "Refunded — Function
-  // cancelled" with a deep-link to the original function.
   await supabase.from("transactions").insert({
     user_id: userId,
     amount: amountKes,
@@ -73,7 +71,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { function_id, host_id } = req.body as { function_id?: string; host_id?: string };
     if (!function_id || !host_id) return res.status(400).json({ success: false, message: "Missing function_id or host_id" });
 
-    // Auth: verify the caller is actually the host
     const authUserId = await getAuthenticatedUserId(req);
     if (!authUserId || authUserId !== host_id) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -88,7 +85,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single();
     if (fnErr || !fn) return res.status(404).json({ success: false, message: "Function not found" });
     if (String(fn.host_id) !== String(host_id)) return res.status(403).json({ success: false, message: "Only host can cancel" });
-
     if (String(fn.status) === "cancelled") return res.status(200).json({ success: true, refunded: 0, message: "Already cancelled" });
 
     const { data: paidMembers, error: memErr } = await supabase
@@ -104,19 +100,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Cancel first (so UI stops selling)
     await supabase.from("functions").update({ status: "cancelled" }).eq("id", function_id);
 
+    // Refund each paid attendee (NOT the host — they didn't pay themselves)
     let refunded = 0;
     for (const uid of userIds) {
+      if (uid === host_id) continue; // Host doesn't get a refund
       try {
         await creditWallet(supabase, uid, refundKes, { id: fn.id, title: fn.title, host_id: fn.host_id });
         refunded += 1;
-        await sendPush(supabase, uid, "Refund issued", `“${fn.title}” was cancelled. Refunded KSH ${refundKes.toLocaleString("en-KE")} to your Yuto Balance.`);
+        await sendPush(supabase, uid, "Refund issued", `"${fn.title}" was cancelled. Refunded KSH ${refundKes.toLocaleString("en-KE")} to your Yuto Balance.`);
       } catch (e) {
         console.error("[cancel-function] refund failed:", uid, e);
       }
     }
 
-    // Notify host too
-    await sendPush(supabase, host_id, "Function cancelled", `Refunded ${refunded} attendee${refunded === 1 ? "" : "s"} for “${fn.title}”.`);
+    // CRITICAL: Debit the host's wallet for the total amount refunded.
+    // When attendees paid via pay_for_function, the host's wallet was credited.
+    // We must reverse those credits so money isn't created from thin air.
+    const totalHostDebit = refunded * refundKes;
+    if (totalHostDebit > 0) {
+      const { data: hostWallet } = await supabase.from("wallets").select("id, balance").eq("user_id", host_id).maybeSingle();
+      if (hostWallet?.id) {
+        const newBal = Math.max(0, Number(hostWallet.balance || 0) - totalHostDebit);
+        await supabase.from("wallets").update({ balance: newBal }).eq("id", hostWallet.id);
+        await supabase.from("transactions").insert({
+          user_id: host_id,
+          amount: -totalHostDebit,
+          kind: "cancellation_debit",
+          note: `Refunds issued for "${fn.title}"`,
+          method: "system",
+          status: "settled",
+          metadata: { function_id: fn.id, refunded_count: refunded },
+        });
+      }
+    }
+
+    await sendPush(supabase, host_id, "Function cancelled", `Refunded ${refunded} attendee${refunded === 1 ? "" : "s"} for "${fn.title}".`);
 
     return res.status(200).json({ success: true, refunded });
   } catch (e) {
@@ -124,4 +142,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ success: false, message: "Internal error" });
   }
 }
-

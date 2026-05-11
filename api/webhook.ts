@@ -243,6 +243,22 @@ async function processIntaSendWebhook(payload: {
       amount = await fetchAmountFromStatus(String(payload.invoice_id));
     }
     if (amount > 0) {
+      // Idempotency: skip if this invoice_id was already processed
+      if (payload.invoice_id) {
+        const { data: existingTx } = await supabase
+          .from("transactions")
+          .select("id")
+          .eq("user_id", uid)
+          .eq("kind", "topup")
+          .eq("status", "settled")
+          .filter("metadata->>'invoice_id'", "eq", String(payload.invoice_id))
+          .maybeSingle();
+        if (existingTx?.id) {
+          console.log("[webhook] TOPUP already processed, skipping:", payload.invoice_id);
+          return;
+        }
+      }
+
       const credited = await creditWalletBalance(supabase, uid, amount);
       if (!credited.ok) {
         console.error("[webhook] wallet credit failed:", credited);
@@ -520,6 +536,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    // Webhook signature verification — IntaSend sends a challenge header
+    // Set INTASEND_WEBHOOK_SECRET in Vercel env to match your IntaSend dashboard
+    const webhookSecret = process.env.INTASEND_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const challenge = req.headers["x-intasend-signature"] || req.headers["x-webhook-challenge"] || (req.body as any)?.challenge;
+      if (!challenge || challenge !== webhookSecret) {
+        console.error("[webhook] Invalid signature — rejected");
+        return res.status(401).json({ error: "Invalid webhook signature" });
+      }
     }
 
     const payload = req.body as {

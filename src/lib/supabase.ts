@@ -1114,6 +1114,20 @@ export async function createPlan(
 }
 
 export async function joinPlan(planId: string, userId: string, joinerName: string, creatorId: string) {
+  // Enforce slot limit before inserting
+  const { data: plan } = await supabase
+    .from("plans")
+    .select("slots, plan_members(id)")
+    .eq("id", planId)
+    .single();
+  
+  if (plan?.slots != null) {
+    const currentCount = (plan.plan_members || []).length;
+    if (currentCount >= plan.slots) {
+      throw new Error("This plan is full — no spots left.");
+    }
+  }
+
   const { error } = await supabase
     .from("plan_members")
     .insert({ plan_id: planId, user_id: userId });

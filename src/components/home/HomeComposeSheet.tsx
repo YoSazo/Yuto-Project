@@ -281,15 +281,24 @@ export function HomeComposeSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const createRequiresMedia = composeMode !== "plan";
+
   const canCreateSubmit = useMemo(() => {
     if (!title.trim()) return false;
     if (composeMode === "plan") return true;
 
-    // Photos required for all non-plan types
+    // Photos required for functions and listings
     if (createMediaFiles.length === 0) return false;
+    if ((parseInt(amount) || 0) <= 0) return false;
 
-    return (parseInt(amount) || 0) > 0;
-  }, [title, amount, composeMode, createMediaFiles.length]);
+    // Functions require date + location
+    if (composeMode === "function") {
+      if (!date) return false;
+      if (!location.trim()) return false;
+    }
+
+    return true;
+  }, [title, amount, composeMode, createMediaFiles.length, date, location]);
 
   const canPostSubmit = useMemo(() => {
     return !!postText.trim() || !!taggedEntity || taggedPeople.length > 0 || postMediaFiles.length > 0;
@@ -471,7 +480,11 @@ export function HomeComposeSheet({
                     className="w-full bg-transparent py-4 border-2 border-dashed border-gray-200 dark:border-zinc-800 rounded-2xl flex items-center justify-center gap-2 text-gray-400 hover:border-gray-300 dark:hover:border-zinc-700 hover:text-gray-500 dark:hover:text-gray-300 transition-colors"
                   >
                     <ImageIcon size={20} />
-                    <span className="text-sm font-medium">Add up to 3 photos / videos</span>
+                    <span className="text-sm font-medium">
+                      {composeMode === "plan"
+                        ? "Add up to 3 photos or videos (optional)"
+                        : "Add up to 3 photos / videos"}
+                    </span>
                   </button>
                 )}
                 <input
@@ -523,23 +536,23 @@ export function HomeComposeSheet({
               {composeMode !== "sell" && composeMode !== "service" && composeMode !== "plan" && (
                 <>
                   <div>
-                    <p className="text-xs text-gray-400 mb-1 font-semibold">Date &amp; time</p>
+                    <p className="text-xs text-gray-400 mb-1 font-semibold">Date &amp; time <span className="text-red-500">*</span></p>
                     <button
                       type="button"
                       onClick={() => setShowDatePicker(true)}
-                      className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base font-semibold text-left focus:outline-none focus:border-black dark:focus:border-white transition-colors"
+                      className={`w-full bg-transparent text-black dark:text-white border rounded-xl px-4 py-3 text-base font-semibold text-left focus:outline-none transition-colors ${!date ? "border-red-300 dark:border-red-800" : "border-gray-200 dark:border-zinc-800 focus:border-black dark:focus:border-white"}`}
                     >
                       {describeDateTime(date)}
                     </button>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 mb-1 font-semibold">Location</p>
+                    <p className="text-xs text-gray-400 mb-1 font-semibold">Location <span className="text-red-500">*</span></p>
                     <input
                       type="text"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       placeholder="Westlands, Nairobi"
-                      className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black dark:focus:border-white transition-colors"
+                      className={`w-full bg-transparent text-black dark:text-white border rounded-xl px-4 py-3 text-base focus:outline-none transition-colors ${!location.trim() ? "border-red-300 dark:border-red-800" : "border-gray-200 dark:border-zinc-800 focus:border-black dark:focus:border-white"}`}
                     />
                   </div>
                 </>
@@ -547,7 +560,7 @@ export function HomeComposeSheet({
 
               {createError && <p className="text-sm text-red-600">{createError}</p>}
 
-              {createMediaFiles.length === 0 && (
+              {createRequiresMedia && createMediaFiles.length === 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-sm text-amber-800 font-semibold flex items-start gap-2">
                   <span className="text-amber-500 mt-0.5">⚠️</span>
                   {composeMode === "sell" || composeMode === "service"

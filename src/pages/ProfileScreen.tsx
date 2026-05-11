@@ -1059,10 +1059,16 @@ export default function ProfileScreen() {
                               onConfirm: async () => {
                                 setConfirmModal(null);
                                 try {
-                                  await supabase.from("functions").update({ status: "cancelled" }).eq("id", fn.id);
+                                  // Call the proper cancel API — this issues refunds + push notifications
+                                  const res = await authFetch("/api/cancel-function", {
+                                    method: "POST",
+                                    body: JSON.stringify({ function_id: fn.id, host_id: user?.id }),
+                                  });
+                                  const data = await res.json();
+                                  if (!res.ok) throw new Error(data.message || "Couldn't cancel event");
                                   setOwnHostedFunctions(prev => prev.map(f => f.id === fn.id ? { ...f, status: "cancelled" } as any : f));
-                                  toast.success("Event cancelled");
-                                } catch (e) { toast.error("Couldn't cancel event"); }
+                                  toast.success(`Event cancelled. ${data.refunded > 0 ? `${data.refunded} attendee${data.refunded === 1 ? "" : "s"} refunded.` : ""}`);
+                                } catch (e: any) { toast.error(e?.message || "Couldn't cancel event"); }
                               },
                             });
                           }} className="px-4 py-2 text-sm font-bold text-left text-black dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800 border-none bg-transparent dark:bg-zinc-900">

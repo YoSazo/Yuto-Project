@@ -521,7 +521,7 @@ export function FunctionCard({
           </div>
         </div>
 
-        {isMember && me?.has_paid && !isHost && onOpenTicket && (
+        {isMember && me?.has_paid && !isHost && !isCancelled && onOpenTicket && (
           <button
             type="button"
             onClick={() => onOpenTicket(eventFunction)}
@@ -536,7 +536,7 @@ export function FunctionCard({
         )}
 
         {/* Host: show ticket button too so they can preview what attendees see */}
-        {isHost && paidCount > 0 && onOpenTicket && (
+        {isHost && paidCount > 0 && !isCancelled && onOpenTicket && (
           <button
             type="button"
             onClick={() => onOpenTicket(eventFunction)}
