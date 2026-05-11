@@ -46,8 +46,9 @@ export function PlanCard({
   const pm = plan.plan_members ?? [];
   const isMember = pm.some((m) => m.user_id === currentUserId);
   const joinedCount = pm.length;
-  const slotsLeft = plan.slots ? plan.slots - joinedCount : null;
-  const allIn = plan.slots ? joinedCount >= plan.slots : false;
+  // Slots includes the creator — so available spots = slots - 1 (creator) - joinedCount
+  const slotsLeft = plan.slots ? Math.max(0, plan.slots - 1 - joinedCount) : null;
+  const allIn = plan.slots ? (joinedCount + 1) >= plan.slots : false; // +1 for creator
   const canYutoIt = isMine && plan.amount && pm.length > 0 && plan.status !== "completed" && !plan.yuto_group_id;
 
   return (

@@ -1080,16 +1080,28 @@ export default function ProfileScreen() {
                           setOwnListingOptionsOpen(null);
                           setConfirmModal({
                             title: "Delete this event?",
-                            message: "This will permanently remove the event and all its data. This can't be undone.",
+                            message: "If anyone has paid, they'll be refunded first. The event will be permanently removed.",
                             confirmLabel: "Delete",
                             danger: true,
                             onConfirm: async () => {
                               setConfirmModal(null);
                               try {
+                                // Cancel first (refunds attendees + debits host) if not already cancelled
+                                if (fn.status !== "cancelled") {
+                                  const cancelRes = await authFetch("/api/cancel-function", {
+                                    method: "POST",
+                                    body: JSON.stringify({ function_id: fn.id, host_id: user?.id }),
+                                  });
+                                  if (!cancelRes.ok) {
+                                    const err = await cancelRes.json();
+                                    throw new Error(err.message || "Couldn't cancel before delete");
+                                  }
+                                }
+                                // Then delete
                                 await supabase.from("functions").delete().eq("id", fn.id);
                                 setOwnHostedFunctions(prev => prev.filter(f => f.id !== fn.id));
                                 toast.success("Event deleted");
-                              } catch (e) { toast.error("Couldn't delete event"); }
+                              } catch (e: any) { toast.error(e?.message || "Couldn't delete event"); }
                             },
                           });
                         }} className="px-4 py-2 text-sm font-bold text-red-600 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 border-none bg-transparent dark:bg-zinc-900">

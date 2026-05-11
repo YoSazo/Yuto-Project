@@ -117,7 +117,7 @@ export function FunctionCard({
       className={[
         "w-full rounded-3xl p-4 relative overflow-hidden",
         isFunction
-          ? "bg-black border border-black text-white"
+          ? "bg-black border border-zinc-800 dark:border-zinc-700 text-white"
           : "bg-white dark:bg-zinc-900 border border-gray-200/80 dark:border-zinc-800 text-black dark:text-white premium-function-card function-card-highlight",
       ].join(" ")}
     >
