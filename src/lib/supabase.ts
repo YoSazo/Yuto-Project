@@ -1,3 +1,36 @@
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * YUTO — ARCHITECTURE CHEAT SHEET
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * BALANCE: Always read from `wallets` table. Never `profiles.balance`.
+ *   fetchYutoBalance() → wallets.balance
+ *
+ * PAYMENT FLOW (functions):
+ *   joinFunction → payForFunctionWithLedger (RPC) → if fails → computeTopUpGap → top-up modal
+ *
+ * PAYMENT FLOW (splits):
+ *   payForPlanWithLedger (RPC) → if fails → top-up modal
+ *
+ * CANCEL FLOW:
+ *   cancel = refund each member + debit host. BOTH sides reversed.
+ *
+ * MESSAGE TYPES: 'text' | 'share' | 'charge'
+ * SHARE PAYLOAD KINDS: plan | function | listing | group | wallet_offer | profile | highlight
+ *
+ * LISTING SENTINELS:
+ *   location = '__SELL__' → marketplace listing
+ *   location = '__SERVICE__' → service booking
+ *   Regular string → event function
+ *
+ * AUTH: All /api/* calls use authFetch() which attaches Bearer token.
+ * MONEY RPCs: All SECURITY DEFINER. Client cannot bypass.
+ * AMOUNTS: Always Math.round() before passing to RPCs.
+ *
+ * DEV USER: f5f5da38-c839-4ce4-94fc-10f3854674e0
+ * ═══════════════════════════════════════════════════════════════
+ */
+
 import { createClient } from "@supabase/supabase-js";
 import { analytics } from "./analytics";
 
