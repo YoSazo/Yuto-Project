@@ -288,6 +288,17 @@ async function processIntaSendWebhook(payload: {
       // If this is their first ever top-up conversion, reward referrer.
       await maybeConvertReferralOnFirstTopUp(supabase, uid);
 
+      // Creator commission: if this user is attributed to a creator, pay them
+      try {
+        await supabase.rpc("process_creator_commission", {
+          p_user_id: uid,
+          p_trigger_type: "topup",
+          p_amount: amount,
+        });
+      } catch (e) {
+        console.error("[webhook] creator commission error:", e);
+      }
+
       await sendPushNotification(
         supabase,
         uid,

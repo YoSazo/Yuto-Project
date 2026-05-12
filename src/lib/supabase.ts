@@ -96,6 +96,16 @@ export async function signUp(username: string, password: string, displayName: st
           referrer_id: refUser.id,
           referred_id: data.user.id
         });
+
+        // Creator attribution: if the referrer is a creator, attribute this user to them
+        try {
+          await supabase.rpc("attribute_user_to_creator", {
+            p_new_user_id: data.user.id,
+            p_creator_id: refUser.id,
+          });
+        } catch {
+          // Not a creator or already attributed — ignore
+        }
       }
     }
   }

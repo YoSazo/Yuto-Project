@@ -28,6 +28,8 @@ const NotificationsScreen = lazy(() => import("./pages/NotificationsScreen"));
 const FunctionLandingScreen = lazy(() => import("./pages/FunctionLandingScreen"));
 const PlanLandingScreen = lazy(() => import("./pages/PlanLandingScreen"));
 const TermsScreen = lazy(() => import("./pages/TermsScreen"));
+const ReferralLandingScreen = lazy(() => import("./pages/ReferralLandingScreen"));
+const CreatorLandingScreen = lazy(() => import("./pages/CreatorLandingScreen"));
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return (
@@ -46,6 +48,8 @@ export const router = createBrowserRouter([
   { path: "/function/:functionId", element: <Lazy><FunctionLandingScreen /></Lazy> },
   { path: "/plan/:planId", element: <Lazy><PlanLandingScreen /></Lazy> },
   { path: "/terms", element: <Lazy><TermsScreen /></Lazy> },
+  { path: "/referral/:username", element: <Lazy><ReferralLandingScreen /></Lazy> },
+  { path: "/creator-invite/:username", element: <Lazy><CreatorLandingScreen /></Lazy> },
   {
     element: <Layout />,
     children: [

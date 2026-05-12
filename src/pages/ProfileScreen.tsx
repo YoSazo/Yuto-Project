@@ -45,6 +45,7 @@ import { FixedMediaCarousel } from "../components/media/FixedMediaCarousel";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { HostFunctionDashboard } from "../components/profile/HostFunctionDashboard";
 import { HostListingDashboard } from "../components/profile/HostListingDashboard";
+import { EarningsTab } from "../components/profile/EarningsTab";
 
 function ChevronRight() {
   return (
@@ -253,6 +254,7 @@ export default function ProfileScreen() {
   const [ownListings, setOwnListings] = useState<StorefrontListingItem[]>([]);
   const [ownFunctions, setOwnHostedFunctions] = useState<HostedFunctionItem[]>([]);
   const [ownShowcaseTab, setOwnShowcaseTab] = useState<"profile" | "functions" | "sell" | "service">("profile");
+  const [profileTopTab, setProfileTopTab] = useState<"profile" | "earnings">("profile");
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
   const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
   const [expandedFunctionId, setExpandedFunctionId] = useState<string | null>(null);
@@ -690,6 +692,30 @@ export default function ProfileScreen() {
 
   return (
     <div className="flex flex-col min-h-full px-5 pt-10 pb-6 bg-white dark:bg-black text-black dark:text-white transition-colors">
+      {/* ── TOP LEVEL: Profile vs Earnings ── */}
+      <div className="flex items-center justify-center mb-5">
+        <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-full p-1 w-[220px]">
+          <button
+            type="button"
+            onClick={() => setProfileTopTab("profile")}
+            className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors border-none ${profileTopTab === "profile" ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm" : "bg-transparent text-gray-500 dark:text-gray-400"}`}
+          >
+            Profile
+          </button>
+          <button
+            type="button"
+            onClick={() => setProfileTopTab("earnings")}
+            className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors border-none ${profileTopTab === "earnings" ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm" : "bg-transparent text-gray-500 dark:text-gray-400"}`}
+          >
+            Earnings
+          </button>
+        </div>
+      </div>
+
+      {profileTopTab === "earnings" ? (
+        <EarningsTab userId={user?.id || ""} username={profile?.username || ""} displayName={profile?.display_name || ""} />
+      ) : (
+      <>
       {/* ── HEADER & VIEW SWITCHER ── */}
       <div className="flex items-center justify-between mb-6 relative z-50">
         {availableTabs.length > 1 ? (
@@ -1292,6 +1318,9 @@ export default function ProfileScreen() {
             );
           })()}
         </div>
+      )}
+
+      </>
       )}
 
       {/* ── GLOBAL MODALS & OVERLAYS ── */}

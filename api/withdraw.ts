@@ -166,6 +166,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     if (updErr) console.error("[withdraw] tx update error:", updErr);
 
+    // Creator commission on withdrawal
+    try {
+      await supabase.rpc("process_creator_commission", {
+        p_user_id: user_id,
+        p_trigger_type: "withdrawal",
+        p_amount: verifiedAmount,
+      });
+    } catch (e) {
+      console.error("[withdraw] creator commission error:", e);
+    }
+
     return res.status(200).json({ success: true, message: "Funds sent to M-PESA!" });
 
   } catch (err) {
