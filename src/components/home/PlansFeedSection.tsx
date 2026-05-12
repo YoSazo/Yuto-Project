@@ -19,6 +19,7 @@ export function PlansFeedSection({
   onNavigateToCreator,
   onInviteFriends,
   onSharePlan,
+  onOpenMemories,
 }: {
   loading: boolean;
   plans: Plan[];
@@ -33,6 +34,7 @@ export function PlansFeedSection({
   onNavigateToCreator: (creatorId: string) => void;
   onInviteFriends?: () => void;
   onSharePlan?: (plan: Plan) => void;
+  onOpenMemories?: (planId: string) => void;
 }) {
   const [peopleModalPlanId, setPeopleModalPlanId] = useState<string | null>(null);
 
@@ -93,6 +95,7 @@ export function PlansFeedSection({
             onNavigateToCreator={onNavigateToCreator}
             onOpenPeople={(planId) => setPeopleModalPlanId(planId)}
             onSharePlan={onSharePlan}
+            onOpenMemories={onOpenMemories}
           />
         );
       })}

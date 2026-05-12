@@ -46,6 +46,8 @@ import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModa
 import { FunctionMessagesModal } from "../components/home/FunctionMessagesModal";
 import { PlanMessagesModal } from "../components/home/PlanMessagesModal";
 import { HomeComposeSheet } from "../components/home/HomeComposeSheet";
+import { GuidedTour } from "../components/GuidedTour";
+import { PlanMemoriesModal } from "../components/home/PlanMemoriesModal";
 import { FunctionFeedSection } from "../components/home/FunctionFeedSection";
 import { PlansFeedSection } from "../components/home/PlansFeedSection";
 import { PostsFeedSection } from "../components/home/PostsFeedSection";
@@ -78,6 +80,7 @@ export default function HomeScreen() {
   const [joiningPlanId, setJoiningPlanId] = useState<string | null>(null);
   const [duplicatingFnId, setDuplicatingFnId] = useState<string | null>(null);
   const [activePlanChat, setActivePlanChat] = useState<Plan | null>(null);
+  const [memoriesPlanId, setMemoriesPlanId] = useState<string | null>(null);
   // Compose state
   const [showCompose, setShowCompose] = useState(false);
   const [initialComposeMode, setInitialComposeMode] = useState<string | null>(null);
@@ -721,7 +724,7 @@ export default function HomeScreen() {
   return (
     <div
       ref={pullRefresh.scrollRef}
-      className="flex flex-col overflow-y-auto pb-28 px-5 pt-6 bg-white dark:bg-black text-black dark:text-white transition-colors"
+      className="flex flex-col overflow-y-auto pb-20 px-5 pt-6 bg-white dark:bg-black text-black dark:text-white transition-colors"
       style={{ touchAction: pullRefresh.pullDistance > 0 ? "none" : "auto" }}
       onTouchStart={pullRefresh.onTouchStart}
       onTouchMove={pullRefresh.onTouchMove}
@@ -842,23 +845,6 @@ export default function HomeScreen() {
               });
             }}
           />
-
-          <FunctionFeedSection
-            functionsFeed={functionsFeed}
-            loading={loading}
-            currentUserId={user?.id}
-            functionUnreadCounts={functionUnreadCounts}
-            onNavigateToHost={(hostId) => { if (hostId === "__manage__") navigate("/profile", { state: { openTab: "functions" } }); else navigate(`/user/${hostId}`); }}
-            onOpenFunctionThread={setActiveFunctionThread}
-            onOpenFunctionAttendeeChat={user ? openFunctionAttendeeChat : undefined}
-            onJoinFunction={handleJoinFunction}
-            onOpenTicket={(f) => setFunctionTicket(f)}
-            onShareInMessages={
-              user ? (payload) => setShareFeedPayload(payload) : undefined
-            }
-            onDuplicateFunction={user ? handleDuplicateFunction : undefined}
-            onMessageListing={user ? handleMessageListing : undefined}
-          />
         </>
       )}
 
@@ -878,7 +864,27 @@ export default function HomeScreen() {
         onSharePlan={
           user ? (plan) => setShareFeedPayload({ kind: "plan", plan_id: plan.id }) : undefined
         }
+        onOpenMemories={user ? (planId) => setMemoriesPlanId(planId) : undefined}
       />
+
+      {activeTab === "public" && (
+          <FunctionFeedSection
+            functionsFeed={functionsFeed}
+            loading={loading}
+            currentUserId={user?.id}
+            functionUnreadCounts={functionUnreadCounts}
+            onNavigateToHost={(hostId) => { if (hostId === "__manage__") navigate("/profile", { state: { openTab: "functions" } }); else navigate(`/user/${hostId}`); }}
+            onOpenFunctionThread={setActiveFunctionThread}
+            onOpenFunctionAttendeeChat={user ? openFunctionAttendeeChat : undefined}
+            onJoinFunction={handleJoinFunction}
+            onOpenTicket={(f) => setFunctionTicket(f)}
+            onShareInMessages={
+              user ? (payload) => setShareFeedPayload(payload) : undefined
+            }
+            onDuplicateFunction={user ? handleDuplicateFunction : undefined}
+            onMessageListing={user ? handleMessageListing : undefined}
+          />
+      )}
 
       <HomeComposeSheet
         open={showCompose}
@@ -1071,6 +1077,17 @@ export default function HomeScreen() {
         />
       )}
 
+      <GuidedTour onComplete={() => {}} />
+
+      {memoriesPlanId && user && (
+        <PlanMemoriesModal
+          open={!!memoriesPlanId}
+          planId={memoriesPlanId}
+          planTitle={plans.find((p) => p.id === memoriesPlanId)?.title || "Plan"}
+          currentUserId={user.id}
+          onClose={() => setMemoriesPlanId(null)}
+        />
+      )}
     </div>
   );
 }

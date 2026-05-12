@@ -237,6 +237,7 @@ export function HomeComposeSheet({
 
   // --- POST MODE STATE ---
   const [postText, setPostText] = useState("");
+  const [friendsOnly, setFriendsOnly] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [taggedEntity, setTaggedEntity] = useState<{
     id: string;
@@ -315,6 +316,7 @@ export function HomeComposeSheet({
           taggedEntity: taggedEntity ? { id: taggedEntity.id, kind: taggedEntity.kind } : null,
           taggedUserIds: taggedPeople.map((p) => p.id),
           mediaFiles: postMediaFiles,
+          friendsOnly,
         });
       }
       onClose();
@@ -337,6 +339,7 @@ export function HomeComposeSheet({
           amount: parseInt(amount) || 0,
           date,
           mediaFiles: createMediaFiles,
+          friendsOnly,
         });
       } else {
         const isSell = composeMode === "sell";
@@ -560,6 +563,20 @@ export function HomeComposeSheet({
 
               {createError && <p className="text-sm text-red-600">{createError}</p>}
 
+              {/* Friends only toggle */}
+              {(composeMode === "plan" || composeMode === "function") && (
+                <button
+                  type="button"
+                  onClick={() => setFriendsOnly(!friendsOnly)}
+                  className="flex items-center gap-2 py-2 px-0 bg-transparent border-none"
+                >
+                  <div className={`w-9 h-5 rounded-full transition-colors relative ${friendsOnly ? "bg-black dark:bg-white" : "bg-gray-200 dark:bg-zinc-700"}`}>
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all ${friendsOnly ? "left-[18px] bg-white dark:bg-black" : "left-0.5 bg-white dark:bg-zinc-400"}`} />
+                  </div>
+                  <span className={`text-sm font-semibold ${friendsOnly ? "text-black dark:text-white" : "text-gray-400"}`}>Friends only</span>
+                </button>
+              )}
+
               {createRequiresMedia && createMediaFiles.length === 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-sm text-amber-800 font-semibold flex items-start gap-2">
                   <span className="text-amber-500 mt-0.5">⚠️</span>
@@ -650,6 +667,15 @@ export function HomeComposeSheet({
                   className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-black hover:bg-gray-200 transition-colors"
                 >
                   <Users size={20} />
+                </button>
+
+                {/* Friends only toggle */}
+                <button
+                  type="button"
+                  onClick={() => setFriendsOnly(!friendsOnly)}
+                  className={`ml-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${friendsOnly ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white" : "bg-transparent text-gray-400 border-gray-200 dark:border-zinc-700"}`}
+                >
+                  {friendsOnly ? "Friends" : "Public"}
                 </button>
 
                 <button

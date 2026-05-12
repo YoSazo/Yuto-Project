@@ -83,6 +83,7 @@ export function FunctionCard({
     isListing && eventFunction.max_capacity != null ? Math.max(0, eventFunction.max_capacity - paidCount) : null;
   const fulfillment = isListing ? extractFulfillmentLine(eventFunction.description) : null;
   const cleanedDescription = isListing ? stripFulfillmentFromDescription(eventFunction.description) : eventFunction.description;
+  const hasMedia = ((eventFunction.media || []).length > 0) || !!eventFunction.image_url;
 
   const shareFunction = async (f: FunctionListing) => {
     const shareOrigin =
@@ -215,6 +216,24 @@ export function FunctionCard({
         return (
           <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 relative">
             <FixedMediaCarousel items={items} />
+            {/* Info overlay on bottom-left of image */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-3 pointer-events-none">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-white font-bold text-sm bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                  KSH {eventFunction.amount_per_person.toLocaleString()}
+                </span>
+                {isFunction && eventFunction.date && (
+                  <span className="text-white/90 text-xs font-semibold bg-white/15 backdrop-blur-sm px-2 py-1 rounded-full">
+                    {formatEventDate(eventFunction.date)}
+                  </span>
+                )}
+                {isFunction && eventFunction.location && (
+                  <span className="text-white/90 text-xs font-semibold bg-white/15 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+                    <MapPin size={10} /> {eventFunction.location}
+                  </span>
+                )}
+              </div>
+            </div>
             {isListing && eventFunction.listing_status && eventFunction.listing_status !== "active" && (
               <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-[2px] pointer-events-none">
                 <span className="px-4 py-2 bg-white text-black font-extrabold text-lg uppercase tracking-widest rounded-xl -rotate-6 shadow-sm">
@@ -280,14 +299,16 @@ export function FunctionCard({
       {/* No contact/booking pill on listings (DM flow handles it). */}
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <span
-          className={[
-            "font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 border",
-            isFunction ? "bg-white text-black border-white/20" : "bg-orange-50 text-orange-700 border-transparent",
-          ].join(" ")}
-        >
-          <BadgeDollarSign size={14} /> KSH {eventFunction.amount_per_person.toLocaleString()}
-        </span>
+        {!hasMedia && (
+          <span
+            className={[
+              "font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 border",
+              isFunction ? "bg-white text-black border-white/20" : "bg-orange-50 text-orange-700 border-transparent",
+            ].join(" ")}
+          >
+            <BadgeDollarSign size={14} /> KSH {eventFunction.amount_per_person.toLocaleString()}
+          </span>
+        )}
         {isListing ? (
           <>
             {remainingStock != null && remainingStock <= 5 && remainingStock > 0 && (
@@ -337,7 +358,7 @@ export function FunctionCard({
             </button>
           </>
         )}
-        {eventFunction.location && !isSell && !isService && (
+        {!hasMedia && eventFunction.location && !isSell && !isService && (
           <span
             className={[
               "font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 border",

@@ -1,7 +1,14 @@
 import UserAvatar from "../UserAvatar";
-import { MessageCircle, Rocket, Send, Share2, Trash2, UserCheck } from "lucide-react";
+import { MessageCircle, Rocket, Send, Share2, Trash2, UserCheck, Camera } from "lucide-react";
 import type { Plan } from "../../pages/home/types";
 import { FixedMediaCarousel } from "../media/FixedMediaCarousel";
+
+const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 175.216 175.552" width={size} height={size} fill="currentColor">
+    <path d="M87.184 25.227c-33.733 0-61.166 27.423-61.178 61.13a60.98 60.98 0 0 0 9.349 32.535l1.455 2.313-6.179 22.558 23.146-6.069 2.235 1.324c9.387 5.571 20.15 8.517 31.126 8.523h.023c33.707 0 61.14-27.426 61.153-61.135a60.75 60.75 0 0 0-17.895-43.251 60.75 60.75 0 0 0-43.235-17.928z"/>
+    <path fill="#fff" fillRule="evenodd" d="M68.772 55.603c-1.378-3.061-2.828-3.123-4.137-3.176l-3.524-.043c-1.226 0-3.218.46-4.902 2.3s-6.435 6.287-6.435 15.332 6.588 17.785 7.506 19.013 12.718 20.381 31.405 27.75c15.529 6.124 18.689 4.906 22.061 4.6s10.877-4.447 12.408-8.74 1.532-7.971 1.073-8.74-1.685-1.226-3.525-2.146-10.877-5.367-12.562-5.981-2.91-.919-4.137.921-4.746 5.979-5.819 7.206-2.144 1.381-3.984.462-7.76-2.861-14.784-9.124c-5.465-4.873-9.154-10.891-10.228-12.73s-.114-2.835.808-3.751c.825-.824 1.838-2.147 2.759-3.22s1.224-1.84 1.836-3.065.307-2.301-.153-3.22-4.032-10.011-5.666-13.647"/>
+  </svg>
+);
 
 function sharePlanToWhatsApp(plan: Plan) {
   const origin = window.location.hostname === "localhost" || window.location.hostname.startsWith("127.") ? window.location.origin : "https://yuto.social";
@@ -29,6 +36,7 @@ export function PlanCard({
   onNavigateToCreator,
   onOpenPeople,
   onSharePlan,
+  onOpenMemories,
 }: {
   plan: Plan;
   currentUserId?: string;
@@ -41,6 +49,7 @@ export function PlanCard({
   onNavigateToCreator?: (creatorId: string) => void;
   onOpenPeople?: (planId: string) => void;
   onSharePlan?: (plan: Plan) => void;
+  onOpenMemories?: (planId: string) => void;
 }) {
   const isMine = plan.creator_id === currentUserId;
   const pm = plan.plan_members ?? [];
@@ -146,41 +155,52 @@ export function PlanCard({
             </span>
           </button>
           {(onSharePlan || onOpenPlanChat) && (
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex flex-col gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); sharePlanToWhatsApp(plan); }}
-                className="relative w-10 h-10 shrink-0 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 flex items-center justify-center hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                aria-label="Share on WhatsApp"
-                title="Share on WhatsApp"
+                className="h-10 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 flex items-center justify-center gap-1.5 px-3 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                aria-label="Send on WhatsApp"
+                title="Send on WhatsApp"
               >
-                <Share2 size={16} />
+                <span className="text-xs font-bold">Send</span>
+                <WhatsAppIcon size={16} />
               </button>
-              {onSharePlan && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSharePlan(plan);
-                  }}
-                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                  aria-label={`Share ${plan.title}`}
-                  title="Share in messages"
-                >
-                  <Send size={16} />
-                </button>
-              )}
-              {onOpenPlanChat && (
-                <button
-                  type="button"
-                  onClick={() => onOpenPlanChat(plan)}
-                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                  aria-label={`Chat about ${plan.title}`}
-                  title="Open chat"
-                >
-                  <MessageCircle size={16} />
-                </button>
-              )}
+              <div className="flex items-center gap-1.5">
+                {onSharePlan && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onSharePlan(plan); }}
+                    className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                    aria-label={`Share ${plan.title}`}
+                    title="Share in messages"
+                  >
+                    <Send size={16} />
+                  </button>
+                )}
+                {onOpenPlanChat && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenPlanChat(plan)}
+                    className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                    aria-label={`Chat about ${plan.title}`}
+                    title="Open chat"
+                  >
+                    <MessageCircle size={16} />
+                  </button>
+                )}
+                {plan.yuto_group_id && onOpenMemories && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenMemories(plan.id)}
+                    className="relative w-10 h-10 shrink-0 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                    aria-label="Memories"
+                    title="Photos & memories"
+                  >
+                    <Camera size={16} />
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -188,7 +208,7 @@ export function PlanCard({
 
       <div className={`flex flex-wrap gap-1.5 ${pm.length > 0 ? "" : "items-center justify-between"}`}>
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          {!isMine && !allIn && onJoinOrLeavePlan && (
+          {!isMine && !allIn && onJoinOrLeavePlan && !plan.yuto_group_id && (
             <button
               type="button"
               onClick={() => void onJoinOrLeavePlan(plan)}
@@ -206,7 +226,29 @@ export function PlanCard({
               )}
             </button>
           )}
-          {plan.yuto_group_id && isMember && onNavigateToYutoGroup && (
+          {plan.yuto_group_id && isMember && !isMine && onNavigateToYutoGroup && (
+            <>
+              <button
+                type="button"
+                onClick={() => onNavigateToYutoGroup(plan.yuto_group_id!)}
+                className="flex-[2] py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+              >
+                <span className="flex items-center justify-center gap-1.5">
+                  <Rocket size={15} /> Pay up 💸
+                </span>
+              </button>
+              {onJoinOrLeavePlan && (
+                <button
+                  type="button"
+                  onClick={() => void onJoinOrLeavePlan(plan)}
+                  className="flex-1 py-2.5 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 rounded-xl font-bold text-xs transition-colors"
+                >
+                  Leave
+                </button>
+              )}
+            </>
+          )}
+          {plan.yuto_group_id && isMember && isMine && onNavigateToYutoGroup && (
             <button
               type="button"
               onClick={() => onNavigateToYutoGroup(plan.yuto_group_id!)}
@@ -231,38 +273,41 @@ export function PlanCard({
         </div>
 
         {pm.length === 0 && (onSharePlan || onOpenPlanChat) && (
-          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          <div className="flex flex-col gap-1.5 shrink-0 ml-auto">
             <button
               type="button"
               onClick={() => sharePlanToWhatsApp(plan)}
-              className="relative w-10 h-10 shrink-0 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 flex items-center justify-center hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-              aria-label="Share on WhatsApp"
-              title="Share on WhatsApp"
+              className="h-10 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 flex items-center justify-center gap-1.5 px-3 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+              aria-label="Send on WhatsApp"
+              title="Send on WhatsApp"
             >
-              <Share2 size={16} />
+              <span className="text-xs font-bold">Send</span>
+              <WhatsAppIcon size={16} />
             </button>
-            {onSharePlan && (
-              <button
-                type="button"
-                onClick={() => onSharePlan(plan)}
-                className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                aria-label={`Share ${plan.title}`}
-                title="Share in messages"
-              >
-                <Send size={16} />
-              </button>
-            )}
-            {onOpenPlanChat && (
-              <button
-                type="button"
-                onClick={() => onOpenPlanChat(plan)}
-                className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                aria-label={`Chat about ${plan.title}`}
-                title="Open chat"
-              >
-                <MessageCircle size={16} />
-              </button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {onSharePlan && (
+                <button
+                  type="button"
+                  onClick={() => onSharePlan(plan)}
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                  aria-label={`Share ${plan.title}`}
+                  title="Share in messages"
+                >
+                  <Send size={16} />
+                </button>
+              )}
+              {onOpenPlanChat && (
+                <button
+                  type="button"
+                  onClick={() => onOpenPlanChat(plan)}
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                  aria-label={`Chat about ${plan.title}`}
+                  title="Open chat"
+                >
+                  <MessageCircle size={16} />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

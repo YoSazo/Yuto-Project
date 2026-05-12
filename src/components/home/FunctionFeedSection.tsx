@@ -63,15 +63,15 @@ export function FunctionFeedSection({
   if (functionsFeed.length === 0) return null;
 
   return (
-    <div className="mb-6">
-      <div className="flex flex-col gap-4 mb-6">
-        {marketplace.length > 0 && (
+    <div className="mb-6 mt-6">
+      <div className="flex flex-col gap-4">
+        {events.length > 0 && (
           <>
             <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Marketplace</p>
-              <span className="text-xs text-gray-400">Message to buy</span>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Functions</p>
+              <span className="text-xs text-gray-400">Hosted now</span>
             </div>
-            {marketplace.map((eventFunction) => (
+            {events.map((eventFunction) => (
               <FunctionCard
                 key={eventFunction.id}
                 eventFunction={eventFunction}
@@ -91,13 +91,13 @@ export function FunctionFeedSection({
           </>
         )}
 
-        {events.length > 0 && (
+        {marketplace.length > 0 && (
           <>
-            <div className="flex items-center justify-between mt-2 mb-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Functions</p>
-              <span className="text-xs text-gray-400">Hosted now</span>
+            <div className="flex items-center justify-between mt-6 mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Marketplace</p>
+              <span className="text-xs text-gray-400">Message to buy</span>
             </div>
-            {events.map((eventFunction) => (
+            {marketplace.map((eventFunction) => (
               <FunctionCard
                 key={eventFunction.id}
                 eventFunction={eventFunction}
@@ -111,6 +111,7 @@ export function FunctionFeedSection({
                 onOpenPeople={(functionId, title) => setPeopleModal({ functionId, title })}
                 onShareInMessages={onShareInMessages}
                 onDuplicate={onDuplicateFunction}
+                onMessageListing={onMessageListing}
               />
             ))}
           </>
