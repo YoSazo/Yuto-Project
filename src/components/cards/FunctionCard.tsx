@@ -7,7 +7,6 @@ import {
   MapPin,
   MessageCircle,
   Send,
-  Share2,
   Sparkles,
   Store,
   Ticket,
@@ -18,6 +17,21 @@ import { formatEventDate, type FunctionListing } from "../../pages/home/types";
 import type { DmSharePayload } from "../../lib/supabase";
 import { FixedMediaCarousel } from "../media/FixedMediaCarousel";
 import { toast } from "sonner";
+
+/** Brand colors so the bubble + phone read on dark and light UIs (not a single currentColor blob). */
+const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 175.216 175.552" width={size} height={size} aria-hidden>
+    <path
+      fill="#25D366"
+      d="M87.184 25.227c-33.733 0-61.166 27.423-61.178 61.13a60.98 60.98 0 0 0 9.349 32.535l1.455 2.313-6.179 22.558 23.146-6.069 2.235 1.324c9.387 5.571 20.15 8.517 31.126 8.523h.023c33.707 0 61.14-27.426 61.153-61.135a60.75 60.75 0 0 0-17.895-43.251 60.75 60.75 0 0 0-43.235-17.928z"
+    />
+    <path
+      fill="#fff"
+      fillRule="evenodd"
+      d="M68.772 55.603c-1.378-3.061-2.828-3.123-4.137-3.176l-3.524-.043c-1.226 0-3.218.46-4.902 2.3s-6.435 6.287-6.435 15.332 6.588 17.785 7.506 19.013 12.718 20.381 31.405 27.75c15.529 6.124 18.689 4.906 22.061 4.6s10.877-4.447 12.408-8.74 1.532-7.971 1.073-8.74-1.685-1.226-3.525-2.146-10.877-5.367-12.562-5.981-2.91-.919-4.137.921-4.746 5.979-5.819 7.206-2.144 1.381-3.984.462-7.76-2.861-14.784-9.124c-5.465-4.873-9.154-10.891-10.228-12.73s-.114-2.835.808-3.751c.825-.824 1.838-2.147 2.759-3.22s1.224-1.84 1.836-3.065.307-2.301-.153-3.22-4.032-10.011-5.666-13.647"
+    />
+  </svg>
+);
 
 function extractFulfillmentLine(description: string | null): string | null {
   if (!description) return null;
@@ -81,11 +95,22 @@ export function FunctionCard({
   const isFunction = !isListing;
   const remainingStock =
     isListing && eventFunction.max_capacity != null ? Math.max(0, eventFunction.max_capacity - paidCount) : null;
+  const listingSt = eventFunction.listing_status ?? "active";
+  const isListingSoldOut =
+    isListing && (listingSt === "sold" || (remainingStock !== null && remainingStock <= 0));
+  const isListingPausedState = isListing && listingSt === "paused";
+  const listingAvailabilityLabel = !isListing
+    ? ""
+    : isListingSoldOut
+      ? "Sold out"
+      : isListingPausedState
+        ? "Paused"
+        : "Available now";
   const fulfillment = isListing ? extractFulfillmentLine(eventFunction.description) : null;
   const cleanedDescription = isListing ? stripFulfillmentFromDescription(eventFunction.description) : eventFunction.description;
   const hasMedia = ((eventFunction.media || []).length > 0) || !!eventFunction.image_url;
 
-  const shareFunction = async (f: FunctionListing) => {
+  const shareFunctionToWhatsApp = (f: FunctionListing) => {
     const shareOrigin =
       window.location.hostname === "localhost" || window.location.hostname.startsWith("127.")
         ? window.location.origin
@@ -98,16 +123,6 @@ export function FunctionCard({
     else title = `🎉 ${f.host.display_name} is hosting ${f.title}`;
 
     const fullText = `${title}\n${isListing ? `KSH ${f.amount_per_person.toLocaleString("en-KE")}` : `${formatEventDate(f.date)} · KSH ${f.amount_per_person.toLocaleString("en-KE")}`}\n\n${url}`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ text: fullText, url });
-        return;
-      }
-    } catch {
-      // fall back to WhatsApp direct
-    }
-    // WhatsApp fallback
     const waUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
     window.open(waUrl, "_blank");
   };
@@ -140,7 +155,7 @@ export function FunctionCard({
           </p>
           <p className={["text-xs flex items-center gap-1 mt-0.5", isFunction ? "text-white/70" : "text-gray-400"].join(" ")}>
             {isListing ? (
-              <>Available now</>
+              <>{listingAvailabilityLabel}</>
             ) : (
               <>
                 <MapPin size={11} className="shrink-0" />
@@ -166,41 +181,16 @@ export function FunctionCard({
         </span>
       </div>
 
-      <div className="flex items-start justify-between gap-3 mb-1">
-        <p 
-          className={`font-bold text-lg flex-1 min-w-0 ${isFunction ? "text-white" : "text-black dark:text-white"} ${
-            (isListing && eventFunction.listing_status && eventFunction.listing_status !== "active") || 
-            isCancelled
-              ? "opacity-60 line-through" 
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p
+          className={`font-bold text-lg flex-1 min-w-0 leading-snug ${isFunction ? "text-white" : "text-black dark:text-white"} ${
+            (isListing && eventFunction.listing_status && eventFunction.listing_status !== "active") || isCancelled
+              ? "opacity-60 line-through"
               : ""
           }`}
         >
           {eventFunction.title}
         </p>
-        {onShareInMessages && (
-          <button
-            type="button"
-            onClick={() => {
-              const payload = isSell 
-                ? { kind: "listing" as const, function_id: eventFunction.id, listing_kind: "sell" as const }
-                : isService 
-                  ? { kind: "listing" as const, function_id: eventFunction.id, listing_kind: "service" as const }
-                  : { kind: "function" as const, function_id: eventFunction.id };
-              
-              onShareInMessages(payload);
-            }}
-            className={[
-              "shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors tap-scale border",
-              isFunction
-                ? "border-white/20 bg-white/10 text-white hover:bg-white/15"
-                : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 shadow-sm",
-            ].join(" ")}
-            aria-label={`Send ${eventFunction.title} in messages`}
-            title="Share in messages"
-          >
-            <Send size={15} strokeWidth={2} />
-          </button>
-        )}
       </div>
       {(() => {
         const media = (eventFunction.media || [])
@@ -234,10 +224,10 @@ export function FunctionCard({
                 )}
               </div>
             </div>
-            {isListing && eventFunction.listing_status && eventFunction.listing_status !== "active" && (
+            {isListing && (isListingPausedState || isListingSoldOut) && (
               <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-[2px] pointer-events-none">
                 <span className="px-4 py-2 bg-white text-black font-extrabold text-lg uppercase tracking-widest rounded-xl -rotate-6 shadow-sm">
-                  {eventFunction.listing_status === "sold" ? "SOLD" : "PAUSED"}
+                  {isListingPausedState ? "PAUSED" : "SOLD"}
                 </span>
               </div>
             )}
@@ -311,17 +301,21 @@ export function FunctionCard({
         )}
         {isListing ? (
           <>
-            {remainingStock != null && remainingStock <= 5 && remainingStock > 0 && (
-              <span className="bg-red-50 text-red-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 animate-pulse">
-                <Flame size={14} /> Only {remainingStock} left!
-              </span>
-            )}
-            {remainingStock != null && remainingStock > 5 && (
+            {!isListingSoldOut &&
+              !isListingPausedState &&
+              remainingStock != null &&
+              remainingStock <= 5 &&
+              remainingStock > 0 && (
+                <span className="bg-red-50 text-red-600 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 animate-pulse">
+                  <Flame size={14} /> Only {remainingStock} left!
+                </span>
+              )}
+            {!isListingSoldOut && !isListingPausedState && remainingStock != null && remainingStock > 5 && (
               <span className="bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                 <Sparkles size={14} /> {remainingStock} {isService ? "spots left" : "left"}
               </span>
             )}
-            {remainingStock === 0 && (
+            {isListingSoldOut && (
               <span className="bg-red-100 text-red-700 font-bold text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
                 <Zap size={14} /> Sold out
               </span>
@@ -403,142 +397,172 @@ export function FunctionCard({
       )}
 
       <div className={["pt-1 border-t", isFunction ? "border-white/10" : "border-gray-100 dark:border-zinc-800"].join(" ")}>
-        <div className="flex items-center justify-between gap-2 mt-3">
-          <div className={["text-xs flex items-center gap-1.5", isFunction ? "text-white/65" : "text-gray-400"].join(" ")}>
-            <CalendarDays size={13} /> {isListing ? "Available now" : formatEventDate(eventFunction.date)}
+        <div className="flex items-start justify-between gap-2 mt-3">
+          <div className={["text-xs flex items-center gap-1.5 min-w-0", isFunction ? "text-white/65" : "text-gray-400"].join(" ")}>
+            <CalendarDays size={13} className="shrink-0" />
+            <span>{isListing ? listingAvailabilityLabel : formatEventDate(eventFunction.date)}</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => void shareFunction(eventFunction)}
+              onClick={() => shareFunctionToWhatsApp(eventFunction)}
               className={[
-                "w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
-                isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700",
+                "h-10 rounded-xl border flex items-center justify-center gap-1.5 px-3 font-bold text-xs transition-colors",
+                isFunction
+                  ? "border-green-500/40 bg-green-500/15 text-green-100 hover:bg-green-500/25"
+                  : "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/25 text-green-800 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-900/35",
               ].join(" ")}
-              aria-label={`Copy or share ${eventFunction.title} link`}
-              title="Share link"
+              aria-label="Send on WhatsApp"
+              title="Send on WhatsApp"
             >
-              <Share2 size={16} />
+              <span className="text-xs font-bold">Send</span>
+              <WhatsAppIcon size={16} />
             </button>
 
-            {isFunction && onOpenFunctionThread && (
-              <button
-                type="button"
-                onClick={() => onOpenFunctionThread(eventFunction)}
-                className={[
-                  "relative w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
-                  isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700",
-                ].join(" ")}
-                aria-label={`Ask questions about ${eventFunction.title}`}
-                title="Ask questions"
-              >
-                <MessageCircle size={16} />
-                {uc > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
-                    {uc}
-                  </span>
-                )}
-              </button>
-            )}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {onShareInMessages && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const payload = isSell
+                      ? { kind: "listing" as const, function_id: eventFunction.id, listing_kind: "sell" as const }
+                      : isService
+                        ? { kind: "listing" as const, function_id: eventFunction.id, listing_kind: "service" as const }
+                        : { kind: "function" as const, function_id: eventFunction.id };
+                    onShareInMessages(payload);
+                  }}
+                  className={[
+                    "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors tap-scale border",
+                    isFunction
+                      ? "border-white/20 bg-white/10 text-white hover:bg-white/15"
+                      : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700",
+                  ].join(" ")}
+                  aria-label={`Share ${eventFunction.title} in messages`}
+                  title="Share in messages"
+                >
+                  <Send size={16} strokeWidth={2} />
+                </button>
+              )}
 
-            {isFunction && isMember && me?.has_paid && onOpenFunctionAttendeeChat && (
-              <button
-                type="button"
-                onClick={() => onOpenFunctionAttendeeChat(eventFunction)}
-                className={[
-                  "w-11 h-11 rounded-xl border flex items-center justify-center transition-colors",
-                  "border-green-500/35 bg-green-500/12 text-green-200 hover:bg-green-500/18",
-                ].join(" ")}
-                aria-label={`Open attendee chat for ${eventFunction.title}`}
-                title="Attendee chat"
-              >
-                <Users size={16} />
-              </button>
-            )}
+              {isFunction && onOpenFunctionThread && (
+                <button
+                  type="button"
+                  onClick={() => onOpenFunctionThread(eventFunction)}
+                  className={[
+                    "relative w-10 h-10 rounded-xl border flex items-center justify-center transition-colors",
+                    isFunction ? "border-white/15 bg-white/12 text-white hover:bg-white/18" : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700",
+                  ].join(" ")}
+                  aria-label={`Ask questions about ${eventFunction.title}`}
+                  title="Ask questions"
+                >
+                  <MessageCircle size={16} />
+                  {uc > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                      {uc}
+                    </span>
+                  )}
+                </button>
+              )}
 
-            {isHost ? (
-              <div className="flex items-center gap-2">
-                {onDuplicate && !isCancelled && !isPastEvent && (
+              {isFunction && isMember && me?.has_paid && onOpenFunctionAttendeeChat && (
+                <button
+                  type="button"
+                  onClick={() => onOpenFunctionAttendeeChat(eventFunction)}
+                  className={[
+                    "w-10 h-10 rounded-xl border flex items-center justify-center transition-colors",
+                    "border-green-500/35 bg-green-500/12 text-green-200 hover:bg-green-500/18",
+                  ].join(" ")}
+                  aria-label={`Open attendee chat for ${eventFunction.title}`}
+                  title="Attendee chat"
+                >
+                  <Users size={16} />
+                </button>
+              )}
+
+              {isHost ? (
+                <div className="flex items-center gap-2">
+                  {onDuplicate && !isCancelled && !isPastEvent && (
+                    <button
+                      type="button"
+                      onClick={() => onDuplicate(eventFunction)}
+                      className={[
+                        "px-3 py-2 rounded-xl font-bold text-xs transition-colors border",
+                        isFunction ? "border-white/20 bg-white/10 text-white hover:bg-white/15" : "border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700",
+                      ].join(" ")}
+                    >
+                      Run again
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => onDuplicate(eventFunction)}
+                    onClick={() => onNavigateToHost("__manage__")}
                     className={[
                       "px-3 py-2 rounded-xl font-bold text-xs transition-colors border",
                       isFunction ? "border-white/20 bg-white/10 text-white hover:bg-white/15" : "border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700",
                     ].join(" ")}
                   >
-                    Run again
+                    Dashboard
                   </button>
-                )}
+                </div>
+              ) : suppressListingPay && isListing ? (
+                <span className={["text-xs font-semibold text-center max-w-[11rem]", isFunction ? "text-white/55" : "text-gray-400"].join(" ")}>
+                  Pay in chat when ready
+                </span>
+              ) : isListing && onMessageListing ? (
                 <button
                   type="button"
-                  onClick={() => onNavigateToHost("__manage__")}
+                  disabled={isListingSoldOut || isListingPausedState}
+                  onClick={() => onMessageListing(eventFunction)}
                   className={[
-                    "px-3 py-2 rounded-xl font-bold text-xs transition-colors border",
-                    isFunction ? "border-white/20 bg-white/10 text-white hover:bg-white/15" : "border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700",
+                    "px-5 py-2.5 rounded-xl font-bold text-sm transition-colors",
+                    isListingSoldOut || isListingPausedState
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                      : isFunction
+                        ? "bg-white text-black hover:bg-white/90"
+                        : "bg-black text-white hover:bg-gray-800",
                   ].join(" ")}
                 >
-                  Dashboard
+                  {isListingSoldOut ? "Sold Out" : isListingPausedState ? "Paused" : "Message"}
                 </button>
-              </div>
-            ) : suppressListingPay && isListing ? (
-              <span className={["text-xs font-semibold text-center max-w-[11rem]", isFunction ? "text-white/55" : "text-gray-400"].join(" ")}>
-                Pay in chat when ready
-              </span>
-            ) : isListing && onMessageListing ? (
-              <button
-                type="button"
-                disabled={eventFunction.listing_status === "sold" || eventFunction.listing_status === "paused"}
-                onClick={() => onMessageListing(eventFunction)}
-                className={[
-                  "px-5 py-2.5 rounded-xl font-bold text-sm transition-colors",
-                  eventFunction.listing_status && eventFunction.listing_status !== "active"
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                    : isFunction 
-                      ? "bg-white text-black hover:bg-white/90" 
-                      : "bg-black text-white hover:bg-gray-800",
-                ].join(" ")}
-              >
-                {eventFunction.listing_status === "sold" ? "Sold Out" : eventFunction.listing_status === "paused" ? "Paused" : "Message"}
-              </button>
-            ) : isMember && me?.has_paid ? (
-              <span className={["text-sm font-bold flex items-center gap-1.5", isFunction ? "text-emerald-300" : "text-green-600"].join(" ")}>
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                You&apos;re in
-              </span>
-            ) : canPay ? (
-              <button
-                type="button"
-                onClick={() => onJoinFunction?.(eventFunction)}
-                className={[
-                  "px-4 py-2 rounded-xl font-bold text-sm transition-colors",
-                  isFunction ? "bg-white text-black hover:bg-white/90" : "bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-100",
-                ].join(" ")}
-              >
-                {isSell ? "Pay & buy" : isService ? "Pay & book" : "Pay & join"}
-              </button>
-            ) : canJoin ? (
-              <button
-                type="button"
-                disabled={isCancelled || isPastEvent}
-                onClick={() => onJoinFunction?.(eventFunction)}
-                className={[
-                  "px-4 py-2 rounded-xl font-bold text-sm transition-colors",
-                  isCancelled || isPastEvent
-                    ? "bg-white/10 text-white/40 cursor-not-allowed"
-                    : isFunction 
-                      ? "bg-white text-black hover:bg-white/90" 
-                      : "bg-black text-white hover:bg-gray-800",
-                ].join(" ")}
-              >
-                {isCancelled ? "Cancelled" : isPastEvent ? "Event ended" : isSell ? "Purchase" : isService ? "Book" : isFull ? "Join Waitlist" : "Lock in my spot"}
-              </button>
-            ) : (
-              <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>
-                {isCancelled ? "Cancelled" : isPastEvent ? "Ended" : isFull ? "Full" : "Joined"}
-              </span>
-            )}
+              ) : isMember && me?.has_paid ? (
+                <span className={["text-sm font-bold flex items-center gap-1.5", isFunction ? "text-emerald-300" : "text-green-600"].join(" ")}>
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  You&apos;re in
+                </span>
+              ) : canPay ? (
+                <button
+                  type="button"
+                  onClick={() => onJoinFunction?.(eventFunction)}
+                  className={[
+                    "px-4 py-2 rounded-xl font-bold text-sm transition-colors",
+                    isFunction ? "bg-white text-black hover:bg-white/90" : "bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-100",
+                  ].join(" ")}
+                >
+                  {isSell ? "Pay & buy" : isService ? "Pay & book" : "Pay & join"}
+                </button>
+              ) : canJoin ? (
+                <button
+                  type="button"
+                  disabled={isCancelled || isPastEvent}
+                  onClick={() => onJoinFunction?.(eventFunction)}
+                  className={[
+                    "px-4 py-2 rounded-xl font-bold text-sm transition-colors",
+                    isCancelled || isPastEvent
+                      ? "bg-white/10 text-white/40 cursor-not-allowed"
+                      : isFunction
+                        ? "bg-white text-black hover:bg-white/90"
+                        : "bg-black text-white hover:bg-gray-800",
+                  ].join(" ")}
+                >
+                  {isCancelled ? "Cancelled" : isPastEvent ? "Event ended" : isSell ? "Purchase" : isService ? "Book" : isFull ? "Join Waitlist" : "Lock in my spot"}
+                </button>
+              ) : (
+                <span className={["text-sm font-semibold", isFunction ? "text-white/65" : "text-gray-500"].join(" ")}>
+                  {isCancelled ? "Cancelled" : isPastEvent ? "Ended" : isFull ? "Full" : "Joined"}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

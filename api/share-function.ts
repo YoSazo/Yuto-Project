@@ -62,6 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         location,
         amount_per_person,
         max_capacity,
+        status,
+        listing_status,
         host:profiles!functions_host_id_fkey ( id, display_name, username, avatar_url ),
         function_members ( id )
       `,
@@ -100,31 +102,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const hostName = data.host?.display_name || data.host?.username || "Someone";
     const isSell = data.location === "__SELL__";
     const isService = data.location === "__SERVICE__";
-    const titleLine = isSell
-      ? `🛍️ ${hostName} is selling ${data.title}`
-      : isService
-        ? `🛠️ ${hostName} offers ${data.title}`
-        : `🎉 ${hostName} is hosting ${data.title}`;
     const joinedCount = Array.isArray(data.function_members) ? data.function_members.length : 0;
     const spotsLeft =
       typeof data.max_capacity === "number" && data.max_capacity > 0
         ? Math.max(0, data.max_capacity - joinedCount)
         : null;
+    const fnStatus = String((data as { status?: string }).status || "open");
+    const listingSt = String((data as { listing_status?: string | null }).listing_status || "active");
+    const isCancelled = fnStatus === "cancelled";
+    const isFunded = fnStatus === "funded";
+    const listingPaused = (isSell || isService) && listingSt === "paused";
+    const listingSold =
+      (isSell || isService) && (listingSt === "sold" || (spotsLeft !== null && spotsLeft === 0));
+    const eventSoldOut = !isSell && !isService && spotsLeft === 0;
 
-    // Viral urgency copy for WhatsApp previews
-    const urgencyPart = spotsLeft != null && spotsLeft <= 5 && spotsLeft > 0
-      ? `🔥 Only ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left!`
-      : spotsLeft === 0
-        ? `❌ Sold out`
-        : joinedCount > 0
-          ? `${joinedCount} already going`
-          : "";
+    const titleLine = isCancelled
+      ? `❌ Cancelled: ${data.title}`
+      : isSell
+        ? `🛍️ ${hostName} is selling ${data.title}`
+        : isService
+          ? `🛠️ ${hostName} offers ${data.title}`
+          : `🎉 ${hostName} is hosting ${data.title}`;
+
+    let urgencyPart = "";
+    if (isCancelled) urgencyPart = "Cancelled";
+    else if (listingPaused) urgencyPart = "Paused";
+    else if (listingSold || eventSoldOut) urgencyPart = "Sold out";
+    else if (isFunded && !isSell && !isService) urgencyPart = "Complete";
+    else if (spotsLeft != null && spotsLeft <= 5 && spotsLeft > 0)
+      urgencyPart = `🔥 Only ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left!`;
+    else if (joinedCount > 0) urgencyPart = `${joinedCount} already going`;
+
+    const listingState = isCancelled ? "Cancelled" : listingPaused ? "Paused" : listingSold ? "Sold out" : "Available now";
+    const serviceState = isCancelled ? "Cancelled" : listingPaused ? "Paused" : listingSold ? "Sold out" : "Book now";
 
     const subLine = isSell
-      ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Available now`.trim()
+      ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · ${listingState}${
+          !isCancelled && !listingPaused && !listingSold && joinedCount > 0 ? ` · ${joinedCount} interested` : ""
+        }`.trim()
       : isService
-        ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Book now`.trim()
-        : `${formatShareDate(data.date)} · KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} ${urgencyPart ? `· ${urgencyPart}` : ""}`.trim();
+        ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · ${serviceState}${
+            !isCancelled && !listingPaused && !listingSold && joinedCount > 0 ? ` · ${joinedCount} interested` : ""
+          }`.trim()
+        : `${formatShareDate(data.date)} · KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")}${urgencyPart ? ` · ${urgencyPart}` : ""}`.trim();
 
     const ogImageUrl = `${origin}/og/function/${encodeURIComponent(functionId)}.png`;
 

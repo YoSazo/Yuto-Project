@@ -73,11 +73,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `
         id,
         title,
+        description,
         image_url,
         date,
         location,
         amount_per_person,
         max_capacity,
+        status,
+        listing_status,
         host:profiles!functions_host_id_fkey ( display_name, username ),
         function_members ( id )
       `,
@@ -115,13 +118,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       typeof data.max_capacity === "number" && data.max_capacity > 0
         ? Math.max(0, data.max_capacity - joinedCount)
         : null;
+    const fnStatus = String((data as { status?: string }).status || "open");
+    const listingSt = String((data as { listing_status?: string | null }).listing_status || "active");
+    const isCancelled = fnStatus === "cancelled";
+    const isFunded = fnStatus === "funded";
+    const listingPaused = (isSell || isService) && listingSt === "paused";
+    const listingSold =
+      (isSell || isService) && (listingSt === "sold" || (spotsLeft !== null && spotsLeft === 0));
+    const eventSoldOut = !isSell && !isService && spotsLeft === 0;
+
+    let statusSuffix = "";
+    if (isCancelled) statusSuffix = " · Cancelled";
+    else if (listingPaused) statusSuffix = " · Paused";
+    else if (listingSold || eventSoldOut) statusSuffix = " · Sold out";
+    else if (isFunded) statusSuffix = " · Complete";
+    else if (spotsLeft != null && spotsLeft <= 5 && spotsLeft > 0)
+      statusSuffix = ` · ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`;
+
+    const sellServiceState = isCancelled ? "Cancelled" : listingPaused ? "Paused" : listingSold ? "Sold out" : "Open";
+
     const metaLine = isSell
-      ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Available now`
+      ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · ${sellServiceState}`
       : isService
-        ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · Book now`
+        ? `KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")} · ${sellServiceState}`
         : `${formatShareDate(data.date)} · KSH ${Number(data.amount_per_person || 0).toLocaleString("en-KE")}${
-            spotsLeft != null ? ` · ${spotsLeft} spots left` : ""
-          }${data.location ? ` · ${data.location}` : ""}`;
+            data.location ? ` · ${data.location}` : ""
+          }${statusSuffix}`;
 
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
