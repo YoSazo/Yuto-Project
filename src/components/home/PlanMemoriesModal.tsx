@@ -211,7 +211,7 @@ export function PlanMemoriesModal({
                 const mem = memories[idx];
                 if (!mem) return null;
                 return (
-                  <div className="fixed inset-0 z-[60] bg-black flex flex-col fade-in">
+                  <div className="fixed inset-0 z-[60] bg-black fade-in">
                     <div className="absolute top-5 right-5 z-20">
                       <button type="button" onClick={() => setSelectedImage(null)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border-none">
                         <X size={20} className="text-white" />
@@ -225,11 +225,10 @@ export function PlanMemoriesModal({
                       </div>
                     )}
                     {/* Swipeable carousel */}
-                    <div className="flex-1 flex items-center overflow-hidden">
+                    <div className="absolute inset-0 top-14 bottom-24 flex items-center">
                       <style>{`.mem-carousel::-webkit-scrollbar { display: none; } .mem-carousel { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
                       <div
-                        className="w-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth mem-carousel"
-                        style={{ WebkitOverflowScrolling: "touch" as any }}
+                        className="w-full h-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth mem-carousel items-center"
                         onScroll={(e) => {
                           const el = e.currentTarget;
                           const w = el.clientWidth || 1;
@@ -241,8 +240,8 @@ export function PlanMemoriesModal({
                         }}
                       >
                         {memories.map((m) => (
-                          <div key={m.id} className="snap-center shrink-0 w-full flex items-center justify-center px-4">
-                            <img src={m.media_url} alt="" className="max-w-full max-h-[75vh] object-contain rounded-lg" draggable={false} />
+                          <div key={m.id} className="snap-center shrink-0 w-full h-full flex items-center justify-center px-2">
+                            <img src={m.media_url} alt="" className="max-w-full max-h-full object-contain rounded-lg" draggable={false} />
                           </div>
                         ))}
                       </div>
