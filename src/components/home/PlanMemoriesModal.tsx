@@ -225,10 +225,15 @@ export function PlanMemoriesModal({
                       </div>
                     )}
                     {/* Swipeable carousel */}
-                    <div className="absolute inset-0 top-14 bottom-24 flex items-center">
+                    <div className="absolute inset-0 flex items-center pt-14 pb-24">
                       <style>{`.mem-carousel::-webkit-scrollbar { display: none; } .mem-carousel { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
                       <div
-                        className="w-full h-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth mem-carousel items-center"
+                        className="w-full h-full overflow-x-auto flex snap-x snap-mandatory mem-carousel items-center"
+                        ref={(el) => {
+                          if (el) {
+                            el.scrollLeft = idx * el.clientWidth;
+                          }
+                        }}
                         onScroll={(e) => {
                           const el = e.currentTarget;
                           const w = el.clientWidth || 1;
