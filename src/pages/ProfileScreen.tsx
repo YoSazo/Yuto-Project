@@ -254,7 +254,7 @@ export default function ProfileScreen() {
   const [ownListings, setOwnListings] = useState<StorefrontListingItem[]>([]);
   const [ownFunctions, setOwnHostedFunctions] = useState<HostedFunctionItem[]>([]);
   const [ownShowcaseTab, setOwnShowcaseTab] = useState<"profile" | "functions" | "sell" | "service">("profile");
-  const [profileTopTab, setProfileTopTab] = useState<"profile" | "earnings">("profile");
+  const [profileTopTab, setProfileTopTab] = useState<"profile" | "earnings">("earnings");
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
   const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
   const [expandedFunctionId, setExpandedFunctionId] = useState<string | null>(null);
