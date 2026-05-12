@@ -211,7 +211,7 @@ export function PlanMemoriesModal({
                 const mem = memories[idx];
                 if (!mem) return null;
                 return (
-                  <div className="fixed inset-0 z-[60] bg-black fade-in">
+                  <div className="fixed top-0 left-0 right-0 bottom-0 z-[60] bg-black fade-in" style={{ position: 'fixed', height: '100%', width: '100%', touchAction: 'pan-x' }}>
                     <div className="absolute top-5 right-5 z-20">
                       <button type="button" onClick={() => setSelectedImage(null)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border-none">
                         <X size={20} className="text-white" />
@@ -224,43 +224,27 @@ export function PlanMemoriesModal({
                         </button>
                       </div>
                     )}
-                    {/* Swipeable carousel */}
-                    <div className="absolute inset-0 flex items-center pt-14 pb-24">
-                      <style>{`.mem-carousel::-webkit-scrollbar { display: none; } .mem-carousel { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
-                      <div
-                        className="w-full h-full overflow-x-auto flex snap-x snap-mandatory mem-carousel items-center"
-                        ref={(el) => {
-                          if (el) {
-                            el.scrollLeft = idx * el.clientWidth;
-                          }
-                        }}
-                        onScroll={(e) => {
-                          const el = e.currentTarget;
-                          const w = el.clientWidth || 1;
-                          const newIdx = Math.round(el.scrollLeft / w);
-                          const clamped = Math.max(0, Math.min(memories.length - 1, newIdx));
-                          if (memories[clamped] && memories[clamped].id !== selectedImage) {
-                            setSelectedImage(memories[clamped].id);
-                          }
-                        }}
-                      >
-                        {memories.map((m) => (
-                          <div key={m.id} className="snap-center shrink-0 w-full h-full flex items-center justify-center px-2">
-                            <img src={m.media_url} alt="" className="max-w-full max-h-full object-contain rounded-lg" draggable={false} />
-                          </div>
-                        ))}
-                      </div>
+                    {/* Single image centered */}
+                    <div className="w-full h-full flex items-center justify-center p-4 pt-16 pb-24">
+                      <img src={mem.media_url} alt="" className="max-w-full max-h-full object-contain rounded-lg" draggable={false} />
                     </div>
                     {/* Dots */}
                     {memories.length > 1 && (
-                      <div className="absolute bottom-20 left-0 right-0 flex items-center justify-center gap-1.5">
+                      <div className="absolute bottom-20 left-0 right-0 flex items-center justify-center gap-1.5 z-20">
                         {memories.map((m, i) => (
                           <span key={m.id} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === idx ? "bg-white" : "bg-white/40"}`} />
                         ))}
                       </div>
                     )}
+                    {/* Nav arrows (small, subtle) */}
+                    {idx > 0 && (
+                      <button type="button" onClick={() => setSelectedImage(memories[idx - 1].id)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border-none z-20 text-white text-sm">&lt;</button>
+                    )}
+                    {idx < memories.length - 1 && (
+                      <button type="button" onClick={() => setSelectedImage(memories[idx + 1].id)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border-none z-20 text-white text-sm">&gt;</button>
+                    )}
                     {/* Author info */}
-                    <div className="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-2">
+                    <div className="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-2 z-20">
                       <UserAvatar name={mem.profiles.display_name} avatarUrl={mem.profiles.avatar_url} size="sm" />
                       <span className="text-white text-sm font-semibold">{mem.profiles.display_name}</span>
                       <span className="text-white/50 text-xs">{new Date(mem.created_at).toLocaleDateString("en-KE", { month: "short", day: "numeric" })}</span>
