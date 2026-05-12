@@ -47,6 +47,9 @@ import { HostFunctionDashboard } from "../components/profile/HostFunctionDashboa
 import { HostListingDashboard } from "../components/profile/HostListingDashboard";
 import { EarningsTab } from "../components/profile/EarningsTab";
 
+// ─── KILL SWITCH: set to false to hide Earnings tab during reviews ───
+const EARNINGS_ENABLED = false;
+
 function ChevronRight() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -693,6 +696,7 @@ export default function ProfileScreen() {
   return (
     <div className="flex flex-col min-h-full px-5 pt-10 pb-6 bg-white dark:bg-black text-black dark:text-white transition-colors">
       {/* ── TOP LEVEL: Profile vs Earnings ── */}
+      {EARNINGS_ENABLED && (
       <div className="flex items-center justify-center mb-5">
         <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-full p-1 w-[220px]">
           <button
@@ -711,8 +715,9 @@ export default function ProfileScreen() {
           </button>
         </div>
       </div>
+      )}
 
-      {profileTopTab === "earnings" ? (
+      {EARNINGS_ENABLED && profileTopTab === "earnings" ? (
         <EarningsTab userId={user?.id || ""} username={profile?.username || ""} displayName={profile?.display_name || ""} />
       ) : (
       <>

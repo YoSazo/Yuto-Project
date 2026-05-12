@@ -206,7 +206,7 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-3 text-center"><p className="text-xl font-black text-black dark:text-white">{creatorData?.total_users_brought || 0}</p><p className="text-[10px] text-gray-400 font-semibold">Users</p></div>
                 <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-3 text-center"><p className="text-xl font-black text-emerald-600 dark:text-emerald-400">70%</p><p className="text-[10px] text-gray-400 font-semibold">Your cut</p></div>
-                <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-3 text-center"><p className="text-xl font-black text-black dark:text-white">{recentEarnings.length}</p><p className="text-[10px] text-gray-400 font-semibold">Payouts</p></div>
+                <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-3 text-center"><p className="text-xl font-black text-black dark:text-white">{recentEarnings.length}</p><p className="text-[10px] text-gray-400 font-semibold">Recent</p></div>
               </div>
 
               {/* Your link — for posting on socials */}

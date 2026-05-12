@@ -72,12 +72,20 @@ export async function signUp(username: string, password: string, displayName: st
     const params = new URLSearchParams(window.location.search);
     refUsername = params.get("ref");
     
-    // If no query param, check if they came from an invite screen redirect
+    // Check sessionStorage for referrer_username (set by /r/:username and /c/:username landing pages)
+    if (!refUsername) {
+      const storedReferrer = sessionStorage.getItem("referrer_username");
+      if (storedReferrer) {
+        refUsername = storedReferrer;
+        sessionStorage.removeItem("referrer_username");
+      }
+    }
+
+    // If still no ref, check if they came from an invite screen redirect
     if (!refUsername) {
       const storedRedirect = sessionStorage.getItem("joinAfterAuth");
       if (storedRedirect && storedRedirect.startsWith("/invite/")) {
         refUsername = storedRedirect.split("/invite/")[1];
-        sessionStorage.removeItem("joinAfterAuth");
       }
     }
 

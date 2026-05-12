@@ -73,7 +73,7 @@ CREATE POLICY "Dev can manage creators" ON public.creators FOR ALL USING (auth.u
 
 ALTER TABLE public.creator_earnings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Creators can read own earnings" ON public.creator_earnings FOR SELECT USING (auth.uid() = creator_id);
-CREATE POLICY "Service role inserts" ON public.creator_earnings FOR INSERT WITH CHECK (true); -- service role only in practice
+CREATE POLICY "Service role inserts" ON public.creator_earnings FOR INSERT WITH CHECK (false); -- Only SECURITY DEFINER RPCs can insert (they bypass RLS)
 
 ALTER TABLE public.creator_user_attributions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can read own attribution" ON public.creator_user_attributions FOR SELECT USING (auth.uid() = user_id);
@@ -215,7 +215,9 @@ BEGIN
   VALUES (p_new_user_id, p_creator_id)
   ON CONFLICT (user_id) DO NOTHING;
 
-  -- Increment creator's user count
-  UPDATE creators SET total_users_brought = total_users_brought + 1 WHERE user_id = p_creator_id;
+  -- Increment creator's user count ONLY if we actually inserted
+  IF FOUND THEN
+    UPDATE creators SET total_users_brought = total_users_brought + 1 WHERE user_id = p_creator_id;
+  END IF;
 END;
 $$;
