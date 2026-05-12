@@ -1044,9 +1044,21 @@ export default function ProfileScreen() {
               </div>
               <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mt-1">Saved</span>
             </div>
-            <div className="flex gap-2">
-              <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))} placeholder="254712345678" maxLength={12} className="flex-1 h-12 border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 rounded-full px-4 text-base outline-none focus:border-black dark:focus:border-white text-black dark:text-white transition-colors" />
-              <button type="button" onClick={handleSavePhone} disabled={savingPhone} className="h-12 px-5 rounded-full bg-black dark:bg-white text-white dark:text-black font-semibold disabled:opacity-60 disabled:cursor-not-allowed">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2">
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                placeholder="254712345678"
+                maxLength={12}
+                className="min-w-0 w-full sm:flex-1 h-12 border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 rounded-full px-3 sm:px-4 text-base outline-none focus:border-black dark:focus:border-white text-black dark:text-white transition-colors"
+              />
+              <button
+                type="button"
+                onClick={handleSavePhone}
+                disabled={savingPhone}
+                className="h-12 w-full sm:w-auto shrink-0 px-4 sm:px-5 rounded-full bg-black dark:bg-white text-white dark:text-black font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+              >
                 {savingPhone ? "Saving" : "Save"}
               </button>
             </div>
