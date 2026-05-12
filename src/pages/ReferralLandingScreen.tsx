@@ -87,17 +87,12 @@ export default function ReferralLandingScreen() {
         {/* Mascot */}
         <img src={imgYutoMascot} className="w-20 h-20 mb-6" alt="Yuto" />
 
-        {/* Challenge text */}
-        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-3 mb-6">
-          <p className="text-white/90 text-sm font-bold">😏 Challenge mode</p>
-        </div>
-
         <h1 className="text-3xl font-black text-white mb-3 leading-tight max-w-[320px]">
-          {displayName} is about to earn KSH 10 from you joining
+          {displayName} invited you to Yuto
         </h1>
 
         <p className="text-white/80 text-sm mb-8 max-w-[280px] leading-relaxed">
-          Sign up — and you can earn KSH 10 too by inviting YOUR friends. It's a game. 🎮
+          Sign up and you both earn KSH 10. You can earn more by inviting your friends too.
         </p>
 
         {/* What is Yuto */}

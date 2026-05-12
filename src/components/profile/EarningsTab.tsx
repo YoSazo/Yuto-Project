@@ -96,7 +96,6 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
   if (loading) return (<div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin" /></div>);
 
   const isCreator = creatorData?.status === "active";
-  const currentPct = isCreator ? (hasRecruited ? 100 : 70) : 0;
   const milestones = [10, 25, 50, 100];
   const nextMilestone = milestones.find((m) => (creatorData?.total_users_brought || 0) < m);
   const usersToNext = nextMilestone ? nextMilestone - (creatorData?.total_users_brought || 0) : 0;
@@ -173,7 +172,7 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
               <div className="bg-black dark:bg-zinc-900 rounded-3xl p-6 text-white relative overflow-hidden">
                 <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
                 <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-4"><Crown size={20} className="text-yellow-400" /><p className="font-bold text-sm uppercase tracking-wider text-yellow-400">Creator</p><span className="ml-auto text-xs font-bold bg-white/10 px-2 py-0.5 rounded-full">{currentPct}% cut</span></div>
+                  <div className="flex items-center gap-2 mb-4"><Crown size={20} className="text-yellow-400" /><p className="font-bold text-sm uppercase tracking-wider text-yellow-400">Creator</p><span className="ml-auto text-xs font-bold bg-white/10 px-2 py-0.5 rounded-full">70% cut</span></div>
                   <p className="text-4xl font-black mb-1">KSH {(creatorData?.total_earned_kes || 0).toLocaleString()}</p>
                   <p className="text-white/80 text-sm font-semibold">{creatorData?.total_users_brought || 0} users earning you money</p>
                   <p className="text-white/50 text-xs mt-3">Every top-up and withdrawal your users make earns you commission. Forever.</p>
@@ -189,27 +188,24 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
                 </div>
               )}
 
-              {/* Progress to 100% */}
-              {currentPct < 100 && (
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center"><TrendingUp size={20} /></div>
-                    <div><p className="font-bold text-sm text-black dark:text-white">Unlock 100% earnings</p><p className="text-xs text-gray-500 dark:text-gray-400">You're at 70% — recruit 1 creator to get 100%</p></div>
-                  </div>
-                  <div className="w-full h-3 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden mb-3"><div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: "70%" }} /></div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Find someone with an audience. When they become a creator through your link, you jump to <span className="font-bold text-black dark:text-white">100%</span> AND earn <span className="font-bold text-black dark:text-white">30% of their earnings</span> passively.</p>
-                  <button type="button" onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(`I'm earning money on Yuto as a Creator \uD83D\uDCB0\n\nEvery user I bring earns me commission on their transactions. Forever.\n\nYou should join too:\n${creatorRecruitUrl}`)}`, "_blank"); }} className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"><Users size={16} /> Recruit a Creator via WhatsApp</button>
-                  <div className="flex items-center gap-2 mt-3">
-                    <div className="flex-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs font-mono text-black dark:text-white truncate">{creatorRecruitUrl}</div>
-                    <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(creatorRecruitUrl); setCopiedCreatorLink(true); setTimeout(() => setCopiedCreatorLink(false), 1500); } catch {} }} className="py-2 px-3 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-xl font-bold text-xs shrink-0">{copiedCreatorLink ? "Copied!" : "Copy"}</button>
-                  </div>
+              {/* Recruit creators → passive income */}
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center"><Users size={20} /></div>
+                  <div><p className="font-bold text-sm text-black dark:text-white">Recruit creators → earn 30% passively</p><p className="text-xs text-gray-500 dark:text-gray-400">Every creator you recruit, you earn 30% of their earnings. Forever.</p></div>
                 </div>
-              )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Find people with audiences. When they become creators through your link, you earn from all their users without doing anything.</p>
+                <button type="button" onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(`I'm earning money on Yuto as a Creator \uD83D\uDCB0\n\nEvery user I bring earns me commission on their transactions. Forever.\n\nYou should join too:\n${creatorRecruitUrl}`)}`, "_blank"); }} className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"><Users size={16} /> Recruit a Creator via WhatsApp</button>
+                <div className="flex items-center gap-2 mt-3">
+                  <div className="flex-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs font-mono text-black dark:text-white truncate">{creatorRecruitUrl}</div>
+                  <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(creatorRecruitUrl); setCopiedCreatorLink(true); setTimeout(() => setCopiedCreatorLink(false), 1500); } catch {} }} className="py-2 px-3 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-xl font-bold text-xs shrink-0">{copiedCreatorLink ? "Copied!" : "Copy"}</button>
+                </div>
+              </div>
 
               {/* Stats grid */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-3 text-center"><p className="text-xl font-black text-black dark:text-white">{creatorData?.total_users_brought || 0}</p><p className="text-[10px] text-gray-400 font-semibold">Users</p></div>
-                <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-3 text-center"><p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{currentPct}%</p><p className="text-[10px] text-gray-400 font-semibold">Your cut</p></div>
+                <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-3 text-center"><p className="text-xl font-black text-emerald-600 dark:text-emerald-400">70%</p><p className="text-[10px] text-gray-400 font-semibold">Your cut</p></div>
                 <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-3 text-center"><p className="text-xl font-black text-black dark:text-white">{recentEarnings.length}</p><p className="text-[10px] text-gray-400 font-semibold">Payouts</p></div>
               </div>
 
@@ -259,8 +255,8 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
               {/* How it works */}
               <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-5 space-y-3">
                 <p className="font-bold text-black dark:text-white text-sm">How you earn</p>
-                <div className="flex items-start gap-3"><div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center shrink-0"><TrendingUp size={14} /></div><div><p className="text-sm font-semibold text-black dark:text-white">Every top-up & withdrawal</p><p className="text-xs text-gray-400">Your users' activity earns you {currentPct}% of the net margin</p></div></div>
-                <div className="flex items-start gap-3"><div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center shrink-0"><Users size={14} /></div><div><p className="text-sm font-semibold text-black dark:text-white">Recruit creators → unlock 100%</p><p className="text-xs text-gray-400">Bring 1 creator and jump from 70% to 100% + earn 30% of their earnings</p></div></div>
+                <div className="flex items-start gap-3"><div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center shrink-0"><TrendingUp size={14} /></div><div><p className="text-sm font-semibold text-black dark:text-white">Every top-up & withdrawal</p><p className="text-xs text-gray-400">Your users' activity earns you 70% of the net margin</p></div></div>
+                <div className="flex items-start gap-3"><div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center shrink-0"><Users size={14} /></div><div><p className="text-sm font-semibold text-black dark:text-white">Recruit creators → 30% passive</p><p className="text-xs text-gray-400">Every creator you recruit, you earn 30% of their earnings forever</p></div></div>
                 <div className="flex items-start gap-3"><div className="w-7 h-7 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 flex items-center justify-center shrink-0"><Zap size={14} /></div><div><p className="text-sm font-semibold text-black dark:text-white">Forever</p><p className="text-xs text-gray-400">Once a user is yours, every transaction earns you money. No expiry.</p></div></div>
               </div>
             </>
@@ -271,8 +267,8 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
               <h3 className="text-xl font-black text-black dark:text-white mb-2">Become a Yuto Creator</h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 max-w-[280px] mx-auto leading-relaxed">Post about Yuto on your socials. Every user you bring earns you money on every transaction they make. Forever.</p>
               <div className="bg-gray-50 dark:bg-zinc-900 rounded-2xl p-5 text-left space-y-4 mb-6">
-                <div className="flex items-center gap-3"><span className="text-2xl">{"\uD83D\uDCB0"}</span><div><p className="font-bold text-sm text-black dark:text-white">70% of net revenue → 100%</p><p className="text-xs text-gray-400">Start at 70%. Recruit 1 creator → jump to 100%</p></div></div>
-                <div className="flex items-center gap-3"><span className="text-2xl">{"\uD83D\uDD04"}</span><div><p className="font-bold text-sm text-black dark:text-white">Passive income from recruits</p><p className="text-xs text-gray-400">Recruit other creators → earn 30% of their earnings forever</p></div></div>
+                <div className="flex items-center gap-3"><span className="text-2xl">{"\uD83D\uDCB0"}</span><div><p className="font-bold text-sm text-black dark:text-white">70% of net revenue from your users</p><p className="text-xs text-gray-400">Every top-up and withdrawal your users make earns you money</p></div></div>
+                <div className="flex items-center gap-3"><span className="text-2xl">{"\uD83D\uDD04"}</span><div><p className="font-bold text-sm text-black dark:text-white">+30% passive from recruited creators</p><p className="text-xs text-gray-400">Recruit other creators → earn 30% of their earnings forever</p></div></div>
                 <div className="flex items-center gap-3"><span className="text-2xl">{"\u267E\uFE0F"}</span><div><p className="font-bold text-sm text-black dark:text-white">Lifetime earnings</p><p className="text-xs text-gray-400">No expiry. Your users are yours forever.</p></div></div>
                 <div className="flex items-center gap-3"><span className="text-2xl">{"\uD83D\uDCC8"}</span><div><p className="font-bold text-sm text-black dark:text-white">Example: 50 users = KSH 5,000+/month</p><p className="text-xs text-gray-400">If each user tops up KSH 2,000/month, you earn ~KSH 5,600</p></div></div>
               </div>

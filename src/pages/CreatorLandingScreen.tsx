@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 import imgYutoMascot from "../assets/yuto-mascot.webp";
-import { Crown, TrendingUp, Users, Zap, DollarSign } from "lucide-react";
+import { Crown } from "lucide-react";
 
 /**
  * Creator recruitment landing page — /creator-invite/:username
@@ -80,92 +80,63 @@ export default function CreatorLandingScreen() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col transition-colors">
-      {/* Hero */}
-      <div className="relative px-6 pt-12 pb-8">
+      {/* Hero — thesis immediately clear */}
+      <div className="relative px-6 pt-14 pb-8">
         <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/10 via-transparent to-transparent" />
         <div className="relative z-10 text-center">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 mx-auto flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 mx-auto flex items-center justify-center mb-5">
             <Crown size={28} className="text-white" />
           </div>
-          <p className="text-yellow-400 font-bold text-sm uppercase tracking-wider mb-2">Creator Program</p>
           <h1 className="text-3xl font-black text-white mb-3 leading-tight">
-            Join the Yuto<br />Creator Program
+            Every user you bring<br />earns you money
           </h1>
-          <p className="text-gray-400 text-sm max-w-[300px] mx-auto">
-            {displayName} invited you. Earn money from every user you bring to Yuto.
+          <p className="text-gray-400 text-sm max-w-[300px] mx-auto leading-relaxed">
+            When your users put money in or take money out of Yuto, you earn a percentage. Every time. Forever.
           </p>
+          {displayName && (
+            <p className="text-yellow-400/80 text-xs mt-4 font-semibold">Invited by {displayName}</p>
+          )}
         </div>
       </div>
 
-      {/* Economics */}
+      {/* The math — most prominent */}
       <div className="px-6 space-y-4 flex-1">
-        {/* Revenue card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
-              <DollarSign size={20} className="text-yellow-400" />
+        <div className="bg-gradient-to-r from-yellow-900/40 to-orange-900/40 border border-yellow-700/50 rounded-2xl p-6">
+          <p className="font-bold text-yellow-400 text-xs uppercase tracking-wider mb-3">Example earnings</p>
+          <div className="space-y-4">
+            <div className="flex items-baseline justify-between">
+              <p className="text-gray-300 text-sm">50 users, each moving KSH 2,000/month</p>
             </div>
-            <div>
-              <p className="font-bold text-white text-sm">70% → 100% revenue share</p>
-              <p className="text-xs text-gray-400">Start at 70%. Recruit 1 creator → 100%</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-zinc-800 rounded-xl p-3 text-center">
-              <p className="text-2xl font-black text-yellow-400">70%</p>
-              <p className="text-[10px] text-gray-400 font-semibold">Starting cut</p>
-            </div>
-            <div className="bg-zinc-800 rounded-xl p-3 text-center">
-              <p className="text-2xl font-black text-emerald-400">100%</p>
-              <p className="text-[10px] text-gray-400 font-semibold">After 1 recruit</p>
-            </div>
+            <p className="text-4xl font-black text-white">KSH 5,600<span className="text-lg text-gray-400">/month</span></p>
+            <p className="text-gray-400 text-xs">More users = more money. No ceiling. No expiry.</p>
           </div>
         </div>
 
-        {/* Passive income card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-              <TrendingUp size={20} className="text-purple-400" />
-            </div>
-            <div>
-              <p className="font-bold text-white text-sm">Passive income from recruits</p>
-              <p className="text-xs text-gray-400">Earn 30% of every creator you recruit's earnings</p>
-            </div>
-          </div>
-          <div className="bg-zinc-800 rounded-xl p-4">
-            <p className="text-xs text-gray-400 mb-2">Example: You recruit 3 creators</p>
-            <p className="text-sm text-white font-semibold">Each earns KSH 5,000/month → you get KSH 4,500/month passively</p>
-          </div>
-        </div>
-
-        {/* How it works */}
+        {/* How it works — simple */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
           <p className="font-bold text-white text-sm mb-2">How it works</p>
           <div className="flex items-start gap-3">
             <div className="w-7 h-7 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center shrink-0 text-xs font-bold">1</div>
-            <p className="text-sm text-gray-300">Post about Yuto on your socials / WhatsApp Status</p>
+            <p className="text-sm text-gray-300">You get a personal link. Post it anywhere.</p>
           </div>
           <div className="flex items-start gap-3">
             <div className="w-7 h-7 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center shrink-0 text-xs font-bold">2</div>
-            <p className="text-sm text-gray-300">Every user who signs up through your link is yours</p>
+            <p className="text-sm text-gray-300">Anyone who signs up through your link is your user.</p>
           </div>
           <div className="flex items-start gap-3">
             <div className="w-7 h-7 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center shrink-0 text-xs font-bold">3</div>
-            <p className="text-sm text-gray-300">Every top-up and withdrawal they make earns you commission</p>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-7 h-7 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center shrink-0 text-xs font-bold">4</div>
-            <p className="text-sm text-gray-300">Forever. No expiry. Your users are yours.</p>
+            <p className="text-sm text-gray-300">Every time they top up or withdraw, you earn a cut.</p>
           </div>
         </div>
 
-        {/* Math example */}
-        <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border border-yellow-800/50 rounded-2xl p-5">
-          <p className="font-bold text-white text-sm mb-2">📈 The math</p>
-          <p className="text-sm text-gray-300 leading-relaxed">
-            50 users × KSH 2,000/month average activity = <span className="font-bold text-yellow-400">KSH 5,600+/month</span> in your pocket. Recruit more users, earn more. No ceiling.
-          </p>
+        {/* Revenue details */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <p className="font-bold text-white text-sm mb-3">Your cut</p>
+          <div className="bg-zinc-800 rounded-xl p-4 mb-3">
+            <p className="text-2xl font-black text-yellow-400 mb-1">70% of net margin</p>
+            <p className="text-xs text-gray-400">From every transaction your users make</p>
+          </div>
+          <p className="text-xs text-gray-400">Plus: recruit other creators and earn <span className="text-purple-400 font-bold">30% of their earnings</span> passively. The more creators you recruit, the more you earn without lifting a finger.</p>
         </div>
       </div>
 
@@ -186,7 +157,7 @@ export default function CreatorLandingScreen() {
           </button>
         )}
         <p className="text-center text-gray-500 text-xs">
-          Creator status is granted to active promoters with an audience.
+          Creator status is granted to promoters with an audience.
         </p>
       </div>
     </div>
