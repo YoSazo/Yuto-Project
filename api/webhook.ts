@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
+import { maybeSendMoneySmsAlert } from "./_moneySms.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -187,6 +188,11 @@ async function maybeConvertReferralOnFirstTopUp(supabase: any, referredUserId: s
       "Referral bonus",
       `You earned +KSH ${REFERRAL_BONUS_KES} from a friend's first top up.`,
     );
+    await maybeSendMoneySmsAlert(
+      supabase,
+      ref.referrer_id,
+      `Yuto: Referral bonus +KSH ${REFERRAL_BONUS_KES} — a friend topped up for the first time.`,
+    );
   } catch (e) {
     console.error("[webhook] referral convert/credit error:", e);
   }
@@ -304,6 +310,11 @@ async function processIntaSendWebhook(payload: {
         uid,
         "Top up received",
         `Your Yuto Balance was credited with KSH ${Math.round(amount).toLocaleString("en-KE")}.`,
+      );
+      await maybeSendMoneySmsAlert(
+        supabase,
+        uid,
+        `Yuto: Top-up received. KSH ${Math.round(amount).toLocaleString("en-KE")} added to your balance.`,
       );
     } else {
       console.error("[webhook] TOPUP amount missing/zero:", {
@@ -492,11 +503,13 @@ async function processIntaSendWebhook(payload: {
     if (membershipTable === "group_members") {
       const { data: group } = await supabase.from("groups").select("id, name, created_by").eq("id", groupId).maybeSingle();
       if (group?.created_by && group.created_by !== userId) {
-        await sendPushNotification(
+        const hostPushTitle = "💰 Money in!";
+        const hostPushBody = `${payerName} just paid KSH ${Math.round(amount || 0).toLocaleString("en-KE")} for ${group.name}`;
+        await sendPushNotification(supabase, group.created_by, hostPushTitle, hostPushBody);
+        await maybeSendMoneySmsAlert(
           supabase,
           group.created_by,
-          "💰 Money in!",
-          `${payerName} just paid KSH ${Math.round(amount || 0).toLocaleString("en-KE")} for ${group.name}`,
+          `Yuto: ${payerName} paid KSH ${Math.round(amount || 0).toLocaleString("en-KE")} for ${group.name}.`,
         );
       }
     } else {
@@ -528,11 +541,16 @@ async function processIntaSendWebhook(payload: {
           title = "🔥 Almost full!";
           body = `${payerName} is in — only ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left for "${fn.title}"!`;
         } else if (totalPaid >= 10) {
-          title = "🚀 ${fn.title} is popping!";
+          title = `🚀 ${fn.title} is popping!`;
           body = `${payerName} makes ${totalPaid} people in. KSH ${totalEarned.toLocaleString("en-KE")} earned so far.`;
         }
-        
+
         await sendPushNotification(supabase, fn.host_id, title, body);
+        await maybeSendMoneySmsAlert(
+          supabase,
+          fn.host_id,
+          `Yuto: ${body}`,
+        );
       }
     }
   } catch (e) {

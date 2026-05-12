@@ -24,6 +24,7 @@
  *   Regular string → event function
  *
  * AUTH: All /api/* calls use authFetch() which attaches Bearer token.
+ * PHONE: Sign-up OTP via /api/phone-* ; profiles.phone_verified_at set by /api/phone-attach-verified.
  * MONEY RPCs: All SECURITY DEFINER. Client cannot bypass.
  * AMOUNTS: Always Math.round() before passing to RPCs.
  *
@@ -186,10 +187,24 @@ export function setSavedPhoneNumber(userId: string, phoneNumber: string) {
 export async function saveProfilePhoneNumber(userId: string, phoneNumber: string) {
   const { error } = await supabase
     .from("profiles")
-    .update({ phone_number: phoneNumber })
+    .update({
+      phone_number: phoneNumber,
+      phone_verified_at: null,
+      sms_money_alerts: false,
+    })
     .eq("id", userId);
   if (error) throw error;
   setSavedPhoneNumber(userId, phoneNumber);
+}
+
+/** Links SMS-verified phone after signup (Bearer auth). */
+export async function attachVerifiedPhoneAfterSignup(verificationToken: string) {
+  const res = await authFetch("/api/phone-attach-verified", {
+    method: "POST",
+    body: JSON.stringify({ verification_token: verificationToken }),
+  });
+  const data = (await res.json()) as { error?: string };
+  if (!res.ok) throw new Error(data.error || "Could not link verified phone.");
 }
 
 export async function searchProfiles(query: string, currentUserId: string) {

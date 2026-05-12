@@ -34,6 +34,8 @@ export interface Profile {
   display_name: string;
   avatar_url: string | null;
   phone_number: string | null;
+  phone_verified_at?: string | null;
+  sms_money_alerts?: boolean;
   created_at: string;
 }
 

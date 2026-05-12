@@ -26,6 +26,7 @@ import UserAvatar from "../components/UserAvatar";
 import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highlights/HighlightStillMedia";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { Wallet, History, Plus, Copy, Check, Send, Volume2, VolumeX, Store, ChevronDown, ArrowDownLeft, Sun, Moon } from "lucide-react";
+import { Switch } from "../components/ui/switch";
 
 const WaIcon = ({ size = 16 }: { size?: number }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 175.216 175.552" width={size} height={size}>
@@ -216,6 +217,8 @@ export default function ProfileScreen() {
   const [phoneNumber, setPhoneNumber] = useState(profile?.phone_number || "");
   const [savingPhone, setSavingPhone] = useState(false);
   const [phoneMessage, setPhoneMessage] = useState<string | null>(null);
+  const [smsMoneyAlerts, setSmsMoneyAlerts] = useState(!!profile?.sms_money_alerts);
+  const [savingSmsPref, setSavingSmsPref] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [points, setPoints] = useState(0);
@@ -425,6 +428,10 @@ export default function ProfileScreen() {
     setPhoneNumber(profile?.phone_number || getSavedPhoneNumber(user.id) || "");
   }, [profile?.phone_number, user]);
 
+  useEffect(() => {
+    setSmsMoneyAlerts(!!profile?.sms_money_alerts);
+  }, [profile?.sms_money_alerts]);
+
   const handleAvatarUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -458,6 +465,23 @@ export default function ProfileScreen() {
       setPhoneMessage("Could not save phone number. Try again.");
     } finally {
       setSavingPhone(false);
+    }
+  };
+
+  const handleSmsMoneyToggle = async (on: boolean) => {
+    if (!user || !profile?.phone_verified_at) return;
+    setSavingSmsPref(true);
+    try {
+      const { error } = await supabase.from("profiles").update({ sms_money_alerts: on }).eq("id", user.id);
+      if (error) throw error;
+      setSmsMoneyAlerts(on);
+      await refreshProfile();
+      toast.success(on ? "SMS money alerts on" : "SMS money alerts off");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not update SMS preference.");
+    } finally {
+      setSavingSmsPref(false);
     }
   };
 
@@ -1027,6 +1051,26 @@ export default function ProfileScreen() {
               </button>
             </div>
             {phoneMessage && <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-1">{phoneMessage}</p>}
+            {profile?.phone_verified_at ? (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 ml-1">Phone verified</p>
+            ) : null}
+            <div className="mt-4 flex items-start justify-between gap-4 pt-4 border-t border-gray-100 dark:border-zinc-800">
+              <div>
+                <p className="text-sm font-semibold text-black dark:text-white">Money alerts by SMS</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Same alerts as push for top-ups and ticket sales. Requires a verified phone.
+                </p>
+                {!profile?.phone_verified_at ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Verify your phone at sign-up, or save a number you can verify later.</p>
+                ) : null}
+              </div>
+              <Switch
+                checked={smsMoneyAlerts}
+                onCheckedChange={(v) => handleSmsMoneyToggle(v)}
+                disabled={!profile?.phone_verified_at || savingSmsPref}
+                className="mt-1 shrink-0"
+              />
+            </div>
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl px-5 divide-y divide-gray-100 dark:divide-zinc-800">
