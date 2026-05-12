@@ -13,7 +13,7 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
 function sharePlanToWhatsApp(plan: Plan) {
   const origin = window.location.hostname === "localhost" || window.location.hostname.startsWith("127.") ? window.location.origin : "https://yuto.social";
   const url = `${origin}/p/${plan.id}`;
-  const text = `${plan.creator.display_name} is planning "${plan.title}" ðŸŽ‰\n\n${plan.amount ? `KSH ${plan.amount.toLocaleString()} Â· ` : ""}${(plan.plan_members || []).length} people in\n\nJoin the crew:\n${url}`;
+  const text = `${plan.creator.display_name} is planning "${plan.title}"\n\n${plan.amount ? `KSH ${plan.amount.toLocaleString()} \u00b7 ` : ""}${(plan.plan_members || []).length} people in\n\nJoin the crew:\n${url}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
 }
 

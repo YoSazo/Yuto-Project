@@ -225,10 +225,10 @@ export function PlanMemoriesModal({
                       </div>
                     )}
                     {/* Swipeable carousel */}
-                    <div className="flex-1 flex items-center">
+                    <div className="flex-1 flex items-center overflow-hidden">
                       <style>{`.mem-carousel::-webkit-scrollbar { display: none; } .mem-carousel { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
                       <div
-                        className="w-full h-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth mem-carousel"
+                        className="w-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth mem-carousel"
                         style={{ WebkitOverflowScrolling: "touch" as any }}
                         onScroll={(e) => {
                           const el = e.currentTarget;
@@ -241,8 +241,8 @@ export function PlanMemoriesModal({
                         }}
                       >
                         {memories.map((m) => (
-                          <div key={m.id} className="snap-center shrink-0 w-full h-full flex items-center justify-center">
-                            <img src={m.media_url} alt="" className="max-w-full max-h-[80vh] object-contain" draggable={false} />
+                          <div key={m.id} className="snap-center shrink-0 w-full flex items-center justify-center px-4">
+                            <img src={m.media_url} alt="" className="max-w-full max-h-[75vh] object-contain rounded-lg" draggable={false} />
                           </div>
                         ))}
                       </div>
