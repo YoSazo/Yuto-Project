@@ -1,5 +1,5 @@
 import UserAvatar from "../UserAvatar";
-import { MessageCircle, Rocket, Send, Share2, Trash2, UserCheck, Camera } from "lucide-react";
+import { MessageCircle, Rocket, Send, Share2, Trash2, UserCheck, Images } from "lucide-react";
 import type { Plan } from "../../pages/home/types";
 import { FixedMediaCarousel } from "../media/FixedMediaCarousel";
 
@@ -13,15 +13,8 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
 function sharePlanToWhatsApp(plan: Plan) {
   const origin = window.location.hostname === "localhost" || window.location.hostname.startsWith("127.") ? window.location.origin : "https://yuto.social";
   const url = `${origin}/p/${plan.id}`;
-  const text = `${plan.creator.display_name} is planning "${plan.title}" 🎉\n\n${plan.amount ? `KSH ${plan.amount.toLocaleString()} · ` : ""}${(plan.plan_members || []).length} people in\n\nJoin the crew:\n${url}`;
-  
-  if (navigator.share) {
-    navigator.share({ text, url }).catch(() => {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-    });
-  } else {
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  }
+  const text = `${plan.creator.display_name} is planning "${plan.title}" ðŸŽ‰\n\n${plan.amount ? `KSH ${plan.amount.toLocaleString()} Â· ` : ""}${(plan.plan_members || []).length} people in\n\nJoin the crew:\n${url}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
 }
 
 export function PlanCard({
@@ -55,7 +48,7 @@ export function PlanCard({
   const pm = plan.plan_members ?? [];
   const isMember = pm.some((m) => m.user_id === currentUserId);
   const joinedCount = pm.length;
-  // Slots includes the creator — so available spots = slots - 1 (creator) - joinedCount
+  // Slots includes the creator â€” so available spots = slots - 1 (creator) - joinedCount
   const slotsLeft = plan.slots ? Math.max(0, plan.slots - 1 - joinedCount) : null;
   const allIn = plan.slots ? (joinedCount + 1) >= plan.slots : false; // +1 for creator
   const canYutoIt = isMine && plan.amount && pm.length > 0 && plan.status !== "completed" && !plan.yuto_group_id;
@@ -126,7 +119,7 @@ export function PlanCard({
         )}
         {plan.slots && (
           <span className={`font-bold text-sm px-3 py-1 rounded-full ${allIn ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-600"}`}>
-            {allIn ? "Full 🔒" : `${slotsLeft} spot${slotsLeft === 1 ? "" : "s"} left`}
+            {allIn ? "Full" : `${slotsLeft} spot${slotsLeft === 1 ? "" : "s"} left`}
           </span>
         )}
       </div>
@@ -197,7 +190,10 @@ export function PlanCard({
                     aria-label="Memories"
                     title="Photos & memories"
                   >
-                    <Camera size={16} />
+                    <Images size={16} />
+                    {(plan.memories_count ?? 0) > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-purple-600 text-white text-[9px] font-bold flex items-center justify-center">{plan.memories_count}</span>
+                    )}
                   </button>
                 )}
               </div>
@@ -216,7 +212,7 @@ export function PlanCard({
               className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${isMember ? "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400" : "bg-black dark:bg-white text-white dark:text-black"}`}
             >
               {joiningPlanId === plan.id ? (
-                "…"
+                "â€¦"
               ) : isMember ? (
                 "Leave"
               ) : (
@@ -234,7 +230,7 @@ export function PlanCard({
                 className="flex-[2] py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
               >
                 <span className="flex items-center justify-center gap-1.5">
-                  <Rocket size={15} /> Pay up 💸
+                  <Rocket size={15} /> Pay up ðŸ’¸
                 </span>
               </button>
               {onJoinOrLeavePlan && (
@@ -315,7 +311,10 @@ export function PlanCard({
                   aria-label="Memories"
                   title="Photos & memories"
                 >
-                  <Camera size={16} />
+                  <Images size={16} />
+                  {(plan.memories_count ?? 0) > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-purple-600 text-white text-[9px] font-bold flex items-center justify-center">{plan.memories_count}</span>
+                  )}
                 </button>
               )}
             </div>

@@ -45,6 +45,7 @@ export interface Plan {
   yuto_group_id: string | null;
   created_at: string;
   status: string;
+  memories_count?: number;
   creator: {
     id: string;
     username: string;

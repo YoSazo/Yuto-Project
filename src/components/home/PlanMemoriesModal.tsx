@@ -205,21 +205,57 @@ export function PlanMemoriesModal({
                 </button>
               </div>
 
-              {/* Full-screen viewer */}
+              {/* Full-screen viewer with swipe */}
               {selectedImage && (() => {
-                const mem = memories.find((m) => m.id === selectedImage);
+                const idx = memories.findIndex((m) => m.id === selectedImage);
+                const mem = memories[idx];
                 if (!mem) return null;
                 return (
-                  <div className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center fade-in">
-                    <button type="button" onClick={() => setSelectedImage(null)} className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border-none z-10">
-                      <X size={20} className="text-white" />
-                    </button>
-                    {mem.user_id === currentUserId && (
-                      <button type="button" onClick={() => { handleDelete(mem.id); setSelectedImage(null); }} className="absolute top-5 left-5 w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center border-none z-10">
-                        <Trash2 size={18} className="text-red-400" />
+                  <div className="fixed inset-0 z-[60] bg-black flex flex-col fade-in">
+                    <div className="absolute top-5 right-5 z-20">
+                      <button type="button" onClick={() => setSelectedImage(null)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border-none">
+                        <X size={20} className="text-white" />
                       </button>
+                    </div>
+                    {mem.user_id === currentUserId && (
+                      <div className="absolute top-5 left-5 z-20">
+                        <button type="button" onClick={() => { handleDelete(mem.id); setSelectedImage(null); }} className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center border-none">
+                          <Trash2 size={18} className="text-red-400" />
+                        </button>
+                      </div>
                     )}
-                    <img src={mem.media_url} alt="" className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+                    {/* Swipeable carousel */}
+                    <div className="flex-1 flex items-center">
+                      <style>{`.mem-carousel::-webkit-scrollbar { display: none; } .mem-carousel { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
+                      <div
+                        className="w-full h-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth mem-carousel"
+                        style={{ WebkitOverflowScrolling: "touch" as any }}
+                        onScroll={(e) => {
+                          const el = e.currentTarget;
+                          const w = el.clientWidth || 1;
+                          const newIdx = Math.round(el.scrollLeft / w);
+                          const clamped = Math.max(0, Math.min(memories.length - 1, newIdx));
+                          if (memories[clamped] && memories[clamped].id !== selectedImage) {
+                            setSelectedImage(memories[clamped].id);
+                          }
+                        }}
+                      >
+                        {memories.map((m) => (
+                          <div key={m.id} className="snap-center shrink-0 w-full h-full flex items-center justify-center">
+                            <img src={m.media_url} alt="" className="max-w-full max-h-[80vh] object-contain" draggable={false} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Dots */}
+                    {memories.length > 1 && (
+                      <div className="absolute bottom-20 left-0 right-0 flex items-center justify-center gap-1.5">
+                        {memories.map((m, i) => (
+                          <span key={m.id} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === idx ? "bg-white" : "bg-white/40"}`} />
+                        ))}
+                      </div>
+                    )}
+                    {/* Author info */}
                     <div className="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-2">
                       <UserAvatar name={mem.profiles.display_name} avatarUrl={mem.profiles.avatar_url} size="sm" />
                       <span className="text-white text-sm font-semibold">{mem.profiles.display_name}</span>
