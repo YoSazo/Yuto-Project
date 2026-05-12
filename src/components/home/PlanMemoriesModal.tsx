@@ -62,14 +62,14 @@ export function PlanMemoriesModal({
     try {
       for (const file of Array.from(files)) {
         const ext = file.name.split(".").pop() || "jpg";
-        const path = `plan-memories/${planId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const path = `${currentUserId}/memories/${planId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
         const { error: uploadErr } = await supabase.storage
-          .from("media")
+          .from("plan-images")
           .upload(path, file, { contentType: file.type });
         if (uploadErr) throw uploadErr;
 
-        const { data: urlData } = supabase.storage.from("media").getPublicUrl(path);
+        const { data: urlData } = supabase.storage.from("plan-images").getPublicUrl(path);
 
         await supabase.from("plan_memories").insert({
           plan_id: planId,

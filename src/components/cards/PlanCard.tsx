@@ -189,7 +189,7 @@ export function PlanCard({
                     <MessageCircle size={16} />
                   </button>
                 )}
-                {plan.yuto_group_id && onOpenMemories && (
+                {onOpenMemories && (isMember || isMine) && (
                   <button
                     type="button"
                     onClick={() => onOpenMemories(plan.id)}
@@ -305,6 +305,17 @@ export function PlanCard({
                   title="Open chat"
                 >
                   <MessageCircle size={16} />
+                </button>
+              )}
+              {onOpenMemories && (isMember || isMine) && (
+                <button
+                  type="button"
+                  onClick={() => onOpenMemories(plan.id)}
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                  aria-label="Memories"
+                  title="Photos & memories"
+                >
+                  <Camera size={16} />
                 </button>
               )}
             </div>

@@ -25,18 +25,9 @@ CREATE POLICY "Plan members can read memories" ON public.plan_memories
     )
   );
 
-CREATE POLICY "Plan members can insert memories" ON public.plan_memories
-  FOR INSERT WITH CHECK (
-    auth.uid() = user_id
-    AND (
-      EXISTS (
-        SELECT 1 FROM plan_members WHERE plan_id = plan_memories.plan_id AND user_id = auth.uid()
-      )
-      OR EXISTS (
-        SELECT 1 FROM plans WHERE id = plan_memories.plan_id AND creator_id = auth.uid()
-      )
-    )
-  );
+-- INSERT: authenticated user can insert as themselves (lightweight check)
+CREATE POLICY "Authenticated users can insert own memories" ON public.plan_memories
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own memories" ON public.plan_memories
   FOR DELETE USING (auth.uid() = user_id);
