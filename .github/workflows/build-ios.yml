@@ -49,8 +49,16 @@ jobs:
 
       - name: Create IPA from archive
         run: |
+          # Find the .app bundle (path varies with/without signing)
+          APP_PATH=$(find ${{ runner.temp }}/Yuto.xcarchive -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app found in archive"
+            find ${{ runner.temp }}/Yuto.xcarchive -type d | head -30
+            exit 1
+          fi
+          echo "Found app at: $APP_PATH"
           mkdir -p ${{ runner.temp }}/ipa/Payload
-          cp -r ${{ runner.temp }}/Yuto.xcarchive/Products/Applications/App.app ${{ runner.temp }}/ipa/Payload/
+          cp -r "$APP_PATH" ${{ runner.temp }}/ipa/Payload/
           cd ${{ runner.temp }}/ipa
           zip -r ${{ runner.temp }}/Yuto.ipa Payload
 
