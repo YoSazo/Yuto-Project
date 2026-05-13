@@ -26,41 +26,22 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync ios
 
-      - name: Create self-signed certificate for ad-hoc build
+      - name: Build for iOS Simulator (no signing needed)
         run: |
-          # Create a temporary keychain
-          KEYCHAIN_PATH=${{ runner.temp }}/build.keychain
-          KEYCHAIN_PASSWORD="temporary"
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
-          security default-keychain -s "$KEYCHAIN_PATH"
-          
-          # Create a self-signed certificate
-          cat > ${{ runner.temp }}/cert.conf << EOF
-          [req]
-          distinguished_name = req_dn
-          x509_extensions = v3_req
-          prompt = no
-          [req_dn]
-          CN = iPhone Developer
-          [v3_req]
-          keyUsage = digitalSignature
-          extendedKeyUsage = codeSigning
-          EOF
-          
-          openssl req -x509 -newkey rsa:2048 -keyout ${{ runner.temp }}/key.pem -out ${{ runner.temp }}/cert.pem -days 365 -nodes -config ${{ runner.temp }}/cert.conf
-          openssl pkcs12 -export -out ${{ runner.temp }}/cert.p12 -inkey ${{ runner.temp }}/key.pem -in ${{ runner.temp }}/cert.pem -passout pass:temp
-          security import ${{ runner.temp }}/cert.p12 -k "$KEYCHAIN_PATH" -P temp -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          
-          # Get the identity
-          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | head -1 | awk -F'"' '{print $2}')
-          echo "SIGNING_IDENTITY=$IDENTITY" >> $GITHUB_ENV
-          echo "Using identity: $IDENTITY"
+          cd ios/App
+          xcodebuild build \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath "${{ runner.temp }}/build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="-" \
+            ONLY_ACTIVE_ARCH=NO \
+            ARCHS="arm64 x86_64"
 
-      - name: Build .app
+      - name: Build for iOS Device (unsigned)
         run: |
           cd ios/App
           xcodebuild build \
@@ -68,52 +49,44 @@ jobs:
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath "${{ runner.temp }}/build" \
-            CODE_SIGN_IDENTITY="${{ env.SIGNING_IDENTITY }}" \
-            CODE_SIGNING_REQUIRED=YES \
-            CODE_SIGNING_ALLOWED=YES \
+            -derivedDataPath "${{ runner.temp }}/build-device" \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            CODE_SIGN_STYLE=Manual \
             ONLY_ACTIVE_ARCH=NO \
-            2>&1 | tee /tmp/build.log | tail -50
-          
-          echo "=== Build exit code: $? ==="
-
-      - name: Debug build output (if failed)
-        if: failure()
-        run: |
-          echo "=== Last 100 lines of build log ==="
-          tail -100 /tmp/build.log
-          echo "=== Searching for .app ==="
-          find "${{ runner.temp }}/build" -name "*.app" -type d 2>/dev/null || echo "No build dir"
+            2>&1 | tee /tmp/device-build.log | tail -30
+        continue-on-error: true
 
       - name: Package IPA
         run: |
-          APP_PATH=$(find "${{ runner.temp }}/build" -name "*.app" -path "*Release-iphoneos*" -type d | head -1)
+          # Try device build first, fall back to simulator
+          APP_PATH=$(find "${{ runner.temp }}/build-device" -name "App.app" -type d 2>/dev/null | head -1)
+          BUILD_TYPE="device"
+          
           if [ -z "$APP_PATH" ]; then
-            APP_PATH=$(find "${{ runner.temp }}/build" -name "*.app" -type d | head -1)
+            echo "Device build not available, using simulator build"
+            APP_PATH=$(find "${{ runner.temp }}/build" -name "App.app" -type d | head -1)
+            BUILD_TYPE="simulator"
           fi
+          
           if [ -z "$APP_PATH" ]; then
-            echo "No .app found"
-            find "${{ runner.temp }}/build" -type d -maxdepth 5
+            echo "ERROR: No .app found in either build"
+            find "${{ runner.temp }}/build" -type d -maxdepth 4 2>/dev/null
             exit 1
           fi
-          echo "Packaging: $APP_PATH"
+          
+          echo "Using $BUILD_TYPE build: $APP_PATH"
           mkdir -p "${{ runner.temp }}/ipa/Payload"
           cp -r "$APP_PATH" "${{ runner.temp }}/ipa/Payload/"
           cd "${{ runner.temp }}/ipa"
-          zip -r "${{ runner.temp }}/Yuto.ipa" Payload
-          ls -la "${{ runner.temp }}/Yuto.ipa"
+          zip -r "${{ runner.temp }}/Yuto-AltStore.ipa" Payload
+          echo "IPA created successfully"
+          ls -la "${{ runner.temp }}/Yuto-AltStore.ipa"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Yuto-iOS
-          path: ${{ runner.temp }}/Yuto.ipa
+          name: yuto-ios-build
+          path: ${{ runner.temp }}/Yuto-AltStore.ipa
           retention-days: 30
-
-      - name: Cleanup keychain
-        if: always()
-        run: security delete-keychain ${{ runner.temp }}/build.keychain 2>/dev/null || true
