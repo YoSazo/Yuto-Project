@@ -1,0 +1,62 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ios-capacitor, main]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npx vite build
+
+      - name: Sync Capacitor
+        run: npx cap sync ios
+
+      - name: Install CocoaPods (if needed)
+        run: |
+          cd ios/App
+          if [ -f Podfile ]; then pod install; fi
+
+      - name: Build IPA (unsigned for AltStore)
+        run: |
+          cd ios/App
+          xcodebuild archive \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -archivePath ${{ runner.temp }}/Yuto.xcarchive \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM="" \
+            | tail -20
+
+      - name: Create IPA from archive
+        run: |
+          mkdir -p ${{ runner.temp }}/ipa/Payload
+          cp -r ${{ runner.temp }}/Yuto.xcarchive/Products/Applications/App.app ${{ runner.temp }}/ipa/Payload/
+          cd ${{ runner.temp }}/ipa
+          zip -r ${{ runner.temp }}/Yuto.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Yuto-iOS
+          path: ${{ runner.temp }}/Yuto.ipa
+          retention-days: 30
