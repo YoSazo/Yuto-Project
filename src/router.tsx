@@ -30,6 +30,7 @@ const PlanLandingScreen = lazy(() => import("./pages/PlanLandingScreen"));
 const TermsScreen = lazy(() => import("./pages/TermsScreen"));
 const ReferralLandingScreen = lazy(() => import("./pages/ReferralLandingScreen"));
 const CreatorLandingScreen = lazy(() => import("./pages/CreatorLandingScreen"));
+const WalletScreen = lazy(() => import("./pages/WalletScreen"));
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return (
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <Navigate to="/home" replace /> },
       { path: "/split", element: <Lazy><SplitScreen /></Lazy> },
+      { path: "/wallet", element: <Lazy><WalletScreen /></Lazy> },
       { path: "/activity", element: <Lazy><YourYutosScreen /></Lazy> },
       { path: "/profile", element: <Lazy><ProfileScreen /></Lazy> },
       { path: "/friends", element: <Lazy><FriendsScreen /></Lazy> },

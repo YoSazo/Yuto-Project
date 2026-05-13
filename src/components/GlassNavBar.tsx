@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { haptics } from "../lib/haptics";
 import { useTheme } from "../contexts/ThemeContext";
 
-type NavTab = "split" | "home" | "activity" | "profile";
+type NavTab = "split" | "home" | "wallet" | "activity" | "profile";
 
 interface GlassNavBarProps {
   activeTab: NavTab;
@@ -46,9 +46,20 @@ function PersonIcon({ color }: { color: string }) {
   );
 }
 
+function WalletIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+      <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+    </svg>
+  );
+}
+
 const tabs: { id: NavTab; label: string; path: string; Icon: typeof SplitIcon }[] = [
   { id: "split", label: "Split", path: "/split", Icon: SplitIcon },
   { id: "home", label: "Home", path: "/home", Icon: HomeIcon },
+  { id: "wallet", label: "Wallet", path: "/wallet", Icon: WalletIcon },
   { id: "activity", label: "Yuto's", path: "/activity", Icon: ClockIcon },
   { id: "profile", label: "Profile", path: "/profile", Icon: PersonIcon },
 ];

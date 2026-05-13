@@ -226,6 +226,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [walletTab, setWalletTab] = useState<"balance" | "points">("balance");
+  const [transferCredits, setTransferCredits] = useState(0);
   const [referralCount, setReferralCount] = useState(0);
   const [referralEarned, setReferralEarned] = useState(0);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -373,10 +374,10 @@ export default function ProfileScreen() {
       setWithdrawError(`Minimum withdrawal is KSH ${MIN_WITHDRAW_KES}.`);
       return;
     }
-    if (amountNum > points) {
-      setShowWithdrawModal(false);
-      setWithdrawAmount("");
-      setTimeout(() => setShowTopUpModal(true), 300); // slight delay so withdraw modal closes first
+    const WITHDRAWAL_FEE = 40;
+    const totalDebit = amountNum + WITHDRAWAL_FEE;
+    if (totalDebit > points) {
+      setWithdrawError(`You need KSH ${totalDebit} (${amountNum} + ${WITHDRAWAL_FEE} fee) but only have KSH ${points}.`);
       return;
     }
 
@@ -384,14 +385,14 @@ export default function ProfileScreen() {
     setWithdrawError("");
 
     try {
-      // 1. Lock funds in Supabase
+      // 1. Lock funds in Supabase (amount + fee)
       const { data: transactionId, error: dbError } = await supabase.rpc("initiate_withdrawal", {
-        p_amount: Math.round(amountNum)
+        p_amount: Math.round(totalDebit)
       });
 
       if (dbError) throw new Error(dbError.message);
 
-      // 2. Ping IntaSend B2C
+      // 2. Ping IntaSend B2C (send only the net amount to user)
       const res = await authFetch("/api/withdraw", {
         method: "POST",
         body: JSON.stringify({
@@ -405,7 +406,7 @@ export default function ProfileScreen() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Success! KSH " + amountNum + " has been sent to your M-PESA.");
+        toast.success(`KSH ${amountNum} sent to M-PESA! +KSH ${WITHDRAWAL_FEE} free sends earned.`);
         setShowWithdrawModal(false);
         setWithdrawAmount("");
         try {
@@ -499,6 +500,12 @@ export default function ProfileScreen() {
         if (profileData?.avatar_url) setAvatarUrl(profileData.avatar_url);
 
         setPoints(await fetchYutoBalance(user.id));
+
+        // Load transfer credits balance
+        try {
+          const { data: creditsRow } = await supabase.from("transfer_credits").select("balance_kes").eq("user_id", user.id).maybeSingle();
+          setTransferCredits(Number(creditsRow?.balance_kes ?? 0));
+        } catch { /* table may not exist yet */ }
 
         // Referral stats (minimal): count converted referrals + total earned from bonus transactions
         const [refs, bonusTx] = await Promise.all([
@@ -1005,7 +1012,7 @@ export default function ProfileScreen() {
                   </div>
                   <p className="text-xs text-white/55 mt-2">{referralCount} converted</p>
                 </div>
-                <p className="text-xs text-white/60 mt-4">Earn <span className="text-white font-semibold">KSH 10</span> when a new user signs up with your link and tops up for the first time.</p>
+                <p className="text-xs text-white/60 mt-4">Earn <span className="text-white font-semibold">KSH 50</span> when a new user signs up with your link and tops up for the first time.</p>
                 {profile?.username && (
                   <div className="mt-4 flex gap-2">
                     <button type="button" onClick={() => {
@@ -1031,6 +1038,27 @@ export default function ProfileScreen() {
                 </div>
                 <div className="mt-3 flex justify-center">
                   <button type="button" onClick={() => setShowSendModal(true)} className="w-full max-w-[360px] h-12 rounded-2xl bg-white text-black font-extrabold shadow-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"><Send size={14} /> Send</button>
+                </div>
+
+                {/* Free P2P — NO WIFI selling point */}
+                <div className="mt-5 pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-white font-bold text-sm">Free sends — no WiFi needed</p>
+                    <span className="text-emerald-400 font-black text-sm">KSH {Math.round(transferCredits).toLocaleString()}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white/8 border border-white/10 rounded-xl p-3 text-center">
+                      <p className="text-lg mb-1">📶</p>
+                      <p className="text-white font-bold text-xs">Close range</p>
+                      <p className="text-white/50 text-[10px]">Bluetooth · Always free</p>
+                    </div>
+                    <div className="bg-white/8 border border-white/10 rounded-xl p-3 text-center">
+                      <p className="text-lg mb-1">🌍</p>
+                      <p className="text-white font-bold text-xs">Long distance</p>
+                      <p className="text-white/50 text-[10px]">No WiFi · Uses credits</p>
+                    </div>
+                  </div>
+                  <p className="text-white/40 text-[10px] mt-2 text-center">Credits earned every time you top up or cash out</p>
                 </div>
               </div>
             )}

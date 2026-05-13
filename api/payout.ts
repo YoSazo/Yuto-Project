@@ -93,18 +93,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── Reserve the split pool; do not debit the host's personal wallet ──
   const collected = Number((group as { collected_balance?: number | string | null }).collected_balance ?? 0);
-  if (collected < Number(amount)) {
+  if (collected < totalNeeded) {
     return res.status(400).json({
       success: false,
-      message: `This split has KSH ${collected.toLocaleString("en-KE")} collected, but payout needs KSH ${Number(amount).toLocaleString("en-KE")}.`,
+      message: `This split has KSH ${collected.toLocaleString("en-KE")} collected, but payout needs KSH ${totalNeeded.toLocaleString("en-KE")}${payoutFee > 0 ? ` (${Number(amount).toLocaleString("en-KE")} + ${payoutFee} fee)` : ""}.`,
     });
   }
 
   const { error: deductError } = await supabase
     .from("groups")
-    .update({ collected_balance: collected - Number(amount) })
+    .update({ collected_balance: collected - totalNeeded })
     .eq("id", group_id)
-    .gte("collected_balance", Number(amount));
+    .gte("collected_balance", totalNeeded);
 
   if (deductError) {
     return res.status(400).json({
@@ -114,6 +114,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── Build IntaSend transaction ────────────────────
+  // Apply payout fees based on payment type
+  // Fee is absorbed by the group (deducted from collected_balance alongside the payout amount)
+  let payoutFee = 0;
+  if (payment_type === "phone") payoutFee = 25;
+  // till and paybill = 0 fee
+
+  // Check group has enough for amount + fee
+  const totalNeeded = Number(amount) + payoutFee;
+
   let transaction: Record<string, unknown>;
   let provider: "MPESA-B2C" | "MPESA-B2B";
 
@@ -125,7 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     transaction = {
       name: "Payee",
       account: phone_number,
-      amount: Number(amount),
+      amount: Number(amount), // Recipient gets the full amount
       narrative: "Yuto split payout",
     };
   } else if (payment_type === "buygoods") {

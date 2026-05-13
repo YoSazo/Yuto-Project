@@ -7,7 +7,7 @@ import { Sparkles, Users, Zap, ShoppingBag } from "lucide-react";
 
 /**
  * Referral landing page — /referral/:username
- * Non-users see a playful challenge: "[Name] is about to earn KSH 10 from you joining 😏"
+ * Non-users see a playful challenge: "[Name] is about to earn KSH 50 from you joining 😏"
  * Logged-in users get redirected to Profile > Earnings tab.
  */
 export default function ReferralLandingScreen() {
@@ -92,7 +92,7 @@ export default function ReferralLandingScreen() {
         </h1>
 
         <p className="text-white/80 text-sm mb-8 max-w-[280px] leading-relaxed">
-          Sign up and you both earn KSH 10. You can earn more by inviting your friends too.
+          Sign up and you both earn KSH 50. You can earn more by inviting your friends too.
         </p>
 
         {/* What is Yuto */}
@@ -133,7 +133,7 @@ export default function ReferralLandingScreen() {
           onClick={handleSignup}
           className="w-full py-4 bg-white text-black rounded-2xl font-bold text-lg active:scale-[0.98] transition-transform shadow-xl"
         >
-          Sign up — earn KSH 10 too 💰
+          Sign up — earn KSH 50 too 💰
         </button>
         <p className="text-center text-white/60 text-xs">
           All with M-PESA. No app download needed. 🇰🇪

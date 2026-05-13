@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Gift } from "lucide-react";
 
 /**
- * Subtle "Invite a friend, earn KSH 10" banner that auto-dismisses after 4 seconds.
+ * Subtle "Invite a friend, earn KSH 50" banner that auto-dismisses after 4 seconds.
  * Show this after key actions: joining a function, paying a split, buying something.
  * 
  * Usage: <InviteBanner show={showBanner} username={username} onDismiss={() => setShowBanner(false)} />
@@ -36,7 +36,7 @@ export function InviteBanner({
   const referralUrl = `https://yuto.social/r/${username}`;
 
   const handleTap = () => {
-    const text = `${referralUrl}\n\nJoin me on Yuto! I earn KSH 10 when you sign up. You can earn KSH 10 too by inviting your friends. Game on \uD83C\uDFAE`;
+    const text = `${referralUrl}\n\nJoin me on Yuto! I earn KSH 50 when you sign up. You can earn KSH 50 too by inviting your friends. Game on \uD83C\uDFAE`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     setVisible(false);
     onDismiss();
@@ -52,7 +52,7 @@ export function InviteBanner({
           <Gift size={18} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-white font-bold text-sm">Invite a friend, earn KSH 10</p>
+          <p className="text-white font-bold text-sm">Invite a friend, earn KSH 50</p>
           <p className="text-white/70 text-xs">Tap to share on WhatsApp</p>
         </div>
         <button

@@ -177,6 +177,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error("[withdraw] creator commission error:", e);
     }
 
+    // Transfer Credits: credit 100% of withdrawal fee as transfer credits for free remote P2P
+    try {
+      const { data: feeConfig } = await supabase
+        .from("platform_config")
+        .select("value")
+        .eq("key", "withdrawal_fee_flat")
+        .single();
+      const { data: pctConfig } = await supabase
+        .from("platform_config")
+        .select("value")
+        .eq("key", "rewards_airtime_pct_of_fee")
+        .single();
+      const fee = Number(feeConfig?.value ?? 40);
+      const pct = Number(pctConfig?.value ?? 1.0);
+      const creditAmount = Math.round(fee * pct);
+      if (creditAmount > 0) {
+        await supabase.rpc("credit_airtime_reward", {
+          p_user_id: user_id,
+          p_amount: creditAmount,
+          p_source: "withdrawal",
+        });
+      }
+    } catch (e) {
+      console.error("[withdraw] transfer credit error:", e);
+    }
+
     return res.status(200).json({ success: true, message: "Funds sent to M-PESA!" });
 
   } catch (err) {

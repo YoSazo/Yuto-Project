@@ -140,7 +140,7 @@ export default function InviteScreen() {
           {!user && (
             <>
               <p className="text-xs text-gray-400 text-center">
-                {profile?.display_name} earns KSH 10 when you top up for the first time.
+                {profile?.display_name} earns KSH 50 when you top up for the first time.
               </p>
               <p className="text-xs text-gray-400 text-center">You&apos;ll need a Yuto account to add friends.</p>
             </>

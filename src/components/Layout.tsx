@@ -6,12 +6,13 @@ import { getPendingRequests, getMyAllUnreadTotal, supabase } from "../lib/supaba
 import { useAppResume } from "../hooks/useAppResume";
 import { WifiOff } from "lucide-react";
 
-type NavTab = "split" | "home" | "activity" | "profile";
+type NavTab = "split" | "home" | "wallet" | "activity" | "profile";
 
 const TAB_ROUTES: Record<string, NavTab> = {
   "/": "home",
   "/split": "split",
   "/home": "home",
+  "/wallet": "wallet",
   "/activity": "activity",
   "/profile": "profile",
 };

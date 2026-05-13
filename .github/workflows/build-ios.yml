@@ -31,36 +31,41 @@ jobs:
           cd ios/App
           if [ -f Podfile ]; then pod install; fi
 
-      - name: Build IPA (unsigned for AltStore)
+      - name: Build app (unsigned)
         run: |
           cd ios/App
-          xcodebuild archive \
+          xcodebuild build \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
-            -archivePath ${{ runner.temp }}/Yuto.xcarchive \
-            -destination 'generic/platform=iOS' \
+            -sdk iphoneos \
+            -derivedDataPath ${{ runner.temp }}/build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS="" \
+            CODE_SIGN_IDENTITY="-" \
             DEVELOPMENT_TEAM="" \
-            | tail -20
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            | tail -30
 
-      - name: Create IPA from archive
+      - name: Create IPA
         run: |
-          # Find the .app bundle (path varies with/without signing)
-          APP_PATH=$(find ${{ runner.temp }}/Yuto.xcarchive -name "*.app" -type d | head -1)
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: No .app found in archive"
-            find ${{ runner.temp }}/Yuto.xcarchive -type d | head -30
+          APP_PATH="${{ runner.temp }}/build/Build/Products/Release-iphoneos/App.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Searching all .app bundles..."
+            find ${{ runner.temp }}/build -name "*.app" -type d
+            APP_PATH=$(find ${{ runner.temp }}/build -name "*.app" -path "*/Release-iphoneos/*" -type d | head -1)
+          fi
+          if [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: No .app found"
             exit 1
           fi
-          echo "Found app at: $APP_PATH"
+          echo "Found: $APP_PATH"
           mkdir -p ${{ runner.temp }}/ipa/Payload
           cp -r "$APP_PATH" ${{ runner.temp }}/ipa/Payload/
           cd ${{ runner.temp }}/ipa
           zip -r ${{ runner.temp }}/Yuto.ipa Payload
+          echo "IPA created successfully"
+          ls -la ${{ runner.temp }}/Yuto.ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4

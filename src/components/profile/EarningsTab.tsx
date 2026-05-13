@@ -87,7 +87,7 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
   const creatorRecruitUrl = username ? `https://yuto.social/c/${username}` : "";
 
   const handleShare = () => {
-    const text = `${referralUrl}\n\nI dare you to join Yuto \u{1F60F} I earn KSH 10 when you do. But guess what - you can earn KSH 10 too by inviting YOUR friends.\n\nSplit bills, host events, sell stuff - all with M-PESA. Game on.`;
+    const text = `${referralUrl}\n\nI dare you to join Yuto \u{1F60F} I earn KSH 50 when you do. But guess what - you can earn KSH 50 too by inviting YOUR friends.\n\nSplit bills, host events, sell stuff - all with M-PESA. Game on.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -116,7 +116,7 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
               <div className="flex items-center gap-2 mb-4"><Star size={20} /><p className="font-bold text-sm uppercase tracking-wider">Refer & Earn</p></div>
               <p className="text-4xl font-black mb-1">KSH {referralEarned.toLocaleString()}</p>
               <p className="text-white/80 text-sm font-semibold">{referralCount} friend{referralCount === 1 ? "" : "s"} referred</p>
-              <p className="text-white/60 text-xs mt-3">Earn KSH 10 every time a friend signs up with your link and tops up for the first time.</p>
+              <p className="text-white/60 text-xs mt-3">Earn KSH 50 every time a friend signs up with your link and tops up for the first time.</p>
             </div>
           </div>
 
@@ -126,7 +126,7 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
             <button type="button" onClick={handleCopy} className="py-3.5 px-5 bg-gray-100 dark:bg-zinc-800 text-black dark:text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2">{copiedLink ? <Check size={16} /> : <Copy size={16} />}{copiedLink ? "Copied" : "Copy"}</button>
           </div>
 
-          {/* Referral user list with +KSH 10 badges */}
+          {/* Referral user list with +KSH 50 badges */}
           {referralUsers.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -141,7 +141,7 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
                       <p className="font-bold text-sm text-black dark:text-white truncate">{u.display_name}</p>
                       <p className="text-xs text-gray-400">@{u.username}</p>
                     </div>
-                    {u.converted ? (<span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">+KSH 10</span>) : (<span className="text-xs font-semibold text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">Pending</span>)}
+                    {u.converted ? (<span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">+KSH 50</span>) : (<span className="text-xs font-semibold text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">Pending</span>)}
                   </div>
                 ))}
               </div>
@@ -153,13 +153,13 @@ export function EarningsTab({ userId, username }: { userId: string; username: st
             <p className="font-bold text-black dark:text-white text-sm">How it works</p>
             <div className="flex items-start gap-3"><div className="w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 flex items-center justify-center shrink-0 text-xs font-bold">1</div><p className="text-sm text-gray-600 dark:text-gray-400">Share your link with friends</p></div>
             <div className="flex items-start gap-3"><div className="w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 flex items-center justify-center shrink-0 text-xs font-bold">2</div><p className="text-sm text-gray-600 dark:text-gray-400">They sign up and top up their wallet</p></div>
-            <div className="flex items-start gap-3"><div className="w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 flex items-center justify-center shrink-0 text-xs font-bold">3</div><p className="text-sm text-gray-600 dark:text-gray-400">You earn KSH 10 instantly — no limit</p></div>
+            <div className="flex items-start gap-3"><div className="w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 flex items-center justify-center shrink-0 text-xs font-bold">3</div><p className="text-sm text-gray-600 dark:text-gray-400">You earn KSH 50 instantly — no limit</p></div>
           </div>
 
           {/* Upgrade CTA */}
           {!isCreator && (
             <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border border-yellow-200 dark:border-yellow-800 rounded-2xl p-4">
-              <p className="font-bold text-sm text-black dark:text-white mb-1">Want to earn more than KSH 10?</p>
+              <p className="font-bold text-sm text-black dark:text-white mb-1">Want to earn more than KSH 50?</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Creators earn from EVERY transaction their users make. Not just the first top-up.</p>
               <button type="button" onClick={() => setActiveSection("creator")} className="text-xs font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1 bg-transparent border-none p-0">Learn about Creator program <ChevronRight size={14} /></button>
             </div>

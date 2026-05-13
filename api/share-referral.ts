@@ -46,8 +46,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .maybeSingle();
 
     const displayName = data?.display_name || username;
-    const title = `${displayName} is about to earn KSH 10 from you joining 😏`;
-    const description = `Sign up on Yuto — and you can earn KSH 10 too by inviting YOUR friends. Split bills, host events, sell stuff, all with M-PESA.`;
+    const title = `${displayName} is about to earn KSH 50 from you joining`;
+    const description = `Sign up on Yuto and you can earn KSH 50 too by inviting YOUR friends. Split bills, host events, sell stuff, all with M-PESA.`;
 
     const html = `<!doctype html>
 <html lang="en">
