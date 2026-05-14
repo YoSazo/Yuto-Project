@@ -302,7 +302,7 @@ export async function sendViaBluetooth(
     }
 
     const tx: OfflineTransaction = { id: txId, senderId, recipientId: recipient.userId, amount, timestamp, synced: false };
-    saveOfflineTransaction(tx);
+    await saveOfflineTransaction(tx);
     return { success: true, offline: true, message: `KSH ${amount} sent offline! Will settle when online.` };
   }
 
@@ -314,7 +314,7 @@ export async function sendViaBluetooth(
  * Call this when the app comes online.
  */
 export async function syncOfflineTransactions(): Promise<number> {
-  const transactions = getOfflineTransactions();
+  const transactions = await getOfflineTransactionsAsync();
   const pending = transactions.filter((tx) => !tx.synced);
   let synced = 0;
 
@@ -344,6 +344,11 @@ export async function syncOfflineTransactions(): Promise<number> {
   }
 
   persistSetSync(OFFLINE_TX_KEY, JSON.stringify(transactions));
+  // Ensure persistence
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.set({ key: OFFLINE_TX_KEY, value: JSON.stringify(transactions) });
+  } catch {}
   return synced;
 }
 
@@ -364,16 +369,39 @@ function handleIncomingTransaction(payload: string) {
   }
 }
 
-function saveOfflineTransaction(tx: OfflineTransaction) {
+async function saveOfflineTransaction(tx: OfflineTransaction) {
   const transactions = getOfflineTransactions();
   transactions.push(tx);
-  persistSetSync(OFFLINE_TX_KEY, JSON.stringify(transactions));
+  const value = JSON.stringify(transactions);
+  persistSetSync(OFFLINE_TX_KEY, value);
+  // Also do a blocking write to ensure persistence before app kill
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.set({ key: OFFLINE_TX_KEY, value });
+  } catch {}
 }
 
 function getOfflineTransactions(): OfflineTransaction[] {
   try {
     const raw = persistGetSync(OFFLINE_TX_KEY);
     return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Read offline transactions directly from native storage (for cold start) */
+async function getOfflineTransactionsAsync(): Promise<OfflineTransaction[]> {
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    const { value } = await Preferences.get({ key: OFFLINE_TX_KEY });
+    if (value) {
+      const txs = JSON.parse(value);
+      // Also update memCache
+      memCache.set(OFFLINE_TX_KEY, value);
+      return txs;
+    }
+    return [];
   } catch {
     return [];
   }
