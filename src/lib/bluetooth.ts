@@ -47,60 +47,110 @@ export interface OfflineTransaction {
 const OFFLINE_TX_KEY = "yuto_offline_transactions";
 const CACHED_BALANCE_KEY = "yuto_cached_balance";
 const CACHED_USER_KEY = "yuto_cached_user";
+const CACHED_PROFILES_KEY = "yuto_cached_profiles";
 
-// ── Persistent Storage (survives app kill) ──────────────────
-// Use both localStorage AND sessionStorage for redundancy on Android
+// ── Persistent Storage (native SharedPreferences — survives app kill) ──────
+import { Preferences } from "@capacitor/preferences";
 
-function persistSet(key: string, value: string) {
-  try { localStorage.setItem(key, value); } catch {}
-  try { sessionStorage.setItem(key, value); } catch {}
+async function persistSet(key: string, value: string) {
+  await Preferences.set({ key, value });
 }
 
-function persistGet(key: string): string | null {
-  return localStorage.getItem(key) || sessionStorage.getItem(key) || null;
+async function persistGet(key: string): Promise<string | null> {
+  const { value } = await Preferences.get({ key });
+  return value;
 }
+
+// Synchronous fallback for immediate reads (uses in-memory cache)
+const memCache = new Map<string, string>();
+
+function persistSetSync(key: string, value: string) {
+  memCache.set(key, value);
+  // Fire and forget the async write
+  Preferences.set({ key, value }).catch(() => {});
+}
+
+function persistGetSync(key: string): string | null {
+  return memCache.get(key) || null;
+}
+
+// Load all cached values into memory on module init
+async function loadCacheIntoMemory() {
+  const keys = [CACHED_BALANCE_KEY, CACHED_USER_KEY, OFFLINE_TX_KEY, CACHED_PROFILES_KEY];
+  for (const key of keys) {
+    const { value } = await Preferences.get({ key });
+    if (value) memCache.set(key, value);
+  }
+}
+// Auto-load on import
+loadCacheIntoMemory().catch(() => {});
 
 // ── Local Balance Cache ─────────────────────────────────────
 
 /**
- * Cache the user's balance and identity locally.
+ * Cache the user's balance and identity locally (native storage).
  * Call this whenever the app is online and balance is fetched.
  */
 export function cacheBalanceLocally(userId: string, balance: number, displayName: string) {
-  persistSet(CACHED_BALANCE_KEY, JSON.stringify({ userId, balance, updatedAt: Date.now() }));
-  persistSet(CACHED_USER_KEY, JSON.stringify({ userId, displayName }));
+  const balData = JSON.stringify({ userId, balance, updatedAt: Date.now() });
+  const userData = JSON.stringify({ userId, displayName });
+  persistSetSync(CACHED_BALANCE_KEY, balData);
+  persistSetSync(CACHED_USER_KEY, userData);
 }
 
 /**
- * Get the locally cached balance. Returns null if nothing cached.
+ * Get the locally cached balance.
  */
 export function getCachedBalance(): { userId: string; balance: number; updatedAt: number } | null {
   try {
-    const raw = persistGet(CACHED_BALANCE_KEY);
+    const raw = persistGetSync(CACHED_BALANCE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
 /**
  * Deduct from local cached balance (optimistic offline spend).
- * Returns false if insufficient cached balance.
  */
 export function deductCachedBalance(amount: number): boolean {
   const cached = getCachedBalance();
   if (!cached || cached.balance < amount) return false;
   cached.balance -= amount;
   cached.updatedAt = Date.now();
-  persistSet(CACHED_BALANCE_KEY, JSON.stringify(cached));
+  persistSetSync(CACHED_BALANCE_KEY, JSON.stringify(cached));
   return true;
 }
 
 /**
- * Get cached user identity (for offline display)
+ * Get cached user identity
  */
 export function getCachedUser(): { userId: string; displayName: string } | null {
   try {
-    const raw = persistGet(CACHED_USER_KEY);
+    const raw = persistGetSync(CACHED_USER_KEY);
     return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+/**
+ * Cache a discovered profile for offline name resolution
+ */
+export function cacheProfile(shortId: string, userId: string, name: string) {
+  try {
+    const raw = persistGetSync(CACHED_PROFILES_KEY);
+    const profiles: Record<string, { userId: string; name: string }> = raw ? JSON.parse(raw) : {};
+    profiles[shortId] = { userId, name };
+    persistSetSync(CACHED_PROFILES_KEY, JSON.stringify(profiles));
+  } catch {}
+}
+
+/**
+ * Get a cached profile by shortId (for offline name display)
+ */
+export function getCachedProfile(shortId: string): { userId: string; name: string } | null {
+  try {
+    const raw = persistGetSync(CACHED_PROFILES_KEY);
+    if (!raw) return null;
+    const profiles = JSON.parse(raw);
+    return profiles[shortId] || null;
   } catch { return null; }
 }
 
@@ -154,6 +204,7 @@ export async function startScanning(
       const profile = (!error && profiles && profiles.length > 0) ? profiles[0] : null;
 
       if (profile) {
+        cacheProfile(shortId, profile.id, profile.display_name || "Yuto User");
         const user: NearbyYutoUser = {
           userId: profile.id,
           shortId,
@@ -165,10 +216,11 @@ export async function startScanning(
         profileCache.set(shortId, user);
         onDiscovered(user);
       } else {
+        const cached = getCachedProfile(shortId);
         const user: NearbyYutoUser = {
-          userId: shortId,
+          userId: cached?.userId || shortId,
           shortId,
-          name: "Nearby user",
+          name: cached?.name || "Nearby user",
           avatarUrl: null,
           deviceAddress,
           rssi,
@@ -177,11 +229,12 @@ export async function startScanning(
         onDiscovered(user);
       }
     } catch (e) {
-      console.warn("[BLE] profile lookup failed:", e);
+      console.warn("[BLE] profile lookup failed (offline?):", e);
+      const cached = getCachedProfile(shortId);
       const user: NearbyYutoUser = {
-        userId: shortId,
+        userId: cached?.userId || shortId,
         shortId,
-        name: "Nearby user",
+        name: cached?.name || "Nearby user",
         avatarUrl: null,
         deviceAddress,
         rssi,
@@ -290,7 +343,7 @@ export async function syncOfflineTransactions(): Promise<number> {
     }
   }
 
-  persistSet(OFFLINE_TX_KEY, JSON.stringify(transactions));
+  persistSetSync(OFFLINE_TX_KEY, JSON.stringify(transactions));
   return synced;
 }
 
@@ -314,12 +367,12 @@ function handleIncomingTransaction(payload: string) {
 function saveOfflineTransaction(tx: OfflineTransaction) {
   const transactions = getOfflineTransactions();
   transactions.push(tx);
-  persistSet(OFFLINE_TX_KEY, JSON.stringify(transactions));
+  persistSetSync(OFFLINE_TX_KEY, JSON.stringify(transactions));
 }
 
 function getOfflineTransactions(): OfflineTransaction[] {
   try {
-    const raw = persistGet(OFFLINE_TX_KEY);
+    const raw = persistGetSync(OFFLINE_TX_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
