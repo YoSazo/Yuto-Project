@@ -1,0 +1,139 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - BLE Transfer Flow Bugs
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bugs exist
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the four bugs exist
+  - **Scoped PBT Approach**: Scope properties to concrete failing cases for each bug condition
+  - Bug Condition from design: `isBugCondition(input)` returns true when:
+    - `input.type == "navigate_profile" AND input.networkStatus == "offline"` → ProfileScreen shows 0 instead of cached balance
+    - `input.type == "ble_transfer_complete" AND input.transferMethod IN ["online_rpc", "offline_settle"]` → no `/api/notify` call made
+    - `input.type == "balance_changed" AND input.activeScreen == "ProfileScreen"` → balance not updated in realtime
+    - `input.type == "offline_tx_queued" AND pendingTransactions.length > 0` → no pending UI rendered
+  - Test cases:
+    - Mock `fetchYutoBalance` to reject/timeout, set `yuto_cached_balance` in Preferences to KSH 1500, verify ProfileScreen displays cached value (will FAIL - no fallback exists)
+    - Mock `supabase.rpc("transfer_yuto_balance")` to succeed in `sendViaBluetooth`, verify `authFetch("/api/notify", ...)` is called with recipient userId and amount (will FAIL - no call exists)
+    - Mock `supabase.rpc("settle_offline_transfer")` to return "settled" in `syncOfflineTransactions`, verify `authFetch("/api/notify", ...)` is called (will FAIL - no call exists)
+    - Simulate `postgres_changes` UPDATE event on `wallets` table while ProfileScreen is mounted, verify balance state updates (will FAIL - no subscription exists)
+    - Set `yuto_offline_transactions` with `synced: false` entries, verify WalletScreen renders pending indicator (will FAIL - no component exists)
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests FAIL (this is correct - it proves the bugs exist)
+  - Document counterexamples: ProfileScreen shows 0 offline, no HTTP call to `/api/notify` after BLE RPC, ProfileScreen balance unchanged after realtime event, WalletScreen renders no pending info
+  - Mark task complete when tests are written, run, and failures are documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Existing Wallet and Notification Behavior
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe on UNFIXED code:
+    - Online ProfileScreen: `fetchYutoBalance(userId)` returns live balance and displays it correctly
+    - WalletScreen realtime subscription on `wallets` table continues to fire and update balance
+    - `syncOfflineTransactions()` marks transactions as `synced: true` and returns count
+    - Existing push notifications in webhook.ts for top-ups/referrals/splits fire with correct payloads
+  - Write property-based tests capturing observed behavior:
+    - For all online ProfileScreen navigations, balance equals the value returned by `fetchYutoBalance()` (from Preservation Requirement 3.1)
+    - For all WalletScreen mounts, realtime subscription is created on `wallets` table filtered by `user_id` (from Preservation Requirement 3.5)
+    - For all `syncOfflineTransactions()` calls with pending transactions, settled transactions are marked `synced: true` and toast notification fires (from Preservation Requirement 3.4)
+    - For all non-BLE transaction completions (top-ups, referrals, splits), existing notification paths in webhook.ts remain unchanged (from Preservation Requirement 3.2)
+  - Verify tests PASS on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [x] 3. Fix for BLE transfer flow bugs
+
+  - [x] 3.1 Add cached balance fallback to ProfileScreen
+    - In `src/pages/ProfileScreen.tsx`, modify the `fetchData` useEffect
+    - Import `Preferences` from `@capacitor/preferences`
+    - Import `cacheBalanceLocally` from `../lib/bluetooth`
+    - Before calling `fetchYutoBalance(user.id)`, read from `Preferences.get({ key: "yuto_cached_balance" })`, parse JSON, and set `setPoints(cached.balance)` if `cached.balance > 0`
+    - Wrap `fetchYutoBalance(user.id)` in a `Promise.race` with a 2.5s timeout (same pattern as WalletScreen)
+    - On success: `setPoints(liveBalance)` and call `cacheBalanceLocally(user.id, liveBalance, profile.display_name)`
+    - On failure/timeout: keep the cached value displayed (already set above)
+    - _Bug_Condition: isBugCondition(input) where input.type == "navigate_profile" AND input.networkStatus == "offline"_
+    - _Expected_Behavior: ProfileScreen displays cached balance from Capacitor Preferences when offline_
+    - _Preservation: Online ProfileScreen still fetches and displays live balance from server_
+    - _Requirements: 2.1, 3.1_
+
+  - [x] 3.2 Add realtime balance subscription to ProfileScreen
+    - In `src/pages/ProfileScreen.tsx`, add a new `useEffect` after the main data fetch
+    - Create Supabase channel `"profile-wallet-balance"` subscribing to `postgres_changes` on `wallets` table with filter `user_id=eq.${user.id}` for UPDATE events
+    - On payload: `setPoints(Number(payload.new?.balance ?? 0))` and call `cacheBalanceLocally(user.id, newBalance, profile.display_name)`
+    - Cleanup: `supabase.removeChannel(channel)` on unmount
+    - _Bug_Condition: isBugCondition(input) where input.type == "balance_changed" AND input.activeScreen == "ProfileScreen"_
+    - _Expected_Behavior: ProfileScreen balance updates in realtime on wallets table change_
+    - _Preservation: WalletScreen existing realtime subscription unchanged_
+    - _Requirements: 2.4, 3.3, 3.5_
+
+  - [x] 3.3 Add push notification for online BLE transfers
+    - In `src/lib/bluetooth.ts`, inside `sendViaBluetooth()` after the `if (!error)` block for `transfer_yuto_balance` RPC
+    - Import `authFetch` from `./supabase` (same lib directory)
+    - After successful online settlement, fire-and-forget: `authFetch("/api/notify", { method: "POST", body: JSON.stringify({ userId: recipient.userId, title: "💸 Money received!", body: \`KSH ${amount} from ${getCachedUser()?.displayName ?? "someone"}\` }) }).catch(() => {})`
+    - Must not block the return or affect the transfer success/failure
+    - _Bug_Condition: isBugCondition(input) where input.type == "ble_transfer_complete" AND input.transferMethod == "online_rpc"_
+    - _Expected_Behavior: /api/notify called with recipient userId, amount, and sender name after successful transfer_yuto_balance RPC_
+    - _Preservation: Existing webhook.ts notifications for top-ups/referrals/splits unchanged_
+    - _Requirements: 2.2, 3.2_
+
+  - [x] 3.4 Add push notification for offline BLE transfer settlement
+    - In `src/lib/bluetooth.ts`, inside `syncOfflineTransactions()` after `settle_offline_transfer` returns `"settled"`
+    - After the `if (!error && (result === "settled" || result === "already_settled"))` check, when `result === "settled"` specifically, fire-and-forget: `authFetch("/api/notify", { method: "POST", body: JSON.stringify({ userId: tx.recipientId, title: "💸 Money received!", body: \`KSH ${tx.amount} from ${getCachedUser()?.displayName ?? "someone"}\` }) }).catch(() => {})`
+    - Only notify on `"settled"` (not `"already_settled"`) to avoid duplicate notifications
+    - Must not block the sync loop or affect settlement logic
+    - _Bug_Condition: isBugCondition(input) where input.type == "ble_transfer_complete" AND input.transferMethod == "offline_settle"_
+    - _Expected_Behavior: /api/notify called with recipient userId, amount, and sender name after settle_offline_transfer returns "settled"_
+    - _Preservation: Offline sync toast notification and transaction marking unchanged_
+    - _Requirements: 2.3, 3.2, 3.4_
+
+  - [x] 3.5 Export `getOfflineTransactions` from bluetooth.ts
+    - In `src/lib/bluetooth.ts`, change `function getOfflineTransactions()` to `export function getOfflineTransactions()`
+    - This allows WalletScreen to import and read pending transactions for display
+    - No behavior change to the function itself
+    - _Preservation: All existing internal callers of getOfflineTransactions continue to work_
+    - _Requirements: 2.5_
+
+  - [x] 3.6 Add pending transfers UI to WalletScreen
+    - In `src/pages/WalletScreen.tsx`, import `getOfflineTransactions` from `../lib/bluetooth`
+    - Add state: `const [pendingTransfers, setPendingTransfers] = useState<OfflineTransaction[]>([])`
+    - On mount and after each BLE send, read `getOfflineTransactions().filter(tx => !tx.synced)` into state
+    - Listen for `online` event to refresh pending list (synced transactions will disappear)
+    - Render a card/banner above the transaction list showing "X transfers pending" with total KSH amount when `pendingTransfers.length > 0`
+    - Each pending item shows recipient name (from cached profiles), amount, and "Pending" badge
+    - _Bug_Condition: isBugCondition(input) where input.type == "offline_tx_queued" AND pendingTransactions.length > 0_
+    - _Expected_Behavior: WalletScreen displays pending transfers indicator with count and amounts_
+    - _Preservation: WalletScreen BLE radar, send flow, realtime subscription, and sync toast unchanged_
+    - _Requirements: 2.5, 3.3, 3.4_
+
+  - [x] 3.7 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - BLE Transfer Flow Bugs Fixed
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior for all four bug conditions
+    - When this test passes, it confirms:
+      - ProfileScreen displays cached balance when offline
+      - `/api/notify` is called after successful online BLE transfer
+      - `/api/notify` is called after offline BLE transfer settlement
+      - ProfileScreen balance updates via realtime subscription
+      - WalletScreen shows pending transfers UI
+    - Run bug condition exploration test from step 1
+    - **EXPECTED OUTCOME**: Test PASSES (confirms all bugs are fixed)
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
+
+  - [x] 3.8 Verify preservation tests still pass
+    - **Property 2: Preservation** - Existing Wallet and Notification Behavior
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm all preservation tests still pass after fix:
+      - Online ProfileScreen fetch works as before
+      - WalletScreen realtime subscription unchanged
+      - Offline sync flow and toast unchanged
+      - Existing webhook.ts notifications unchanged
+
+- [x] 4. Checkpoint - Ensure all tests pass
+  - Run full test suite to confirm no regressions
+  - Verify bug condition tests (task 1) now pass
+  - Verify preservation tests (task 2) still pass
+  - Ensure no TypeScript compilation errors in modified files
+  - Ask the user if questions arise

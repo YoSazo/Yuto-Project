@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import { supabase } from "./supabase";
+import { supabase, authFetch } from "./supabase";
 
 /**
  * Yuto Bluetooth P2P — Real BLE advertising + scanning + offline transfers.
@@ -287,6 +287,12 @@ export async function sendViaBluetooth(
     if (!error) {
       // Deduct from local cache too
       deductCachedBalance(amount);
+      // Notify recipient (fire-and-forget)
+      const senderName = getCachedUser()?.displayName ?? "someone";
+      authFetch("/api/notify", {
+        method: "POST",
+        body: JSON.stringify({ userId: recipient.userId, title: "💸 Money received!", body: `KSH ${amount} from ${senderName}` }),
+      }).catch(() => {});
       return { success: true, offline: false, message: `KSH ${amount} sent!` };
     }
   } catch {
@@ -331,6 +337,14 @@ export async function syncOfflineTransactions(): Promise<number> {
       if (!error && (result === "settled" || result === "already_settled")) {
         tx.synced = true;
         synced++;
+        // Notify recipient on first settlement (fire-and-forget)
+        if (result === "settled") {
+          const senderName = getCachedUser()?.displayName ?? "someone";
+          authFetch("/api/notify", {
+            method: "POST",
+            body: JSON.stringify({ userId: tx.recipientId, title: "💸 Money received!", body: `KSH ${tx.amount} from ${senderName}` }),
+          }).catch(() => {});
+        }
       } else if (result === "insufficient_balance") {
         tx.synced = true; // Mark as processed (rejected)
         console.warn(`[BLE] Offline tx ${tx.id} rejected: insufficient balance`);
@@ -381,7 +395,7 @@ async function saveOfflineTransaction(tx: OfflineTransaction) {
   } catch {}
 }
 
-function getOfflineTransactions(): OfflineTransaction[] {
+export function getOfflineTransactions(): OfflineTransaction[] {
   try {
     const raw = persistGetSync(OFFLINE_TX_KEY);
     return raw ? JSON.parse(raw) : [];

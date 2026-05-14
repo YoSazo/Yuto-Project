@@ -27,6 +27,7 @@ import { HighlightStillMedia, isHighlightVideoUrl } from "../components/highligh
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
 import { Wallet, History, Plus, Copy, Check, Send, Volume2, VolumeX, Store, ChevronDown, ArrowDownLeft, Sun, Moon } from "lucide-react";
 import { Switch } from "../components/ui/switch";
+import { cacheBalanceLocally } from "../lib/bluetooth";
 
 const WaIcon = ({ size = 16 }: { size?: number }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 175.216 175.552" width={size} height={size}>
@@ -499,7 +500,29 @@ export default function ProfileScreen() {
         if (profileError) throw profileError;
         if (profileData?.avatar_url) setAvatarUrl(profileData.avatar_url);
 
-        setPoints(await fetchYutoBalance(user.id));
+        // Read cached balance first (works offline)
+        try {
+          const { Preferences } = await import("@capacitor/preferences");
+          const { value } = await Preferences.get({ key: "yuto_cached_balance" });
+          if (value) {
+            const cached = JSON.parse(value);
+            if (cached.balance > 0) setPoints(cached.balance);
+          }
+        } catch {}
+
+        // Try live fetch with timeout (same pattern as WalletScreen)
+        try {
+          const bal = await Promise.race([
+            fetchYutoBalance(user.id),
+            new Promise<number>((_, reject) => setTimeout(() => reject(new Error("timeout")), 2500))
+          ]);
+          if (bal > 0) {
+            setPoints(bal);
+            cacheBalanceLocally(user.id, bal, profileData?.display_name || "You");
+          }
+        } catch {
+          // Offline or timeout — keep cached value
+        }
 
         // Load transfer credits balance
         try {
@@ -557,6 +580,20 @@ export default function ProfileScreen() {
     };
 
     fetchData();
+  }, [user]);
+
+  // Realtime balance subscription (mirrors WalletScreen pattern)
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("profile-wallet-balance")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "wallets", filter: `user_id=eq.${user.id}` }, (payload) => {
+        const newBalance = Number(payload.new?.balance ?? 0);
+        setPoints(newBalance);
+        cacheBalanceLocally(user.id, newBalance, profile?.display_name || "You");
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   useEffect(() => {

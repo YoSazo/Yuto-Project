@@ -6,7 +6,7 @@ import { Plus, ArrowDownLeft, Send } from "lucide-react";
 import { toast } from "sonner";
 import UserAvatar from "../components/UserAvatar";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
-import { initBluetooth, startScanning, stopBluetooth, sendViaBluetooth, syncOfflineTransactions, isBleAvailable, cacheBalanceLocally, getCachedBalance, getCachedUser, type NearbyYutoUser } from "../lib/bluetooth";
+import { initBluetooth, startScanning, stopBluetooth, sendViaBluetooth, syncOfflineTransactions, isBleAvailable, cacheBalanceLocally, getCachedBalance, getCachedUser, getOfflineTransactions, type NearbyYutoUser, type OfflineTransaction } from "../lib/bluetooth";
 
 /**
  * Wallet page with real Bluetooth proximity P2P.
@@ -26,8 +26,14 @@ export default function WalletScreen() {
   const [sendTarget, setSendTarget] = useState<NearbyYutoUser | null>(null);
   const [sendAmount, setSendAmount] = useState("");
   const [sending, setSending] = useState(false);
+  const [pendingTransfers, setPendingTransfers] = useState<OfflineTransaction[]>([]);
+
+  const refreshPending = () => {
+    setPendingTransfers(getOfflineTransactions().filter(tx => !tx.synced));
+  };
 
   useEffect(() => {
+    refreshPending();
     loadWallet();
     if (user) setupBle();
 
@@ -60,6 +66,7 @@ export default function WalletScreen() {
         if (synced > 0) {
           toast.success(`${synced} offline transfer${synced > 1 ? "s" : ""} settled!`);
         }
+        refreshPending();
         // Refresh balance — only trust positive values from server
         const bal = await fetchYutoBalance(user.id);
         if (bal > 0) {
@@ -197,6 +204,7 @@ export default function WalletScreen() {
         toast.success(result.message);
         // Immediately update balance (animate down)
         setBalance((prev) => Math.max(0, prev - amount));
+        refreshPending();
         setSendTarget(null);
         setSendAmount("");
         setSending(false);
@@ -338,6 +346,21 @@ export default function WalletScreen() {
           );
         })}
       </div>
+
+      {/* Pending offline transfers */}
+      {pendingTransfers.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-amber-800 dark:text-amber-200 text-sm font-bold">
+              {pendingTransfers.length} transfer{pendingTransfers.length > 1 ? "s" : ""} pending
+            </p>
+            <span className="text-amber-600 dark:text-amber-300 text-xs font-semibold">
+              KSH {pendingTransfers.reduce((sum, tx) => sum + tx.amount, 0).toLocaleString()}
+            </span>
+          </div>
+          <p className="text-amber-600 dark:text-amber-400 text-xs">Will settle automatically when you're back online</p>
+        </div>
+      )}
 
       {/* Bottom message */}
       <div className="bg-black dark:bg-zinc-900 rounded-2xl p-4 text-center">
