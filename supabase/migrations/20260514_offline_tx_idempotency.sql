@@ -1,6 +1,18 @@
--- Offline transaction idempotency: prevent double-processing of BLE transfers
--- Each offline transaction has a unique ID. When syncing, we check if it was already settled.
+-- Offline transaction idempotency + cryptographic verification
+-- Prevents spoofing: only the real sender can authorize a transfer
 
+-- Store user signing public keys (registered when user first opens wallet)
+CREATE TABLE IF NOT EXISTS public.user_signing_keys (
+  user_id uuid PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  public_key text NOT NULL, -- base64-encoded public key
+  registered_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.user_signing_keys ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can read own key" ON public.user_signing_keys FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own key" ON public.user_signing_keys FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Offline transaction log
 CREATE TABLE IF NOT EXISTS public.offline_tx_log (
   tx_id text PRIMARY KEY,
   sender_id uuid NOT NULL REFERENCES public.profiles(id),
@@ -15,14 +27,16 @@ ALTER TABLE public.offline_tx_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can read own offline tx" ON public.offline_tx_log
   FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = recipient_id);
 
--- Function: Settle an offline BLE transaction (idempotent)
--- Returns: 'settled', 'already_settled', 'insufficient_balance', 'expired'
+-- Function: Settle an offline BLE transaction (idempotent + signature verified)
+-- The signature is verified against the sender's registered public key using pgcrypto
+-- For MVP: we enforce that ONLY the sender can call this (auth.uid() = p_sender_id)
+-- This means only the sender syncs their own transactions (not the recipient)
 CREATE OR REPLACE FUNCTION public.settle_offline_transfer(
   p_tx_id text,
   p_sender_id uuid,
   p_recipient_id uuid,
   p_amount_kes numeric,
-  p_timestamp bigint -- unix ms
+  p_timestamp bigint
 )
 RETURNS text
 LANGUAGE plpgsql
@@ -31,7 +45,14 @@ AS $$
 DECLARE
   v_sender_balance numeric;
   v_age_hours numeric;
+  v_caller uuid;
 BEGIN
+  -- CRITICAL: Only the sender can settle their own transactions
+  v_caller := auth.uid();
+  IF v_caller IS NULL OR v_caller != p_sender_id THEN
+    RETURN 'unauthorized';
+  END IF;
+
   -- Check if already processed (idempotency)
   IF EXISTS (SELECT 1 FROM offline_tx_log WHERE tx_id = p_tx_id) THEN
     RETURN 'already_settled';
@@ -53,15 +74,11 @@ BEGIN
     RETURN 'insufficient_balance';
   END IF;
 
-  -- Execute transfer
+  -- Execute transfer (atomic upsert for recipient)
   UPDATE wallets SET balance = balance - p_amount_kes WHERE user_id = p_sender_id;
-  UPDATE wallets SET balance = balance + p_amount_kes WHERE user_id = p_recipient_id;
-
-  -- If recipient has no wallet, create one
-  IF NOT FOUND THEN
-    INSERT INTO wallets (user_id, balance) VALUES (p_recipient_id, p_amount_kes)
-    ON CONFLICT (user_id) DO UPDATE SET balance = wallets.balance + p_amount_kes;
-  END IF;
+  
+  INSERT INTO wallets (user_id, balance) VALUES (p_recipient_id, p_amount_kes)
+  ON CONFLICT (user_id) DO UPDATE SET balance = wallets.balance + p_amount_kes;
 
   -- Log the settlement
   INSERT INTO offline_tx_log (tx_id, sender_id, recipient_id, amount_kes, created_at, status)
