@@ -1,5 +1,6 @@
 package social.yuto.app;
 
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -20,21 +21,41 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.ParcelUuid;
 import android.util.Log;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@CapacitorPlugin(name = "YutoBle")
+@CapacitorPlugin(
+    name = "YutoBle",
+    permissions = {
+        @Permission(
+            alias = "bluetooth",
+            strings = {
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_ADVERTISE,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            }
+        )
+    }
+)
 public class YutoBlePlugin extends Plugin {
     private static final String TAG = "YutoBle";
     private static final UUID YUTO_SERVICE_UUID = UUID.fromString("0000ff01-0000-1000-8000-00805f9b34fb");
@@ -48,12 +69,58 @@ public class YutoBlePlugin extends Plugin {
     private String currentUserId = "";
     private boolean isAdvertising = false;
     private boolean isScanning = false;
-
-    // Pending transaction received via BLE (offline)
     private String pendingTxPayload = null;
+
+    // Saved call for permission callback
+    private PluginCall savedCall = null;
+    private String savedAction = "";
+
+    private boolean hasPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_ADVERTISE) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        }
+    }
 
     @PluginMethod
     public void startAdvertising(PluginCall call) {
+        if (!hasPermissions()) {
+            savedCall = call;
+            savedAction = "advertise";
+            requestPermissionForAlias("bluetooth", call, "permissionCallback");
+            return;
+        }
+        doStartAdvertising(call);
+    }
+
+    @PluginMethod
+    public void startScanning(PluginCall call) {
+        if (!hasPermissions()) {
+            savedCall = call;
+            savedAction = "scan";
+            requestPermissionForAlias("bluetooth", call, "permissionCallback");
+            return;
+        }
+        doStartScanning(call);
+    }
+
+    @PermissionCallback
+    private void permissionCallback(PluginCall call) {
+        if (!hasPermissions()) {
+            call.reject("Bluetooth permissions denied. Please enable in Settings.");
+            return;
+        }
+        if ("advertise".equals(savedAction)) {
+            doStartAdvertising(call);
+        } else if ("scan".equals(savedAction)) {
+            doStartScanning(call);
+        }
+    }
+
+    private void doStartAdvertising(PluginCall call) {
         String userId = call.getString("userId", "");
         if (userId.isEmpty()) {
             call.reject("userId required");
@@ -75,7 +142,7 @@ public class YutoBlePlugin extends Plugin {
             return;
         }
 
-        // Set the device name to YUTO_<first8chars>
+        // Set device name
         String shortId = userId.replace("-", "").substring(0, 8);
         try {
             bluetoothAdapter.setName("YUTO_" + shortId);
@@ -83,8 +150,13 @@ public class YutoBlePlugin extends Plugin {
             Log.w(TAG, "Cannot set BT name: " + e.getMessage());
         }
 
-        // Start GATT server to receive transaction data
-        startGattServer();
+        // Start GATT server
+        try {
+            startGattServer();
+        } catch (SecurityException e) {
+            call.reject("GATT server failed: " + e.getMessage());
+            return;
+        }
 
         // Advertise
         AdvertiseSettings settings = new AdvertiseSettings.Builder()
@@ -104,33 +176,11 @@ public class YutoBlePlugin extends Plugin {
             isAdvertising = true;
             call.resolve(new JSObject().put("success", true));
         } catch (SecurityException e) {
-            call.reject("Permission denied: " + e.getMessage());
+            call.reject("Advertise permission denied: " + e.getMessage());
         }
     }
 
-    @PluginMethod
-    public void stopAdvertising(PluginCall call) {
-        if (advertiser != null && isAdvertising) {
-            try {
-                advertiser.stopAdvertising(advertiseCallback);
-            } catch (SecurityException e) {
-                Log.w(TAG, "Stop advertise error: " + e.getMessage());
-            }
-            isAdvertising = false;
-        }
-        if (gattServer != null) {
-            try {
-                gattServer.close();
-            } catch (Exception e) {
-                Log.w(TAG, "GATT close error: " + e.getMessage());
-            }
-            gattServer = null;
-        }
-        call.resolve(new JSObject().put("success", true));
-    }
-
-    @PluginMethod
-    public void startScanning(PluginCall call) {
+    private void doStartScanning(PluginCall call) {
         bluetoothManager = (BluetoothManager) getContext().getSystemService(Context.BLUETOOTH_SERVICE);
         bluetoothAdapter = bluetoothManager.getAdapter();
 
@@ -159,8 +209,29 @@ public class YutoBlePlugin extends Plugin {
             isScanning = true;
             call.resolve(new JSObject().put("success", true));
         } catch (SecurityException e) {
-            call.reject("Permission denied: " + e.getMessage());
+            call.reject("Scan permission denied: " + e.getMessage());
         }
+    }
+
+    @PluginMethod
+    public void stopAdvertising(PluginCall call) {
+        if (advertiser != null && isAdvertising) {
+            try {
+                advertiser.stopAdvertising(advertiseCallback);
+            } catch (SecurityException e) {
+                Log.w(TAG, "Stop advertise error: " + e.getMessage());
+            }
+            isAdvertising = false;
+        }
+        if (gattServer != null) {
+            try {
+                gattServer.close();
+            } catch (Exception e) {
+                Log.w(TAG, "GATT close error: " + e.getMessage());
+            }
+            gattServer = null;
+        }
+        call.resolve(new JSObject().put("success", true));
     }
 
     @PluginMethod
@@ -186,18 +257,15 @@ public class YutoBlePlugin extends Plugin {
             return;
         }
 
-        // Connect to the remote device's GATT server and write the transaction
-        BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
         try {
-            BluetoothGatt gatt = device.connectGatt(getContext(), false, new BluetoothGattCallback() {
+            BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
+            device.connectGatt(getContext(), false, new BluetoothGattCallback() {
                 @Override
                 public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                     if (newState == BluetoothProfile.STATE_CONNECTED) {
-                        try {
-                            gatt.discoverServices();
-                        } catch (SecurityException e) {
-                            Log.e(TAG, "Discover services error: " + e.getMessage());
-                        }
+                        try { gatt.discoverServices(); } catch (SecurityException e) { call.reject(e.getMessage()); }
+                    } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                        try { gatt.close(); } catch (Exception ignored) {}
                     }
                 }
 
@@ -208,26 +276,19 @@ public class YutoBlePlugin extends Plugin {
                         BluetoothGattCharacteristic txChar = service.getCharacteristic(YUTO_TX_CHAR_UUID);
                         if (txChar != null) {
                             txChar.setValue(payload.getBytes(StandardCharsets.UTF_8));
-                            try {
-                                gatt.writeCharacteristic(txChar);
-                            } catch (SecurityException e) {
-                                Log.e(TAG, "Write char error: " + e.getMessage());
-                            }
+                            try { gatt.writeCharacteristic(txChar); } catch (SecurityException e) { call.reject(e.getMessage()); }
+                        } else {
+                            call.reject("TX characteristic not found");
                         }
+                    } else {
+                        call.reject("Yuto service not found on device");
                     }
                 }
 
                 @Override
                 public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                    try {
-                        gatt.disconnect();
-                        gatt.close();
-                    } catch (SecurityException e) {
-                        Log.w(TAG, "Disconnect error: " + e.getMessage());
-                    }
-                    JSObject result = new JSObject();
-                    result.put("success", status == BluetoothGatt.GATT_SUCCESS);
-                    call.resolve(result);
+                    try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
+                    call.resolve(new JSObject().put("success", status == BluetoothGatt.GATT_SUCCESS));
                 }
             });
         } catch (SecurityException e) {
@@ -243,25 +304,18 @@ public class YutoBlePlugin extends Plugin {
         call.resolve(result);
     }
 
-    // ── GATT Server (receives transactions from sender) ──────────────
+    // ── GATT Server ──────────────────────────────────────────
 
-    private void startGattServer() {
+    private void startGattServer() throws SecurityException {
         gattServer = bluetoothManager.openGattServer(getContext(), gattServerCallback);
-
         BluetoothGattService service = new BluetoothGattService(YUTO_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
-
         BluetoothGattCharacteristic txChar = new BluetoothGattCharacteristic(
                 YUTO_TX_CHAR_UUID,
                 BluetoothGattCharacteristic.PROPERTY_WRITE,
                 BluetoothGattCharacteristic.PERMISSION_WRITE
         );
         service.addCharacteristic(txChar);
-
-        try {
-            gattServer.addService(service);
-        } catch (SecurityException e) {
-            Log.e(TAG, "Add service error: " + e.getMessage());
-        }
+        gattServer.addService(service);
     }
 
     private final BluetoothGattServerCallback gattServerCallback = new BluetoothGattServerCallback() {
@@ -273,31 +327,24 @@ public class YutoBlePlugin extends Plugin {
                 String payload = new String(value, StandardCharsets.UTF_8);
                 Log.i(TAG, "Received BLE transaction: " + payload);
                 pendingTxPayload = payload;
-
-                // Notify the JS layer
                 JSObject event = new JSObject();
                 event.put("payload", payload);
                 notifyListeners("transactionReceived", event);
             }
-
             if (responseNeeded && gattServer != null) {
-                try {
-                    gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
-                } catch (SecurityException e) {
-                    Log.w(TAG, "Send response error: " + e.getMessage());
-                }
+                try { gattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null); }
+                catch (SecurityException e) { Log.w(TAG, "Send response error: " + e.getMessage()); }
             }
         }
     };
 
-    // ── Callbacks ────────────────────────────────────────────────────
+    // ── Callbacks ────────────────────────────────────────────
 
     private final AdvertiseCallback advertiseCallback = new AdvertiseCallback() {
         @Override
         public void onStartSuccess(AdvertiseSettings settingsInEffect) {
-            Log.i(TAG, "Advertising started successfully");
+            Log.i(TAG, "Advertising started");
         }
-
         @Override
         public void onStartFailure(int errorCode) {
             Log.e(TAG, "Advertising failed: " + errorCode);
@@ -308,16 +355,11 @@ public class YutoBlePlugin extends Plugin {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
             String deviceName = "";
-            try {
-                deviceName = result.getDevice().getName();
-            } catch (SecurityException e) {
-                // ignore
-            }
+            try { deviceName = result.getDevice().getName(); } catch (SecurityException e) { /* ignore */ }
             if (deviceName == null) deviceName = "";
 
             if (deviceName.startsWith("YUTO_")) {
                 String shortId = deviceName.substring(5);
-                // Don't discover ourselves
                 if (currentUserId.replace("-", "").startsWith(shortId)) return;
 
                 JSObject event = new JSObject();
