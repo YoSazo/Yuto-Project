@@ -4,6 +4,7 @@
       "private": true,
       "type": "module",
       "dependencies": {
+            "@capacitor-community/bluetooth-le": "^8.1.3",
             "@capacitor/android": "^8.3.4",
             "@capacitor/cli": "^8.3.4",
             "@capacitor/core": "^8.3.4",
