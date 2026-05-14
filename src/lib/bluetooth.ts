@@ -76,31 +76,25 @@ export async function startScanning(
   currentUserId: string,
   onDiscovered: (user: NearbyYutoUser) => void
 ): Promise<void> {
-  // Profile cache to avoid repeated lookups
   const profileCache = new Map<string, NearbyYutoUser>();
 
   YutoBle.addListener("deviceDiscovered", async (data) => {
     const { shortId, deviceAddress, rssi } = data;
 
-    // Check cache first
     if (profileCache.has(shortId)) {
       const cached = profileCache.get(shortId)!;
       onDiscovered({ ...cached, rssi, deviceAddress });
       return;
     }
 
-    // Try to look up profile (requires internet)
+    // Look up profile via RPC
     try {
-      // shortId is first 8 hex chars without dashes. UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-      // So we search for id starting with those 8 chars (with dash after)
-      const uuidPrefix = `${shortId.slice(0, 8)}`;
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, display_name, avatar_url")
-        .like("id", `${uuidPrefix}%`)
-        .limit(1);
+      const { data: profiles, error } = await supabase.rpc("find_profile_by_id_prefix", {
+        p_prefix: shortId
+      });
 
-      const profile = profiles?.[0];
+      const profile = (!error && profiles && profiles.length > 0) ? profiles[0] : null;
+
       if (profile) {
         const user: NearbyYutoUser = {
           userId: profile.id,
@@ -113,11 +107,10 @@ export async function startScanning(
         profileCache.set(shortId, user);
         onDiscovered(user);
       } else {
-        // No internet or user not found — show with shortId
         const user: NearbyYutoUser = {
           userId: shortId,
           shortId,
-          name: `User ${shortId.slice(0, 4)}`,
+          name: "Nearby user",
           avatarUrl: null,
           deviceAddress,
           rssi,
@@ -125,12 +118,12 @@ export async function startScanning(
         profileCache.set(shortId, user);
         onDiscovered(user);
       }
-    } catch {
-      // Offline — show with shortId
+    } catch (e) {
+      console.warn("[BLE] profile lookup failed:", e);
       const user: NearbyYutoUser = {
         userId: shortId,
         shortId,
-        name: `User ${shortId.slice(0, 4)}`,
+        name: "Nearby user",
         avatarUrl: null,
         deviceAddress,
         rssi,
@@ -141,11 +134,6 @@ export async function startScanning(
   });
 }
 
-/**
- * Send money to a nearby user via BLE.
- * If online: settles immediately via Supabase RPC.
- * If offline: sends transaction via BLE GATT + queues for later sync.
- */
 export async function sendViaBluetooth(
   senderId: string,
   recipient: NearbyYutoUser,
