@@ -45,13 +45,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * Automatically includes the Supabase auth token so server-side
  * endpoints can verify the caller's identity.
  */
+// Detect if running inside Capacitor native shell (not a browser)
+const isNativeApp = typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform?.();
+const API_BASE = isNativeApp ? "https://yuto.social" : "";
+
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  return fetch(url, { ...options, headers });
+  const fullUrl = url.startsWith("/") ? `${API_BASE}${url}` : url;
+  return fetch(fullUrl, { ...options, headers });
 }
 
 // ─── Auth ────────────────────────────────────────────
