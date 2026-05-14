@@ -45,6 +45,52 @@ export interface OfflineTransaction {
 }
 
 const OFFLINE_TX_KEY = "yuto_offline_transactions";
+const CACHED_BALANCE_KEY = "yuto_cached_balance";
+const CACHED_USER_KEY = "yuto_cached_user";
+
+// ── Local Balance Cache ─────────────────────────────────────
+
+/**
+ * Cache the user's balance and identity locally.
+ * Call this whenever the app is online and balance is fetched.
+ */
+export function cacheBalanceLocally(userId: string, balance: number, displayName: string) {
+  localStorage.setItem(CACHED_BALANCE_KEY, JSON.stringify({ userId, balance, updatedAt: Date.now() }));
+  localStorage.setItem(CACHED_USER_KEY, JSON.stringify({ userId, displayName }));
+}
+
+/**
+ * Get the locally cached balance. Returns 0 if nothing cached.
+ */
+export function getCachedBalance(): { userId: string; balance: number; updatedAt: number } | null {
+  try {
+    const raw = localStorage.getItem(CACHED_BALANCE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+/**
+ * Deduct from local cached balance (optimistic offline spend).
+ * Returns false if insufficient cached balance.
+ */
+export function deductCachedBalance(amount: number): boolean {
+  const cached = getCachedBalance();
+  if (!cached || cached.balance < amount) return false;
+  cached.balance -= amount;
+  cached.updatedAt = Date.now();
+  localStorage.setItem(CACHED_BALANCE_KEY, JSON.stringify(cached));
+  return true;
+}
+
+/**
+ * Get cached user identity (for offline display)
+ */
+export function getCachedUser(): { userId: string; displayName: string } | null {
+  try {
+    const raw = localStorage.getItem(CACHED_USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
 
 // ── Public API ──────────────────────────────────────────────
 
@@ -150,6 +196,12 @@ export async function sendViaBluetooth(
     timestamp,
   });
 
+  // Enforce local cached balance (prevents overdraft offline)
+  const cached = getCachedBalance();
+  if (cached && cached.balance < amount) {
+    return { success: false, offline: true, message: `Insufficient balance. You have KSH ${Math.round(cached.balance)} cached.` };
+  }
+
   // Send via BLE first (instant, no network needed)
   let bleSent = false;
   try {
@@ -159,7 +211,7 @@ export async function sendViaBluetooth(
     console.warn("[BLE] GATT write failed:", e);
   }
 
-  // Try online settlement (if we have internet)
+  // Try online settlement
   try {
     const { error } = await supabase.rpc("transfer_yuto_balance", {
       p_to_user_id: recipient.userId,
@@ -168,14 +220,22 @@ export async function sendViaBluetooth(
     });
 
     if (!error) {
+      // Deduct from local cache too
+      deductCachedBalance(amount);
       return { success: true, offline: false, message: `KSH ${amount} sent!` };
     }
   } catch {
-    // No internet — that's fine, we'll queue it
+    // No internet — fall through
   }
 
-  // If BLE succeeded but online didn't, queue for later sync
+  // Offline path: BLE succeeded, queue for later
   if (bleSent) {
+    // Deduct from local cached balance (optimistic)
+    const deducted = deductCachedBalance(amount);
+    if (!deducted && cached) {
+      return { success: false, offline: true, message: "Insufficient cached balance for offline send." };
+    }
+
     const tx: OfflineTransaction = { id: txId, senderId, recipientId: recipient.userId, amount, timestamp, synced: false };
     saveOfflineTransaction(tx);
     return { success: true, offline: true, message: `KSH ${amount} sent offline! Will settle when online.` };
@@ -195,22 +255,29 @@ export async function syncOfflineTransactions(): Promise<number> {
 
   for (const tx of pending) {
     try {
-      const { error } = await supabase.rpc("transfer_yuto_balance", {
-        p_to_user_id: tx.recipientId,
+      const { data: result, error } = await supabase.rpc("settle_offline_transfer", {
+        p_tx_id: tx.id,
+        p_sender_id: tx.senderId,
+        p_recipient_id: tx.recipientId,
         p_amount_kes: Math.round(tx.amount),
-        p_note: `Bluetooth P2P (offline, synced)`,
+        p_timestamp: tx.timestamp,
       });
 
-      if (!error) {
+      if (!error && (result === "settled" || result === "already_settled")) {
         tx.synced = true;
         synced++;
+      } else if (result === "insufficient_balance") {
+        tx.synced = true; // Mark as processed (rejected)
+        console.warn(`[BLE] Offline tx ${tx.id} rejected: insufficient balance`);
+      } else if (result === "expired") {
+        tx.synced = true;
+        console.warn(`[BLE] Offline tx ${tx.id} expired (>24h old)`);
       }
     } catch {
       // Will retry next time
     }
   }
 
-  // Save updated list
   localStorage.setItem(OFFLINE_TX_KEY, JSON.stringify(transactions));
   return synced;
 }

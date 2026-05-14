@@ -6,7 +6,7 @@ import { Plus, ArrowDownLeft, Send } from "lucide-react";
 import { toast } from "sonner";
 import UserAvatar from "../components/UserAvatar";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
-import { initBluetooth, startScanning, stopBluetooth, sendViaBluetooth, syncOfflineTransactions, isBleAvailable, type NearbyYutoUser } from "../lib/bluetooth";
+import { initBluetooth, startScanning, stopBluetooth, sendViaBluetooth, syncOfflineTransactions, isBleAvailable, cacheBalanceLocally, getCachedBalance, getCachedUser, type NearbyYutoUser } from "../lib/bluetooth";
 
 /**
  * Wallet page with real Bluetooth proximity P2P.
@@ -64,9 +64,17 @@ export default function WalletScreen() {
     if (!user) return;
     setLoading(true);
     try {
-      setBalance(await fetchYutoBalance(user.id));
+      const bal = await fetchYutoBalance(user.id);
+      setBalance(bal);
+      // Cache balance locally for offline use
+      cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
     } catch (e) {
-      console.error(e);
+      // Offline — use cached balance
+      const cached = getCachedBalance();
+      if (cached) {
+        setBalance(cached.balance);
+      }
+      console.warn("[Wallet] Using cached balance:", e);
     } finally {
       setLoading(false);
     }
