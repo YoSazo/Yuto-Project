@@ -260,12 +260,23 @@ public class YutoBlePlugin extends Plugin {
         try {
             BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
             device.connectGatt(getContext(), false, new BluetoothGattCallback() {
+                private int retryCount = 0;
+
                 @Override
                 public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                     if (newState == BluetoothProfile.STATE_CONNECTED) {
-                        try { gatt.discoverServices(); } catch (SecurityException e) { call.reject(e.getMessage()); }
+                        // Small delay before service discovery to let GATT server stabilize
+                        try {
+                            Thread.sleep(300);
+                            gatt.discoverServices();
+                        } catch (Exception e) {
+                            call.reject("Discovery failed: " + e.getMessage());
+                        }
                     } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                         try { gatt.close(); } catch (Exception ignored) {}
+                        if (retryCount == 0) {
+                            // Don't reject here — might be a normal disconnect after write
+                        }
                     }
                 }
 
@@ -276,26 +287,52 @@ public class YutoBlePlugin extends Plugin {
                         BluetoothGattCharacteristic txChar = service.getCharacteristic(YUTO_TX_CHAR_UUID);
                         if (txChar != null) {
                             txChar.setValue(payload.getBytes(StandardCharsets.UTF_8));
-                            txChar.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
-                            try { 
+                            txChar.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+                            try {
                                 boolean initiated = gatt.writeCharacteristic(txChar);
+                                Log.i(TAG, "Write initiated: " + initiated);
                                 if (!initiated) {
                                     try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
                                     call.reject("Write not initiated");
+                                } else {
+                                    // For WRITE_TYPE_NO_RESPONSE, onCharacteristicWrite may not fire
+                                    // Resolve after a short delay
+                                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                        try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
+                                        call.resolve(new JSObject().put("success", true));
+                                    }, 500);
                                 }
-                            } catch (SecurityException e) { call.reject(e.getMessage()); }
+                            } catch (SecurityException e) {
+                                try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
+                                call.reject(e.getMessage());
+                            }
                         } else {
+                            Log.w(TAG, "TX characteristic not found in service");
                             try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
                             call.reject("TX characteristic not found");
                         }
                     } else {
-                        try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
-                        call.reject("Yuto service not found on device");
+                        Log.w(TAG, "Yuto service not found. Services count: " + gatt.getServices().size());
+                        // Retry once
+                        if (retryCount < 1) {
+                            retryCount++;
+                            try {
+                                Thread.sleep(500);
+                                gatt.discoverServices();
+                            } catch (Exception e) {
+                                try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
+                                call.reject("Retry discovery failed");
+                            }
+                        } else {
+                            try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
+                            call.reject("Yuto service not found after retry");
+                        }
                     }
                 }
 
                 @Override
                 public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+                    Log.i(TAG, "onCharacteristicWrite status: " + status);
                     try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
                     call.resolve(new JSObject().put("success", status == BluetoothGatt.GATT_SUCCESS));
                 }
@@ -320,7 +357,7 @@ public class YutoBlePlugin extends Plugin {
         BluetoothGattService service = new BluetoothGattService(YUTO_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
         BluetoothGattCharacteristic txChar = new BluetoothGattCharacteristic(
                 YUTO_TX_CHAR_UUID,
-                BluetoothGattCharacteristic.PROPERTY_WRITE,
+                BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
                 BluetoothGattCharacteristic.PERMISSION_WRITE
         );
         service.addCharacteristic(txChar);
