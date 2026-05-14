@@ -30,10 +30,23 @@ export default function WalletScreen() {
   useEffect(() => {
     loadWallet();
     if (user) setupBle();
-    return () => { stopBluetooth(); };
+
+    // When app resumes from background, clear stale nearby users and re-scan
+    const handleResume = () => {
+      setNearbyUsers([]);
+      if (user) setupBle();
+    };
+    document.addEventListener("resume", handleResume);
+    window.addEventListener("focus", handleResume);
+
+    return () => {
+      stopBluetooth();
+      document.removeEventListener("resume", handleResume);
+      window.removeEventListener("focus", handleResume);
+    };
   }, [user]);
 
-  // Also reload wallet when navigating back to this screen
+  // Also reload wallet on every mount (tab switch)
   useEffect(() => {
     loadWallet();
   }, []);
