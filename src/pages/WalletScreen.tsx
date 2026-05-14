@@ -80,21 +80,25 @@ export default function WalletScreen() {
     if (!user) return;
     setLoading(true);
     
-    // Always load cached balance first (instant, works offline)
-    const cached = getCachedBalance();
-    if (cached && cached.balance > 0) {
-      setBalance(cached.balance);
-    }
+    // Read cached balance directly from native storage (not memCache which may not be ready)
+    try {
+      const { value } = await import("@capacitor/preferences").then(m => m.Preferences.get({ key: "yuto_cached_balance" }));
+      if (value) {
+        const cached = JSON.parse(value);
+        if (cached.balance > 0) {
+          setBalance(cached.balance);
+        }
+      }
+    } catch {}
 
     try {
       const bal = await fetchYutoBalance(user.id);
-      // Only update if we got a real balance (don't overwrite cache with 0 on failure)
-      if (bal > 0 || !cached || cached.balance === 0) {
+      if (bal > 0) {
         setBalance(bal);
         cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
       }
     } catch (e) {
-      // Offline — keep the cached balance (already set above), don't touch it
+      // Offline — cached balance already set above
       console.warn("[Wallet] Offline, keeping cached balance");
     } finally {
       setLoading(false);
