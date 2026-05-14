@@ -16,6 +16,51 @@ function initWebPush() {
   return true;
 }
 
+// ── Rate Limiting (in-memory, per-user, 10 req/min) ──────────
+
+interface RateLimitEntry {
+  count: number;
+  windowStart: number;
+}
+
+const rateLimitMap = new Map<string, RateLimitEntry>();
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(userId, { count: 1, windowStart: now });
+    return true;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+
+// ── Relationship Check ───────────────────────────────────────
+
+async function hasTransactionRelationship(senderId: string, targetUserId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id")
+    .or(
+      `and(user_id.eq.${senderId},counterparty_id.eq.${targetUserId}),` +
+      `and(user_id.eq.${targetUserId},counterparty_id.eq.${senderId})`
+    )
+    .limit(1);
+
+  return !error && !!data && data.length > 0;
+}
+
+// ── Handler ──────────────────────────────────────────────────
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
@@ -27,6 +72,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { userId, title, body } = req.body;
   if (!userId || !title || !body) return res.status(400).json({ error: "Missing fields" });
+
+  // Rate limiting: max 10 notifications per minute per user
+  if (!checkRateLimit(authUserId)) {
+    return res.status(429).json({ error: "Rate limit exceeded" });
+  }
+
+  // Relationship check: only notify users you've transacted with
+  const hasRelationship = await hasTransactionRelationship(authUserId, userId);
+  if (!hasRelationship) {
+    return res.status(403).json({ error: "No transaction relationship with target user" });
+  }
 
   if (!initWebPush()) return res.status(200).json({ message: "Push not configured" });
 
