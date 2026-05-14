@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Yuto</string>
+    <string name="title_activity_main">Yuto</string>
+    <string name="package_name">social.yuto.app</string>
+    <string name="custom_url_scheme">social.yuto.app</string>
+</resources>
