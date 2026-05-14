@@ -33,6 +33,11 @@ export default function WalletScreen() {
     return () => { stopBluetooth(); };
   }, [user]);
 
+  // Also reload wallet when navigating back to this screen
+  useEffect(() => {
+    loadWallet();
+  }, []);
+
   // Sync offline transactions when app comes online
   useEffect(() => {
     const handleOnline = async () => {
@@ -90,19 +95,20 @@ export default function WalletScreen() {
       }
     } catch {}
 
-    // Only try network if we have a user AND are online
-    if (user && navigator.onLine) {
+    // Try network fetch — but don't let it overwrite cache on failure
+    if (user) {
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3000);
-        const bal = await fetchYutoBalance(user.id);
-        clearTimeout(timeout);
+        const bal = await Promise.race([
+          fetchYutoBalance(user.id),
+          new Promise<number>((_, reject) => setTimeout(() => reject(new Error("timeout")), 2500))
+        ]);
         if (bal > 0) {
           setBalance(bal);
           cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
         }
       } catch (e) {
-        console.warn("[Wallet] Network fetch failed, keeping cache");
+        // Offline or timeout — cached value already displayed, don't touch it
+        console.warn("[Wallet] Network unavailable, using cache");
       }
     }
 
