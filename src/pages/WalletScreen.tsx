@@ -38,25 +38,24 @@ export default function WalletScreen() {
     loadWallet();
   }, []);
 
-  // Sync offline transactions when app comes online or on mount
+  // Sync offline transactions — needs user to be authenticated
   useEffect(() => {
+    if (!user) return; // Wait for auth to be ready
     const doSync = async () => {
-      const synced = await syncOfflineTransactions();
-      if (synced > 0) {
-        toast.success(`${synced} offline transfer${synced > 1 ? "s" : ""} settled!`);
-        // Refresh balance from server after sync
-        if (user) {
-          try {
-            const bal = await fetchYutoBalance(user.id);
-            setBalance(bal);
-            cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
-          } catch {}
+      try {
+        const synced = await syncOfflineTransactions();
+        if (synced > 0) {
+          toast.success(`${synced} offline transfer${synced > 1 ? "s" : ""} settled!`);
         }
+        // Always refresh balance from server when we have connectivity + auth
+        const bal = await fetchYutoBalance(user.id);
+        setBalance(bal);
+        cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
+      } catch {
+        // Offline — that's fine
       }
     };
-    // Try sync on mount (covers: app killed, reopened with WiFi)
     doSync();
-    // Also sync when connectivity changes
     window.addEventListener("online", doSync);
     return () => window.removeEventListener("online", doSync);
   }, [user]);
@@ -103,19 +102,18 @@ export default function WalletScreen() {
       }
     } catch {}
 
-    // Try network fetch — but don't let it overwrite cache on failure
+    // Try network fetch — update balance if successful
     if (user) {
       try {
         const bal = await Promise.race([
           fetchYutoBalance(user.id),
           new Promise<number>((_, reject) => setTimeout(() => reject(new Error("timeout")), 2500))
         ]);
-        if (bal > 0) {
-          setBalance(bal);
-          cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
-        }
+        // Network succeeded — update with real balance (even if 0)
+        setBalance(bal);
+        cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
       } catch (e) {
-        // Offline or timeout — cached value already displayed, don't touch it
+        // Offline or timeout — keep cached value, don't touch anything
         console.warn("[Wallet] Network unavailable, using cache");
       }
     }

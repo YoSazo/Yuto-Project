@@ -89,14 +89,9 @@ loadCacheIntoMemory().catch(() => {});
 
 /**
  * Cache the user's balance and identity locally (native storage).
- * Never overwrites a positive balance with 0 (protects against offline fetch failures).
+ * Always caches the value — the caller is responsible for only calling this with valid data.
  */
 export function cacheBalanceLocally(userId: string, balance: number, displayName: string) {
-  // Don't cache 0 if we already have a positive balance
-  const existing = getCachedBalance();
-  if (balance === 0 && existing && existing.balance > 0) {
-    return; // Don't overwrite good data with 0
-  }
   const balData = JSON.stringify({ userId, balance, updatedAt: Date.now() });
   const userData = JSON.stringify({ userId, displayName });
   persistSetSync(CACHED_BALANCE_KEY, balData);
