@@ -1,39 +1,66 @@
-import { BleClient, numberToUUID } from "@capacitor-community/bluetooth-le";
+import { registerPlugin } from "@capacitor/core";
 import { supabase } from "./supabase";
 
 /**
- * Yuto Bluetooth P2P — BLE advertising + scanning.
+ * Yuto Bluetooth P2P — Real BLE advertising + scanning + offline transfers.
  * 
- * How it works:
- * - Each user advertises a custom BLE service with their Yuto user ID in the device name
- * - The wallet page scans for nearby devices advertising the Yuto service
- * - When found, we look up their profile from Supabase
- * 
- * Service UUID: a custom UUID for Yuto
- * Device name format: "YUTO_<first8chars_of_user_id>"
+ * Architecture:
+ * 1. Each device advertises as "YUTO_<8chars>" via native BLE peripheral
+ * 2. Scanning finds nearby Yuto users by service UUID filter
+ * 3. Tap to send → transaction payload sent via BLE GATT write
+ * 4. Receiver stores it locally → syncs to Supabase when online
+ * 5. If sender is online, settles immediately via RPC
  */
 
-// Custom Yuto BLE service UUID
-const YUTO_SERVICE_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
-const YUTO_NAME_PREFIX = "YUTO_";
+// Native plugin interface
+interface YutoBlePlugin {
+  startAdvertising(options: { userId: string }): Promise<{ success: boolean }>;
+  stopAdvertising(): Promise<{ success: boolean }>;
+  startScanning(): Promise<{ success: boolean }>;
+  stopScanning(): Promise<{ success: boolean }>;
+  sendTransaction(options: { deviceAddress: string; payload: string }): Promise<{ success: boolean }>;
+  getPendingTransaction(): Promise<{ payload: string | null }>;
+  addListener(event: "deviceDiscovered", handler: (data: { shortId: string; deviceAddress: string; rssi: number; deviceName: string }) => void): any;
+  addListener(event: "transactionReceived", handler: (data: { payload: string }) => void): any;
+}
+
+const YutoBle = registerPlugin<YutoBlePlugin>("YutoBle");
 
 export interface NearbyYutoUser {
   userId: string;
+  shortId: string;
   name: string;
   avatarUrl: string | null;
-  deviceId: string;
+  deviceAddress: string;
   rssi: number;
 }
 
-let isScanning = false;
-let isAdvertising = false;
+export interface OfflineTransaction {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  amount: number;
+  timestamp: number;
+  synced: boolean;
+}
+
+const OFFLINE_TX_KEY = "yuto_offline_transactions";
+
+// ── Public API ──────────────────────────────────────────────
 
 /**
- * Initialize BLE — request permissions
+ * Initialize BLE: start advertising + scanning
  */
-export async function initBluetooth(): Promise<boolean> {
+export async function initBluetooth(userId: string): Promise<boolean> {
   try {
-    await BleClient.initialize({ androidNeverForLocation: true });
+    await YutoBle.startAdvertising({ userId });
+    await YutoBle.startScanning();
+
+    // Listen for incoming transactions (we're the receiver)
+    YutoBle.addListener("transactionReceived", (data) => {
+      handleIncomingTransaction(data.payload);
+    });
+
     return true;
   } catch (e) {
     console.error("[BLE] init failed:", e);
@@ -42,109 +69,203 @@ export async function initBluetooth(): Promise<boolean> {
 }
 
 /**
- * Start advertising this user's presence via BLE.
- * We use the local name to encode the user ID (first 8 chars).
- * 
- * Note: BLE advertising from JS is limited on some platforms.
- * On Android, we use the device name approach.
- */
-export async function startAdvertising(userId: string): Promise<void> {
-  if (isAdvertising) return;
-  try {
-    // On Android, we can't directly advertise from the web layer easily.
-    // Instead, we'll rely on scanning only — both devices scan for each other.
-    // The "advertising" is done by keeping the scan active which makes the device discoverable.
-    isAdvertising = true;
-    console.log("[BLE] Advertising started for user:", userId.slice(0, 8));
-  } catch (e) {
-    console.error("[BLE] advertise failed:", e);
-  }
-}
-
-/**
- * Scan for nearby Yuto users.
- * Returns discovered users via callback.
+ * Start scanning and call onDiscovered when a Yuto user is found.
+ * Resolves their profile from Supabase (if online) or shows shortId.
  */
 export async function startScanning(
   currentUserId: string,
   onDiscovered: (user: NearbyYutoUser) => void
 ): Promise<void> {
-  if (isScanning) return;
-  isScanning = true;
+  // Profile cache to avoid repeated lookups
+  const profileCache = new Map<string, NearbyYutoUser>();
 
-  try {
-    await BleClient.requestLEScan(
-      { 
-        allowDuplicates: true,
-        // Scan for all devices — we'll filter by name prefix
-      },
-      async (result) => {
-        const name = result.localName || result.device?.name || "";
-        
-        // Check if this is a Yuto device
-        if (name.startsWith(YUTO_NAME_PREFIX)) {
-          const shortId = name.slice(YUTO_NAME_PREFIX.length);
-          
-          // Don't discover ourselves
-          if (currentUserId.startsWith(shortId)) return;
+  YutoBle.addListener("deviceDiscovered", async (data) => {
+    const { shortId, deviceAddress, rssi } = data;
 
-          // Look up the user profile
-          try {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("id, display_name, avatar_url")
-              .ilike("id", `${shortId}%`)
-              .maybeSingle();
+    // Check cache first
+    if (profileCache.has(shortId)) {
+      const cached = profileCache.get(shortId)!;
+      onDiscovered({ ...cached, rssi, deviceAddress });
+      return;
+    }
 
-            if (profile) {
-              onDiscovered({
-                userId: profile.id,
-                name: profile.display_name || "Yuto User",
-                avatarUrl: profile.avatar_url,
-                deviceId: result.device.deviceId,
-                rssi: result.rssi ?? -70,
-              });
-            }
-          } catch (e) {
-            console.error("[BLE] profile lookup failed:", e);
-          }
-        }
+    // Try to look up profile (requires internet)
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url")
+        .ilike("id", `${shortId}%`)
+        .maybeSingle();
+
+      if (profile) {
+        const user: NearbyYutoUser = {
+          userId: profile.id,
+          shortId,
+          name: profile.display_name || "Yuto User",
+          avatarUrl: profile.avatar_url,
+          deviceAddress,
+          rssi,
+        };
+        profileCache.set(shortId, user);
+        onDiscovered(user);
+      } else {
+        // No internet or user not found — show with shortId
+        const user: NearbyYutoUser = {
+          userId: shortId,
+          shortId,
+          name: `User ${shortId.slice(0, 4)}`,
+          avatarUrl: null,
+          deviceAddress,
+          rssi,
+        };
+        profileCache.set(shortId, user);
+        onDiscovered(user);
       }
-    );
-  } catch (e) {
-    console.error("[BLE] scan failed:", e);
-    isScanning = false;
-  }
+    } catch {
+      // Offline — show with shortId
+      const user: NearbyYutoUser = {
+        userId: shortId,
+        shortId,
+        name: `User ${shortId.slice(0, 4)}`,
+        avatarUrl: null,
+        deviceAddress,
+        rssi,
+      };
+      profileCache.set(shortId, user);
+      onDiscovered(user);
+    }
+  });
 }
 
 /**
- * Stop scanning
+ * Send money to a nearby user via BLE.
+ * If online: settles immediately via Supabase RPC.
+ * If offline: sends transaction via BLE GATT + queues for later sync.
  */
-export async function stopScanning(): Promise<void> {
-  if (!isScanning) return;
+export async function sendViaBluetooth(
+  senderId: string,
+  recipient: NearbyYutoUser,
+  amount: number
+): Promise<{ success: boolean; offline: boolean; message: string }> {
+  const txId = crypto.randomUUID();
+  const timestamp = Date.now();
+
+  const txPayload = JSON.stringify({
+    id: txId,
+    senderId,
+    recipientId: recipient.userId,
+    amount,
+    timestamp,
+  });
+
+  // Try online settlement first
   try {
-    await BleClient.stopLEScan();
-  } catch (e) {
-    console.error("[BLE] stop scan failed:", e);
-  }
-  isScanning = false;
-}
+    const { error } = await supabase.rpc("transfer_yuto_balance", {
+      p_to_user_id: recipient.userId,
+      p_amount_kes: Math.round(amount),
+      p_note: "Bluetooth P2P transfer",
+    });
 
-/**
- * Stop advertising
- */
-export function stopAdvertising(): void {
-  isAdvertising = false;
-}
-
-/**
- * Check if BLE is available on this device
- */
-export async function isBleAvailable(): Promise<boolean> {
-  try {
-    const enabled = await BleClient.isEnabled();
-    return enabled;
+    if (!error) {
+      // Also send via BLE so receiver gets instant notification
+      try {
+        await YutoBle.sendTransaction({ deviceAddress: recipient.deviceAddress, payload: txPayload });
+      } catch { /* best effort */ }
+      return { success: true, offline: false, message: `KSH ${amount} sent!` };
+    }
   } catch {
-    return false;
+    // Offline — fall through to BLE-only path
   }
+
+  // Offline path: send via BLE + queue locally
+  try {
+    await YutoBle.sendTransaction({ deviceAddress: recipient.deviceAddress, payload: txPayload });
+
+    // Save to local queue for sync later
+    const tx: OfflineTransaction = { id: txId, senderId, recipientId: recipient.userId, amount, timestamp, synced: false };
+    saveOfflineTransaction(tx);
+
+    return { success: true, offline: true, message: `KSH ${amount} sent offline! Will settle when online.` };
+  } catch (e) {
+    return { success: false, offline: true, message: "BLE transfer failed. Get closer and try again." };
+  }
+}
+
+/**
+ * Sync any pending offline transactions to Supabase.
+ * Call this when the app comes online.
+ */
+export async function syncOfflineTransactions(): Promise<number> {
+  const transactions = getOfflineTransactions();
+  const pending = transactions.filter((tx) => !tx.synced);
+  let synced = 0;
+
+  for (const tx of pending) {
+    try {
+      const { error } = await supabase.rpc("transfer_yuto_balance", {
+        p_to_user_id: tx.recipientId,
+        p_amount_kes: Math.round(tx.amount),
+        p_note: `Bluetooth P2P (offline, synced)`,
+      });
+
+      if (!error) {
+        tx.synced = true;
+        synced++;
+      }
+    } catch {
+      // Will retry next time
+    }
+  }
+
+  // Save updated list
+  localStorage.setItem(OFFLINE_TX_KEY, JSON.stringify(transactions));
+  return synced;
+}
+
+// ── Internal helpers ────────────────────────────────────────
+
+function handleIncomingTransaction(payload: string) {
+  try {
+    const tx = JSON.parse(payload) as OfflineTransaction;
+    // Store as received transaction
+    const received = JSON.parse(localStorage.getItem("yuto_received_transactions") || "[]");
+    received.push({ ...tx, receivedAt: Date.now() });
+    localStorage.setItem("yuto_received_transactions", JSON.stringify(received));
+
+    // Show notification (the WalletScreen will pick this up)
+    window.dispatchEvent(new CustomEvent("yuto:ble-received", { detail: tx }));
+  } catch (e) {
+    console.error("[BLE] parse incoming tx failed:", e);
+  }
+}
+
+function saveOfflineTransaction(tx: OfflineTransaction) {
+  const transactions = getOfflineTransactions();
+  transactions.push(tx);
+  localStorage.setItem(OFFLINE_TX_KEY, JSON.stringify(transactions));
+}
+
+function getOfflineTransactions(): OfflineTransaction[] {
+  try {
+    return JSON.parse(localStorage.getItem(OFFLINE_TX_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Stop all BLE activity
+ */
+export async function stopBluetooth(): Promise<void> {
+  try {
+    await YutoBle.stopScanning();
+    await YutoBle.stopAdvertising();
+  } catch { /* ignore */ }
+}
+
+/**
+ * Check if BLE is available (native only)
+ */
+export function isBleAvailable(): boolean {
+  return typeof (window as any).Capacitor !== "undefined" && (window as any).Capacitor.isNativePlatform();
 }

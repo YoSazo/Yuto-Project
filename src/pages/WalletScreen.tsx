@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, fetchYutoBalance, authFetch } from "../lib/supabase";
@@ -6,7 +6,7 @@ import { Plus, ArrowDownLeft, Send } from "lucide-react";
 import { toast } from "sonner";
 import UserAvatar from "../components/UserAvatar";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
-import { initBluetooth, startScanning, stopScanning, isBleAvailable, type NearbyYutoUser } from "../lib/bluetooth";
+import { initBluetooth, startScanning, stopBluetooth, sendViaBluetooth, syncOfflineTransactions, isBleAvailable, type NearbyYutoUser } from "../lib/bluetooth";
 
 /**
  * Wallet page with real Bluetooth proximity P2P.
@@ -31,8 +31,34 @@ export default function WalletScreen() {
     if (!user) return;
     loadWallet();
     setupBle();
-    return () => { stopScanning(); };
+    return () => { stopBluetooth(); };
   }, [user]);
+
+  // Sync offline transactions when app comes online
+  useEffect(() => {
+    const handleOnline = async () => {
+      const synced = await syncOfflineTransactions();
+      if (synced > 0) {
+        toast.success(`${synced} offline transfer${synced > 1 ? "s" : ""} settled!`);
+        loadWallet();
+      }
+    };
+    window.addEventListener("online", handleOnline);
+    // Also try on mount
+    if (navigator.onLine) handleOnline();
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
+
+  // Listen for incoming BLE transactions
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tx = (e as CustomEvent).detail;
+      toast.success(`Received KSH ${tx.amount} via Bluetooth!`);
+      loadWallet();
+    };
+    window.addEventListener("yuto:ble-received", handler);
+    return () => window.removeEventListener("yuto:ble-received", handler);
+  }, []);
 
   const loadWallet = async () => {
     if (!user) return;
@@ -47,23 +73,17 @@ export default function WalletScreen() {
   };
 
   const setupBle = async () => {
-    const available = await isBleAvailable();
-    if (!available) {
-      console.log("[Wallet] BLE not available");
+    if (!isBleAvailable()) {
+      console.log("[Wallet] Not a native app, BLE unavailable");
       return;
     }
-    const initialized = await initBluetooth();
+    if (!user) return;
+    const initialized = await initBluetooth(user.id);
     if (!initialized) return;
     setBleReady(true);
-    startScan();
-  };
-
-  const startScan = useCallback(async () => {
-    if (!user) return;
     setScanning(true);
-    await startScanning(user.id, (discovered) => {
+    startScanning(user.id, (discovered) => {
       setNearbyUsers((prev) => {
-        // Deduplicate by userId
         const exists = prev.find((u) => u.userId === discovered.userId);
         if (exists) {
           return prev.map((u) => u.userId === discovered.userId ? { ...u, rssi: discovered.rssi } : u);
@@ -71,7 +91,7 @@ export default function WalletScreen() {
         return [...prev, discovered];
       });
     });
-  }, [user]);
+  };
 
   const handleSend = async () => {
     if (!user || !sendTarget || !sendAmount) return;
@@ -86,17 +106,15 @@ export default function WalletScreen() {
     }
     setSending(true);
     try {
-      // Use the existing P2P transfer RPC
-      const { error } = await supabase.rpc("transfer_yuto_balance", {
-        p_to_user_id: sendTarget.userId,
-        p_amount_kes: Math.round(amount),
-        p_note: "Bluetooth P2P transfer",
-      });
-      if (error) throw error;
-      toast.success(`KSH ${amount} sent to ${sendTarget.name}!`);
-      setSendTarget(null);
-      setSendAmount("");
-      loadWallet();
+      const result = await sendViaBluetooth(user.id, sendTarget, amount);
+      if (result.success) {
+        toast.success(result.message);
+        setSendTarget(null);
+        setSendAmount("");
+        loadWallet();
+      } else {
+        toast.error(result.message);
+      }
     } catch (e: any) {
       toast.error(e?.message || "Send failed");
     } finally {
