@@ -80,7 +80,7 @@ export default function WalletScreen() {
     if (!user) return;
     setLoading(true);
     
-    // Always try cached balance first (instant, works offline)
+    // Always load cached balance first (instant, works offline)
     const cached = getCachedBalance();
     if (cached && cached.balance > 0) {
       setBalance(cached.balance);
@@ -88,11 +88,14 @@ export default function WalletScreen() {
 
     try {
       const bal = await fetchYutoBalance(user.id);
-      setBalance(bal);
-      cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
+      // Only update if we got a real balance (don't overwrite cache with 0 on failure)
+      if (bal > 0 || !cached || cached.balance === 0) {
+        setBalance(bal);
+        cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
+      }
     } catch (e) {
-      // Offline — cached balance already set above
-      console.warn("[Wallet] Offline, using cached balance");
+      // Offline — keep the cached balance (already set above), don't touch it
+      console.warn("[Wallet] Offline, keeping cached balance");
     } finally {
       setLoading(false);
     }
