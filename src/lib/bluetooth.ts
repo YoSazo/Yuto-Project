@@ -91,12 +91,16 @@ export async function startScanning(
 
     // Try to look up profile (requires internet)
     try {
-      const { data: profile } = await supabase
+      // shortId is first 8 hex chars without dashes. UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      // So we search for id starting with those 8 chars (with dash after)
+      const uuidPrefix = `${shortId.slice(0, 8)}`;
+      const { data: profiles } = await supabase
         .from("profiles")
         .select("id, display_name, avatar_url")
-        .ilike("id", `${shortId}%`)
-        .maybeSingle();
+        .like("id", `${uuidPrefix}%`)
+        .limit(1);
 
+      const profile = profiles?.[0];
       if (profile) {
         const user: NearbyYutoUser = {
           userId: profile.id,
@@ -158,7 +162,16 @@ export async function sendViaBluetooth(
     timestamp,
   });
 
-  // Try online settlement first
+  // Send via BLE first (instant, no network needed)
+  let bleSent = false;
+  try {
+    const result = await YutoBle.sendTransaction({ deviceAddress: recipient.deviceAddress, payload: txPayload });
+    bleSent = result.success;
+  } catch (e) {
+    console.warn("[BLE] GATT write failed:", e);
+  }
+
+  // Try online settlement (if we have internet)
   try {
     const { error } = await supabase.rpc("transfer_yuto_balance", {
       p_to_user_id: recipient.userId,
@@ -167,28 +180,20 @@ export async function sendViaBluetooth(
     });
 
     if (!error) {
-      // Also send via BLE so receiver gets instant notification
-      try {
-        await YutoBle.sendTransaction({ deviceAddress: recipient.deviceAddress, payload: txPayload });
-      } catch { /* best effort */ }
       return { success: true, offline: false, message: `KSH ${amount} sent!` };
     }
   } catch {
-    // Offline — fall through to BLE-only path
+    // No internet — that's fine, we'll queue it
   }
 
-  // Offline path: send via BLE + queue locally
-  try {
-    await YutoBle.sendTransaction({ deviceAddress: recipient.deviceAddress, payload: txPayload });
-
-    // Save to local queue for sync later
+  // If BLE succeeded but online didn't, queue for later sync
+  if (bleSent) {
     const tx: OfflineTransaction = { id: txId, senderId, recipientId: recipient.userId, amount, timestamp, synced: false };
     saveOfflineTransaction(tx);
-
     return { success: true, offline: true, message: `KSH ${amount} sent offline! Will settle when online.` };
-  } catch (e) {
-    return { success: false, offline: true, message: "BLE transfer failed. Get closer and try again." };
   }
+
+  return { success: false, offline: true, message: "Transfer failed. Get closer and try again." };
 }
 
 /**

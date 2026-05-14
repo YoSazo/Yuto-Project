@@ -276,11 +276,20 @@ public class YutoBlePlugin extends Plugin {
                         BluetoothGattCharacteristic txChar = service.getCharacteristic(YUTO_TX_CHAR_UUID);
                         if (txChar != null) {
                             txChar.setValue(payload.getBytes(StandardCharsets.UTF_8));
-                            try { gatt.writeCharacteristic(txChar); } catch (SecurityException e) { call.reject(e.getMessage()); }
+                            txChar.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+                            try { 
+                                boolean initiated = gatt.writeCharacteristic(txChar);
+                                if (!initiated) {
+                                    try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
+                                    call.reject("Write not initiated");
+                                }
+                            } catch (SecurityException e) { call.reject(e.getMessage()); }
                         } else {
+                            try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
                             call.reject("TX characteristic not found");
                         }
                     } else {
+                        try { gatt.disconnect(); gatt.close(); } catch (Exception ignored) {}
                         call.reject("Yuto service not found on device");
                     }
                 }
