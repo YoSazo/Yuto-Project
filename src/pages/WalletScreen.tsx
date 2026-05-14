@@ -28,9 +28,8 @@ export default function WalletScreen() {
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
     loadWallet();
-    setupBle();
+    if (user) setupBle();
     return () => { stopBluetooth(); };
   }, [user]);
 
@@ -77,12 +76,12 @@ export default function WalletScreen() {
   }, [user]);
 
   const loadWallet = async () => {
-    if (!user) return;
     setLoading(true);
     
-    // Read cached balance directly from native storage (not memCache which may not be ready)
+    // Read cached balance directly from native storage — works even without auth
     try {
-      const { value } = await import("@capacitor/preferences").then(m => m.Preferences.get({ key: "yuto_cached_balance" }));
+      const { Preferences } = await import("@capacitor/preferences");
+      const { value } = await Preferences.get({ key: "yuto_cached_balance" });
       if (value) {
         const cached = JSON.parse(value);
         if (cached.balance > 0) {
@@ -91,18 +90,23 @@ export default function WalletScreen() {
       }
     } catch {}
 
-    try {
-      const bal = await fetchYutoBalance(user.id);
-      if (bal > 0) {
-        setBalance(bal);
-        cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
+    // Only try network if we have a user AND are online
+    if (user && navigator.onLine) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+        const bal = await fetchYutoBalance(user.id);
+        clearTimeout(timeout);
+        if (bal > 0) {
+          setBalance(bal);
+          cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
+        }
+      } catch (e) {
+        console.warn("[Wallet] Network fetch failed, keeping cache");
       }
-    } catch (e) {
-      // Offline — cached balance already set above
-      console.warn("[Wallet] Offline, keeping cached balance");
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
   const setupBle = async () => {
