@@ -48,6 +48,18 @@ const OFFLINE_TX_KEY = "yuto_offline_transactions";
 const CACHED_BALANCE_KEY = "yuto_cached_balance";
 const CACHED_USER_KEY = "yuto_cached_user";
 
+// ── Persistent Storage (survives app kill) ──────────────────
+// Use both localStorage AND sessionStorage for redundancy on Android
+
+function persistSet(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch {}
+  try { sessionStorage.setItem(key, value); } catch {}
+}
+
+function persistGet(key: string): string | null {
+  return localStorage.getItem(key) || sessionStorage.getItem(key) || null;
+}
+
 // ── Local Balance Cache ─────────────────────────────────────
 
 /**
@@ -55,16 +67,16 @@ const CACHED_USER_KEY = "yuto_cached_user";
  * Call this whenever the app is online and balance is fetched.
  */
 export function cacheBalanceLocally(userId: string, balance: number, displayName: string) {
-  localStorage.setItem(CACHED_BALANCE_KEY, JSON.stringify({ userId, balance, updatedAt: Date.now() }));
-  localStorage.setItem(CACHED_USER_KEY, JSON.stringify({ userId, displayName }));
+  persistSet(CACHED_BALANCE_KEY, JSON.stringify({ userId, balance, updatedAt: Date.now() }));
+  persistSet(CACHED_USER_KEY, JSON.stringify({ userId, displayName }));
 }
 
 /**
- * Get the locally cached balance. Returns 0 if nothing cached.
+ * Get the locally cached balance. Returns null if nothing cached.
  */
 export function getCachedBalance(): { userId: string; balance: number; updatedAt: number } | null {
   try {
-    const raw = localStorage.getItem(CACHED_BALANCE_KEY);
+    const raw = persistGet(CACHED_BALANCE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
@@ -78,7 +90,7 @@ export function deductCachedBalance(amount: number): boolean {
   if (!cached || cached.balance < amount) return false;
   cached.balance -= amount;
   cached.updatedAt = Date.now();
-  localStorage.setItem(CACHED_BALANCE_KEY, JSON.stringify(cached));
+  persistSet(CACHED_BALANCE_KEY, JSON.stringify(cached));
   return true;
 }
 
@@ -87,7 +99,7 @@ export function deductCachedBalance(amount: number): boolean {
  */
 export function getCachedUser(): { userId: string; displayName: string } | null {
   try {
-    const raw = localStorage.getItem(CACHED_USER_KEY);
+    const raw = persistGet(CACHED_USER_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
@@ -278,7 +290,7 @@ export async function syncOfflineTransactions(): Promise<number> {
     }
   }
 
-  localStorage.setItem(OFFLINE_TX_KEY, JSON.stringify(transactions));
+  persistSet(OFFLINE_TX_KEY, JSON.stringify(transactions));
   return synced;
 }
 
@@ -302,12 +314,13 @@ function handleIncomingTransaction(payload: string) {
 function saveOfflineTransaction(tx: OfflineTransaction) {
   const transactions = getOfflineTransactions();
   transactions.push(tx);
-  localStorage.setItem(OFFLINE_TX_KEY, JSON.stringify(transactions));
+  persistSet(OFFLINE_TX_KEY, JSON.stringify(transactions));
 }
 
 function getOfflineTransactions(): OfflineTransaction[] {
   try {
-    return JSON.parse(localStorage.getItem(OFFLINE_TX_KEY) || "[]");
+    const raw = persistGet(OFFLINE_TX_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }

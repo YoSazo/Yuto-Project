@@ -54,11 +54,27 @@ export default function WalletScreen() {
     const handler = (e: Event) => {
       const tx = (e as CustomEvent).detail;
       toast.success(`Received KSH ${tx.amount} via Bluetooth!`);
-      loadWallet();
+      // Immediately update balance (animate up)
+      setBalance((prev) => prev + tx.amount);
     };
     window.addEventListener("yuto:ble-received", handler);
     return () => window.removeEventListener("yuto:ble-received", handler);
   }, []);
+
+  // Realtime: listen for wallet balance changes (incoming transfers while online)
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("wallet-balance")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "wallets", filter: `user_id=eq.${user.id}` }, (payload) => {
+        const newBalance = Number(payload.new?.balance ?? 0);
+        setBalance(newBalance);
+        // Update cache too
+        cacheBalanceLocally(user.id, newBalance, user.user_metadata?.display_name || "You");
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const loadWallet = async () => {
     if (!user) return;
@@ -113,19 +129,30 @@ export default function WalletScreen() {
       return;
     }
     setSending(true);
+
+    // Timeout: if send takes more than 8 seconds, show error
+    const timeout = setTimeout(() => {
+      setSending(false);
+      toast.error("Taking too long — friend may be out of range or not on wallet page");
+    }, 8000);
+
     try {
       const result = await sendViaBluetooth(user.id, sendTarget, amount);
+      clearTimeout(timeout);
       if (result.success) {
         toast.success(result.message);
+        // Immediately update balance (animate down)
+        setBalance((prev) => Math.max(0, prev - amount));
         setSendTarget(null);
         setSendAmount("");
-        loadWallet();
+        setSending(false);
       } else {
         toast.error(result.message);
+        setSending(false);
       }
     } catch (e: any) {
+      clearTimeout(timeout);
       toast.error(e?.message || "Send failed");
-    } finally {
       setSending(false);
     }
   };
@@ -311,7 +338,7 @@ export default function WalletScreen() {
               <Send size={18} /> {sending ? "Sending..." : "Send"}
             </button>
 
-            <button type="button" onClick={() => setSendTarget(null)} className="w-full py-3 mt-2 text-gray-400 font-semibold text-sm bg-transparent border-none">
+            <button type="button" onClick={() => { setSendTarget(null); setSending(false); setSendAmount(""); }} className="w-full py-3 mt-2 text-gray-400 font-semibold text-sm bg-transparent border-none">
               Cancel
             </button>
           </div>
