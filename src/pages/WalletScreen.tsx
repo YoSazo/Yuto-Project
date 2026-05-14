@@ -38,20 +38,28 @@ export default function WalletScreen() {
     loadWallet();
   }, []);
 
-  // Sync offline transactions when app comes online
+  // Sync offline transactions when app comes online or on mount
   useEffect(() => {
-    const handleOnline = async () => {
+    const doSync = async () => {
       const synced = await syncOfflineTransactions();
       if (synced > 0) {
         toast.success(`${synced} offline transfer${synced > 1 ? "s" : ""} settled!`);
-        loadWallet();
+        // Refresh balance from server after sync
+        if (user) {
+          try {
+            const bal = await fetchYutoBalance(user.id);
+            setBalance(bal);
+            cacheBalanceLocally(user.id, bal, user.user_metadata?.display_name || "You");
+          } catch {}
+        }
       }
     };
-    window.addEventListener("online", handleOnline);
-    // Also try on mount
-    if (navigator.onLine) handleOnline();
-    return () => window.removeEventListener("online", handleOnline);
-  }, []);
+    // Try sync on mount (covers: app killed, reopened with WiFi)
+    doSync();
+    // Also sync when connectivity changes
+    window.addEventListener("online", doSync);
+    return () => window.removeEventListener("online", doSync);
+  }, [user]);
 
   // Listen for incoming BLE transactions
   useEffect(() => {
