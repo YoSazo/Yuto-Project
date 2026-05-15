@@ -58,7 +58,14 @@ export default function AuthScreen() {
     if (showPwaPrompt === "1" && !isStandalone) {
       navigate("/add-to-home", { replace: true });
     } else {
-      navigate("/home", { replace: true });
+      // Check if this is a new user who needs onboarding
+      const needsOnboarding = sessionStorage.getItem("yuto_needs_onboarding");
+      if (needsOnboarding) {
+        sessionStorage.removeItem("yuto_needs_onboarding");
+        navigate("/onboarding", { replace: true });
+      } else {
+        navigate("/home", { replace: true });
+      }
     }
   }, [user, navigate]);
 
@@ -172,6 +179,7 @@ export default function AuthScreen() {
           return;
         }
         sessionStorage.removeItem("signupPhonePending");
+        sessionStorage.setItem("yuto_needs_onboarding", "1");
       } else {
         await supaSignIn(username, password);
       }
