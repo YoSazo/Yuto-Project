@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 const ADMIN_IDS = ["f5f5da38-c839-4ce4-94fc-10f3854674e0"];
 
-type TabId = "overview" | "users" | "tickets" | "disputes" | "fraud" | "audit";
+type TabId = "overview" | "users" | "posts" | "tickets" | "disputes" | "fraud" | "audit";
 
 export default function AdminScreen() {
   const { user } = useAuth();
@@ -26,6 +26,7 @@ export default function AdminScreen() {
   const [userResult, setUserResult] = useState<any>(null);
   const [userTransactions, setUserTransactions] = useState<any[]>([]);
   const [userAudit, setUserAudit] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
 
   const isAdmin = !!user && ADMIN_IDS.includes(user.id);
 
@@ -72,6 +73,9 @@ export default function AdminScreen() {
       } else if (tab === "audit") {
         const { data } = await supabase.from("audit_events").select("*").order("created_at", { ascending: false }).limit(200);
         setAuditEvents(data || []);
+      } else if (tab === "posts") {
+        const { data } = await supabase.from("public_posts").select("*, profiles:user_id(username, display_name, avatar_url)").order("created_at", { ascending: false }).limit(100);
+        setPosts(data || []);
       }
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -127,6 +131,12 @@ export default function AdminScreen() {
     toast.success("Alert acknowledged");
   };
 
+  const deletePost = async (postId: string) => {
+    await supabase.from("public_posts").delete().eq("id", postId);
+    setPosts(prev => prev.filter(p => p.id !== postId));
+    toast.success("Post deleted");
+  };
+
   // Auth gate (after all hooks)
   if (!isAdmin) {
     return (
@@ -143,6 +153,7 @@ export default function AdminScreen() {
   const tabs: { id: TabId; label: string; badge?: number }[] = [
     { id: "overview", label: "Overview" },
     { id: "users", label: "Users" },
+    { id: "posts", label: "Posts" },
     { id: "tickets", label: "Tickets", badge: stats.openTickets },
     { id: "disputes", label: "Disputes", badge: stats.openDisputes },
     { id: "fraud", label: "Fraud", badge: stats.unackedFraud },
@@ -358,6 +369,40 @@ export default function AdminScreen() {
                         )}
                         <button onClick={() => { setUserLookup(f.user_id); setTab("users"); setTimeout(lookupUser, 100); }} className="px-3 py-1.5 bg-zinc-700 text-gray-300 rounded-lg text-[10px] font-bold border-none hover:bg-zinc-600">View User</button>
                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* POSTS */}
+          {tab === "posts" && (
+            <div>
+              <h2 className="text-lg font-bold mb-4">Posts (Home Feed)</h2>
+              <div className="space-y-3">
+                {posts.length === 0 && <p className="text-gray-500 text-sm">No posts yet.</p>}
+                {posts.map(p => (
+                  <div key={p.id} className="bg-zinc-900 rounded-xl p-4 border border-zinc-800">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
+                            {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} className="w-full h-full object-cover" /> : (p.profiles?.display_name || "?")[0]}
+                          </div>
+                          <span className="text-xs font-semibold text-white">{p.profiles?.display_name || p.profiles?.username || "Unknown"}</span>
+                          <span className="text-[10px] text-gray-500">@{p.profiles?.username}</span>
+                        </div>
+                        <p className="text-sm text-gray-300 whitespace-pre-wrap line-clamp-4">{p.content_text}</p>
+                        {p.media_url && <div className="mt-2 w-20 h-20 rounded-lg bg-zinc-800 overflow-hidden"><img src={p.media_url} className="w-full h-full object-cover" /></div>}
+                        <p className="text-[10px] text-gray-600 mt-2">{new Date(p.created_at).toLocaleString()}</p>
+                      </div>
+                      <button
+                        onClick={() => deletePost(p.id)}
+                        className="ml-3 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-[10px] font-bold border-none hover:bg-red-500/30 shrink-0"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
