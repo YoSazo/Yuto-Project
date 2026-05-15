@@ -47,5 +47,20 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Yuto uses Bluetooth to find nearby friends and send money instantly without internet.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Yuto advertises via Bluetooth so nearby friends can find you and send money.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Yuto uses your camera to take profile photos and highlight media.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Yuto accesses your photo library to set a profile picture or add highlight media.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Yuto saves receipts and shared media to your photo library.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-central</string>
+		<string>bluetooth-peripheral</string>
+	</array>
 </dict>
 </plist>

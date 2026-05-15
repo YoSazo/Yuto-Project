@@ -1170,6 +1170,32 @@ export default function ProfileScreen() {
               danger
               onClick={handleLogout}
             />
+            <MenuItem
+              icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>}
+              label="Delete Account"
+              danger
+              onClick={() => setConfirmModal({
+                title: "Delete your account?",
+                message: "This will permanently delete your Yuto account, wallet balance, transaction history, and all associated data. This action cannot be undone.",
+                confirmLabel: "Delete Forever",
+                danger: true,
+                onConfirm: async () => {
+                  setConfirmModal(null);
+                  try {
+                    const res = await authFetch("/api/delete-account", { method: "POST" });
+                    if (res.ok) {
+                      await signOut();
+                      navigate("/auth");
+                    } else {
+                      const data = await res.json();
+                      toast.error(data.error || "Could not delete account. Try again.");
+                    }
+                  } catch {
+                    toast.error("Network error. Try again.");
+                  }
+                },
+              })}
+            />
           </div>
         </>
       ) : (

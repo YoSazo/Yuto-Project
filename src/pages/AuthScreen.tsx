@@ -402,6 +402,10 @@ export default function AuthScreen() {
             <a href="/terms" target="_blank" className="text-black dark:text-white font-semibold underline">
               Terms of Service
             </a>
+            {" "}and{" "}
+            <a href="/privacy" target="_blank" className="text-black dark:text-white font-semibold underline">
+              Privacy Policy
+            </a>
           </p>
         )}
 
