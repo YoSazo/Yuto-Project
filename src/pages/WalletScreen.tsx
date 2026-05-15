@@ -6,6 +6,7 @@ import { Plus, ArrowDownLeft, Send } from "lucide-react";
 import { toast } from "sonner";
 import UserAvatar from "../components/UserAvatar";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
+import { PinModal } from "../components/wallet/PinModal";
 import { initBluetooth, startScanning, stopBluetooth, sendViaBluetooth, syncOfflineTransactions, isBleAvailable, cacheBalanceLocally, getCachedBalance, getCachedUser, getOfflineTransactions, type NearbyYutoUser, type OfflineTransaction } from "../lib/bluetooth";
 
 /**
@@ -27,6 +28,11 @@ export default function WalletScreen() {
   const [sendAmount, setSendAmount] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingTransfers, setPendingTransfers] = useState<OfflineTransaction[]>([]);
+  const [walletLocked, setWalletLocked] = useState(false);
+  const [showPin, setShowPin] = useState(false);
+  const [pinMode, setPinMode] = useState<"verify" | "setup">("verify");
+  const [hasPinSet, setHasPinSet] = useState(false);
+  const [pendingSendAction, setPendingSendAction] = useState<(() => void) | null>(null);
 
   const refreshPending = () => {
     setPendingTransfers(getOfflineTransactions().filter(tx => !tx.synced));
@@ -111,6 +117,18 @@ export default function WalletScreen() {
 
   const loadWallet = async () => {
     setLoading(true);
+
+    // Check wallet lock status and PIN
+    if (user) {
+      try {
+        const { data: walletRow } = await supabase.from("wallets").select("locked_at").eq("user_id", user.id).maybeSingle();
+        setWalletLocked(!!walletRow?.locked_at);
+      } catch {}
+      try {
+        const { data: profileRow } = await supabase.from("profiles").select("pin_hash").eq("id", user.id).maybeSingle();
+        setHasPinSet(!!profileRow?.pin_hash);
+      } catch {}
+    }
     
     // Read cached balance directly from native storage — works even without auth
     try {
@@ -189,34 +207,44 @@ export default function WalletScreen() {
       toast.error("Insufficient balance");
       return;
     }
-    setSending(true);
+    if (walletLocked) {
+      toast.error("Wallet is locked. Unlock it first.");
+      return;
+    }
 
-    // Timeout: if send takes more than 8 seconds, show error
-    const timeout = setTimeout(() => {
-      setSending(false);
-      toast.error("Taking too long — friend may be out of range or not on wallet page");
-    }, 8000);
-
-    try {
-      const result = await sendViaBluetooth(user.id, sendTarget, amount);
-      clearTimeout(timeout);
-      if (result.success) {
-        toast.success(result.message);
-        // Immediately update balance (animate down)
-        setBalance((prev) => Math.max(0, prev - amount));
-        refreshPending();
-        setSendTarget(null);
-        setSendAmount("");
+    // Gate behind PIN
+    const doSend = async () => {
+      setSending(true);
+      const timeout = setTimeout(() => {
         setSending(false);
-      } else {
-        toast.error(result.message);
+        toast.error("Taking too long — friend may be out of range or not on wallet page");
+      }, 8000);
+
+      try {
+        const result = await sendViaBluetooth(user.id, sendTarget!, amount);
+        clearTimeout(timeout);
+        if (result.success) {
+          toast.success(result.message);
+          setBalance((prev) => Math.max(0, prev - amount));
+          refreshPending();
+          setSendTarget(null);
+          setSendAmount("");
+          setSending(false);
+        } else {
+          toast.error(result.message);
+          setSending(false);
+        }
+      } catch (e: any) {
+        clearTimeout(timeout);
+        toast.error(e?.message || "Send failed");
         setSending(false);
       }
-    } catch (e: any) {
-      clearTimeout(timeout);
-      toast.error(e?.message || "Send failed");
-      setSending(false);
-    }
+    };
+
+    // Require PIN before sending
+    setPendingSendAction(() => doSend);
+    setPinMode(hasPinSet ? "verify" : "setup");
+    setShowPin(true);
   };
 
   if (!user) {
@@ -234,6 +262,21 @@ export default function WalletScreen() {
 
   return (
     <div className="flex flex-col min-h-full bg-white dark:bg-black text-black dark:text-white px-5 pt-8 pb-24 transition-colors overflow-y-auto">
+      {/* Wallet Lock Banner */}
+      {walletLocked && (
+        <button
+          type="button"
+          onClick={() => { setPinMode("verify"); setShowPin(true); setPendingSendAction(() => async () => {
+            await supabase.rpc("unlock_wallet", { p_pin: "" }); // PIN verified by modal, unlock via RPC
+            setWalletLocked(false);
+            toast.success("Wallet unlocked!");
+          }); }}
+          className="w-full mb-4 py-3 px-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/50 rounded-2xl text-center border-none"
+        >
+          <p className="text-red-600 dark:text-red-300 font-bold text-sm">🔒 Wallet Locked — Tap to unlock</p>
+        </button>
+      )}
+
       {/* Balance hero */}
       <div className="bg-black dark:bg-zinc-900 rounded-3xl p-6 relative overflow-hidden mb-6">
         <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/5 rounded-full blur-3xl" />
@@ -429,6 +472,20 @@ export default function WalletScreen() {
           onSuccess={() => { setShowTopUp(false); loadWallet(); }}
         />
       )}
+
+      <PinModal
+        open={showPin}
+        mode={pinMode}
+        onSuccess={() => {
+          setShowPin(false);
+          setHasPinSet(true);
+          if (pendingSendAction) {
+            pendingSendAction();
+            setPendingSendAction(null);
+          }
+        }}
+        onCancel={() => { setShowPin(false); setPendingSendAction(null); }}
+      />
     </div>
   );
 }
