@@ -2,6 +2,7 @@ export default function TermsScreen() {
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors">
       <div className="max-w-2xl mx-auto px-6 py-12">
+        <button onClick={() => window.history.back()} className="mb-6 text-sm text-gray-400 hover:text-black dark:hover:text-white font-semibold bg-transparent border-none cursor-pointer">← Back</button>
         <h1 className="text-3xl font-black mb-2">Terms of Service</h1>
         <p className="text-sm text-gray-400 mb-8">Last updated: May 2026</p>
 

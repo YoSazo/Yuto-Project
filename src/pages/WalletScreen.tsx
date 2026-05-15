@@ -407,18 +407,27 @@ export default function WalletScreen() {
 
       {/* Bottom message */}
       <div className="bg-black dark:bg-zinc-900 rounded-2xl p-4 text-center">
-        <p className="text-white text-sm font-semibold">
-          {nearbyUsers.length > 0
-            ? `${nearbyUsers.length} friend${nearbyUsers.length === 1 ? "" : "s"} nearby — tap to send`
-            : bleReady
-              ? "Get your friend in range to send money"
-              : "Enable Bluetooth to find friends nearby"
-          }
-        </p>
-        {!bleReady && (
-          <button type="button" onClick={setupBle} className="mt-2 text-xs text-emerald-400 font-bold bg-transparent border-none">
-            Enable Bluetooth
-          </button>
+        {!isBleAvailable() ? (
+          <>
+            <p className="text-white text-sm font-semibold">📶 Bluetooth transfers — app coming soon</p>
+            <p className="text-white/50 text-xs mt-1.5">Send money to friends nearby without internet. Available on iOS & Android.</p>
+          </>
+        ) : (
+          <>
+            <p className="text-white text-sm font-semibold">
+              {nearbyUsers.length > 0
+                ? `${nearbyUsers.length} friend${nearbyUsers.length === 1 ? "" : "s"} nearby — tap to send`
+                : bleReady
+                  ? "Get your friend in range to send money"
+                  : "Enable Bluetooth to find friends nearby"
+              }
+            </p>
+            {!bleReady && (
+              <button type="button" onClick={setupBle} className="mt-2 text-xs text-emerald-400 font-bold bg-transparent border-none">
+                Enable Bluetooth
+              </button>
+            )}
+          </>
         )}
       </div>
 
