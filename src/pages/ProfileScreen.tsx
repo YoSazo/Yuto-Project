@@ -64,8 +64,8 @@ import { HostListingDashboard } from "../components/profile/HostListingDashboard
 import { EarningsTab } from "../components/profile/EarningsTab";
 import { SupportTicketModal } from "../components/profile/SupportTicketModal";
 
-// ─── KILL SWITCH: set to false to hide Earnings tab during reviews ───
-const EARNINGS_ENABLED = false;
+// ─── Earnings tab enabled (referral earnings) ───
+const EARNINGS_ENABLED = true;
 
 function ChevronRight() {
   return (
@@ -1023,84 +1023,32 @@ export default function ProfileScreen() {
             <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl pointer-events-none" />
             <div className="relative z-10 mb-5">
               <div className="absolute left-0 top-0"><Wallet size={16} className="text-white/70" /></div>
-              <div className="flex items-center justify-center gap-6 text-base font-extrabold">
-                <button type="button" onClick={() => setWalletTab("balance")} className={`bg-transparent border-none p-0 transition-colors ${walletTab === "balance" ? "text-white" : "text-white/40"}`}>Balance</button>
-                <button type="button" onClick={() => setWalletTab("points")} className={`bg-transparent border-none p-0 transition-colors ${walletTab === "points" ? "text-white" : "text-white/40"}`}>Points</button>
+              <div className="flex items-center justify-center text-base font-extrabold">
+                <span className="text-white">Balance</span>
               </div>
             </div>
 
-            {walletTab === "balance" ? (
-              <div className="relative z-10">
-                <div className="flex items-end justify-center pr-12">
-                  <div className={`text-center transition-all duration-300 ${balancePulse ? "scale-105" : "scale-100"}`}>
-                    <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
-                    <span className={`text-4xl font-bold tracking-tight transition-colors duration-500 ${balancePulse ? "text-green-400" : "text-white"}`}>
-                      {animatedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
+            <div className="relative z-10">
+              <div className="flex items-end justify-center pr-12">
+                <div className={`text-center transition-all duration-300 ${balancePulse ? "scale-105" : "scale-100"}`}>
+                  <span className="text-gray-400 text-lg font-medium mr-1">KSH</span>
+                  <span className={`text-4xl font-bold tracking-tight transition-colors duration-500 ${balancePulse ? "text-green-400" : "text-white"}`}>
+                    {animatedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
                 </div>
-                <button onClick={() => setShowTopUpModal(true)} className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-md"><Plus size={20} strokeWidth={3} /></button>
               </div>
-            ) : (
-              <div className="relative z-10">
-                <div className="text-center">
-                  <span className="text-white/70 text-sm font-semibold">Earned</span>
-                  <div className="mt-1">
-                    <span className="text-white/60 text-lg font-medium mr-1">KSH</span>
-                    <span className="text-5xl font-bold tracking-tight">{referralEarned.toLocaleString()}</span>
-                  </div>
-                  <p className="text-xs text-white/55 mt-2">{referralCount} converted</p>
-                </div>
-                <p className="text-xs text-white/60 mt-4">Earn <span className="text-white font-semibold">KSH 50</span> when a new user signs up with your link and tops up for the first time.</p>
-                {profile?.username && (
-                  <div className="mt-4 flex gap-2">
-                    <button type="button" onClick={() => {
-                      const text = `Join me on Yuto — the social payment app for Kenyan youth 🇰🇪\n\nSplit bills, host events, sell stuff, all with M-PESA.\n\n${inviteUrl}`;
-                      const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                      window.open(waUrl, "_blank");
-                    }} className="flex-1 flex justify-center items-center gap-2 bg-green-500 text-white py-3 rounded-xl text-sm font-bold transition-colors active:bg-green-600">
-                      Send <WaIcon size={18} />
-                    </button>
-                    <button type="button" onClick={handleCopyInvite} className="flex-1 flex justify-center items-center gap-1.5 bg-white/10 text-white py-3 rounded-xl text-sm font-bold transition-colors active:bg-white/20">
-                      {copiedLink ? <Check size={16} /> : <Copy size={16} />} {copiedLink ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+              <button onClick={() => setShowTopUpModal(true)} className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-md"><Plus size={20} strokeWidth={3} /></button>
+            </div>
 
-            {walletTab === "balance" && (
-              <div className="relative z-10 mt-5">
-                <div className="flex justify-center gap-3">
-                  <button onClick={() => setShowWithdrawModal(true)} className="text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm">Cash Out</button>
-                  <button onClick={handleOpenHistory} className="text-sm font-bold bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5"><History size={12} /> History</button>
-                </div>
-                <div className="mt-3 flex justify-center">
-                  <button type="button" onClick={() => setShowSendModal(true)} className="w-full max-w-[360px] h-12 rounded-2xl bg-white text-black font-extrabold shadow-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"><Send size={14} /> Send</button>
-                </div>
-
-                {/* Free P2P — NO WIFI selling point */}
-                <div className="mt-5 pt-4 border-t border-white/10">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-white font-bold text-sm">Free sends — no WiFi needed</p>
-                    <span className="text-emerald-400 font-black text-sm">KSH {Math.round(transferCredits).toLocaleString()}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white/8 border border-white/10 rounded-xl p-3 text-center">
-                      <p className="text-lg mb-1">📶</p>
-                      <p className="text-white font-bold text-xs">Close range</p>
-                      <p className="text-white/50 text-[10px]">Bluetooth · Always free</p>
-                    </div>
-                    <div className="bg-white/8 border border-white/10 rounded-xl p-3 text-center">
-                      <p className="text-lg mb-1">🌍</p>
-                      <p className="text-white font-bold text-xs">Long distance</p>
-                      <p className="text-white/50 text-[10px]">No WiFi · Uses credits</p>
-                    </div>
-                  </div>
-                  <p className="text-white/40 text-[10px] mt-2 text-center">Credits earned every time you top up or cash out</p>
-                </div>
+            <div className="relative z-10 mt-5">
+              <div className="flex justify-center gap-3">
+                <button onClick={() => setShowWithdrawModal(true)} className="text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5 shadow-sm">Cash Out</button>
+                <button onClick={handleOpenHistory} className="text-sm font-bold bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-full flex items-center gap-1.5"><History size={12} /> History</button>
               </div>
-            )}
+              <div className="mt-3 flex justify-center">
+                <button type="button" onClick={() => setShowSendModal(true)} className="w-full max-w-[360px] h-12 rounded-2xl bg-white text-black font-extrabold shadow-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"><Send size={14} /> Send</button>
+              </div>
+            </div>
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-4 mb-5 shadow-[0_8px_24px_rgba(0,0,0,0.04)]">

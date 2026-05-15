@@ -13,8 +13,6 @@ const ProfileScreen = lazy(() => import("./pages/ProfileScreen"));
 const YutoGroupScreen = lazy(() => import("./pages/YutoGroupScreen"));
 const YutoChatScreen = lazy(() => import("./pages/YutoChatScreen"));
 const FriendsScreen = lazy(() => import("./pages/FriendsScreen"));
-const WelcomeScreen = lazy(() => import("./pages/WelcomeScreen"));
-const WaitlistThanksScreen = lazy(() => import("./pages/WaitlistThanksScreen"));
 const JoinGroupScreen = lazy(() => import("./pages/JoinGroupScreen"));
 const InviteScreen = lazy(() => import("./pages/InviteScreen"));
 const UserProfileScreen = lazy(() => import("./pages/UserProfileScreen"));
@@ -44,8 +42,6 @@ function Lazy({ children }: { children: React.ReactNode }) {
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthScreen /> },
-  { path: "/welcome", element: <Lazy><WelcomeScreen /></Lazy> },
-  { path: "/waitlist-thanks", element: <Lazy><WaitlistThanksScreen /></Lazy> },
   { path: "/join/:groupId", element: <Lazy><JoinGroupScreen /></Lazy> },
   { path: "/invite/:username", element: <Lazy><InviteScreen /></Lazy> },
   { path: "/function/:functionId", element: <Lazy><FunctionLandingScreen /></Lazy> },
