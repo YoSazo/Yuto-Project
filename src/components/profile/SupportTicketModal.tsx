@@ -85,16 +85,22 @@ export function SupportTicketModal({ open, onClose, transactionId }: SupportTick
 
             {/* Category */}
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-zinc-800 text-black dark:text-white border border-gray-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm mb-4 appearance-none"
-            >
-              <option value="">Select a category...</option>
+            <div className="space-y-1.5 mb-4">
               {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setCategory(c.value)}
+                  className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all border-none ${
+                    category === c.value
+                      ? "bg-black dark:bg-white text-white dark:text-black"
+                      : "bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700"
+                  }`}
+                >
+                  {c.label}
+                </button>
               ))}
-            </select>
+            </div>
 
             {/* Subject */}
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Subject</label>

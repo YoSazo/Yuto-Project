@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { haptics } from "../../lib/haptics";
 import { analytics } from "../../lib/analytics";
-import { authFetch, normalizeMpesaNumber } from "../../lib/supabase";
+import { authFetch, normalizeMpesaNumber, supabase } from "../../lib/supabase";
 
 const DEFAULT_PRESETS = [100, 250, 500, 1000] as const;
 
@@ -25,8 +25,8 @@ export function YutoBalanceTopUpModal({
 }: {
   open: boolean;
   onClose: () => void;
-  userId: string;
-  mpesaPhoneNumber: string;
+  userId?: string;
+  mpesaPhoneNumber?: string;
   /** When the sheet opens, seed the amount field (e.g. computed gap). */
   initialAmount?: number;
   title?: string;
@@ -44,6 +44,28 @@ export function YutoBalanceTopUpModal({
   const [phase, setPhase] = useState<"form" | "prompt_sent">("form");
   const [pollCount, setPollCount] = useState(0);
   const invoiceIdRef = useRef<string | null>(null);
+  const [resolvedPhone, setResolvedPhone] = useState(mpesaPhoneNumber || "");
+  const [resolvedUserId, setResolvedUserId] = useState(userId || "");
+
+  // Fetch phone + userId if not provided
+  useEffect(() => {
+    if (!open) return;
+    if (mpesaPhoneNumber && userId) {
+      setResolvedPhone(mpesaPhoneNumber);
+      setResolvedUserId(userId);
+      return;
+    }
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        if (!userId) setResolvedUserId(user.id);
+        if (!mpesaPhoneNumber) {
+          const { data: profile } = await supabase.from("profiles").select("phone_number").eq("id", user.id).maybeSingle();
+          setResolvedPhone(profile?.phone_number || "");
+        }
+      }
+    })();
+  }, [open, mpesaPhoneNumber, userId]);
 
   useEffect(() => {
     if (!open) return;
@@ -108,7 +130,7 @@ export function YutoBalanceTopUpModal({
     };
   }, [open, phase, onClose, onRetryAfterPaid]);
 
-  const phoneOk = normalizeMpesaNumber(mpesaPhoneNumber).length >= 12;
+  const phoneOk = normalizeMpesaNumber(resolvedPhone).length >= 12;
 
   const handleTopUp = async () => {
     if (!phoneOk) {
@@ -128,9 +150,9 @@ export function YutoBalanceTopUpModal({
       const res = await authFetch("/api/charge", {
         method: "POST",
         body: JSON.stringify({
-          phone_number: normalizeMpesaNumber(mpesaPhoneNumber),
+          phone_number: normalizeMpesaNumber(resolvedPhone),
           amount: amountNum,
-          user_id: userId,
+          user_id: resolvedUserId,
           is_topup: true,
         }),
       });
@@ -140,7 +162,7 @@ export function YutoBalanceTopUpModal({
         setPhase("prompt_sent");
         analytics.topupStkSent({
           amountKes: amountNum,
-          phoneSuffix: mpesaPhoneNumber.slice(-3),
+          phoneSuffix: resolvedPhone.slice(-3),
         });
         if (onRetryAfterPaid) {
           setMessage("Check your phone for M-PESA. Confirm the payment and we'll continue automatically.");

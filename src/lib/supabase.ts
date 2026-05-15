@@ -176,7 +176,8 @@ export function getSavedPhoneNumber(userId: string) {
  * Normalize Kenyan phone numbers to 254XXXXXXXXX format.
  * Handles: 0712..., +254712..., 254712..., 712...
  */
-export function normalizeMpesaNumber(raw: string): string {
+export function normalizeMpesaNumber(raw: string | null | undefined): string {
+  if (!raw) return "";
   const digits = raw.replace(/\D/g, "");
   if (digits.startsWith("0") && digits.length === 10) return "254" + digits.slice(1);
   if (digits.startsWith("254")) return digits;
