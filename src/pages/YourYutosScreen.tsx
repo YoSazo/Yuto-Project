@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 import { useAuth } from "../contexts/AuthContext";
 import { getMyGroups, getMyTicketsAndPurchases, supabase } from "../lib/supabase";
 import type { FunctionListing } from "./home/types";
@@ -154,7 +154,7 @@ export default function YourYutosScreen() {
   return (
     <div className="flex flex-col min-h-full px-6 pt-14 bg-white dark:bg-black text-black dark:text-white transition-colors">
       <div className="flex items-center gap-3 mb-8">
-        <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
+        <YutoLogo />
         <span className="text-2xl font-bold text-black dark:text-white">Activity</span>
       </div>
 

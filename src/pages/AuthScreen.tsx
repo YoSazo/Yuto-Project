@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 import { useAuth } from "../contexts/AuthContext";
 import {
   attachVerifiedPhoneAfterSignup,
@@ -228,7 +228,7 @@ export default function AuthScreen() {
     <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center p-4 transition-colors">
       <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-xl p-8 flex flex-col items-center">
         <div className="w-28 h-28 mb-4">
-          <img alt="Yuto" className="w-full h-full object-contain" src={imgYutoMascot} />
+          <YutoLogo className="w-full h-full object-contain" />
         </div>
 
         <h1 className="text-2xl font-bold text-black dark:text-white mb-1">{headline}</h1>

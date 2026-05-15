@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 import { addToWaitlist, getWaitlistPosition } from '../lib/supabase';
 
 export default function WelcomeScreen() {
@@ -40,11 +40,7 @@ export default function WelcomeScreen() {
       <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-xl p-8 flex flex-col items-center">
         {/* Logo/Mascot */}
         <div className="w-40 h-40 mb-6">
-          <img 
-            alt="Yuto mascot" 
-            className="w-full h-full object-contain" 
-            src={imgYutoMascot} 
-          />
+          <YutoLogo className="w-full h-full object-contain" />
         </div>
 
         {/* Title */}

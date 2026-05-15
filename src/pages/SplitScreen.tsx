@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 import { useAuth } from "../contexts/AuthContext";
 import { getFriends, createGroup, createGroupChat } from "../lib/supabase";
 import UserAvatar from "../components/UserAvatar";
@@ -80,7 +80,7 @@ export default function SplitScreen() {
     <div className="flex flex-col min-h-full px-6 pt-14 bg-white dark:bg-black text-black dark:text-white transition-colors">
       {/* Header */}
       <div className="flex items-center gap-3 mb-10">
-        <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
+        <YutoLogo />
         <span className="text-xl font-bold text-black dark:text-white">Split Anything</span>
       </div>
 

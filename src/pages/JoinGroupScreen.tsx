@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 
 export default function JoinGroupScreen() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -83,7 +83,7 @@ export default function JoinGroupScreen() {
   if (error) {
     return (
       <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center px-6 text-center transition-colors">
-        <img src={imgYutoMascot} className="w-24 h-24 mb-6" alt="Yuto" />
+        <YutoLogo className="w-24 h-24 mb-6 object-contain" />
         <h1 className="text-2xl font-bold text-black dark:text-white mb-2">Oops!</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6">{error}</p>
         <button
@@ -106,7 +106,7 @@ export default function JoinGroupScreen() {
     <div className="min-h-screen bg-white dark:bg-black flex flex-col px-6 py-12 transition-colors">
       {/* Header */}
       <div className="flex flex-col items-center text-center mb-8">
-        <img src={imgYutoMascot} className="w-20 h-20 mb-4" alt="Yuto" />
+        <YutoLogo className="w-20 h-20 mb-4 object-contain" />
         <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">You've been invited by</p>
         <h1 className="text-3xl font-black text-black dark:text-white">{hostName}</h1>
       </div>

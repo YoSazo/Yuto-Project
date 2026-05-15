@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 import { useAuth } from "../contexts/AuthContext";
 import {
   supabase,
@@ -748,7 +748,7 @@ export default function HomeScreen() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <img src={imgYutoMascot} alt="Yuto" className="w-10 h-10 object-contain" />
+          <YutoLogo className="w-12 h-12 object-contain" />
           <span className="text-2xl font-bold text-black dark:text-white">Home</span>
         </div>
         <div className="flex items-center gap-2">

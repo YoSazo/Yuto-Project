@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 import { Sparkles, Users, Zap, ShoppingBag } from "lucide-react";
 
 /**
@@ -65,7 +65,7 @@ export default function ReferralLandingScreen() {
   if (error || !profile) {
     return (
       <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center px-6 text-center transition-colors">
-        <img src={imgYutoMascot} className="w-24 h-24 mb-6" alt="Yuto" />
+        <YutoLogo className="w-24 h-24 mb-6 object-contain" />
         <h1 className="text-2xl font-bold text-black dark:text-white mb-2">Oops!</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6">{error}</p>
         <button
@@ -85,7 +85,7 @@ export default function ReferralLandingScreen() {
       {/* Top section */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 text-center pt-12 pb-6">
         {/* Mascot */}
-        <img src={imgYutoMascot} className="w-20 h-20 mb-6" alt="Yuto" />
+        <YutoLogo className="w-20 h-20 mb-6 object-contain" />
 
         <h1 className="text-3xl font-black text-white mb-3 leading-tight max-w-[320px]">
           {displayName} invited you to Yuto

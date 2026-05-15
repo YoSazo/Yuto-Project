@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 import { MessageCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -828,7 +828,7 @@ export default function YutoGroupScreen() {
           <div className={`bg-white dark:bg-zinc-900 rounded-[28px] shadow-xl border-2 w-[160px] h-[195px] relative overflow-hidden transition-all duration-500 ${allPaid ? "border-green-400 shadow-green-300/40" : "border-gray-200 dark:border-zinc-700"}`}>
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-500 to-green-400 transition-all duration-1000 ease-out" style={{ height: `${fillPercentage}%` }} />
             <div className="relative z-10 flex flex-col items-center justify-center h-full px-2">
-              <img src={imgYutoMascot} alt="Yuto" className="w-[72px] h-[72px] object-contain mb-2" />
+              <YutoLogo className="w-[72px] h-[72px] object-contain mb-2" />
               {allPaid ? (
                 <>
                   <p className="text-sm font-bold text-white text-center leading-tight">All paid! 🎉</p>

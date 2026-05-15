@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 
 function ShareIcon() {
   return (
@@ -70,7 +70,7 @@ export default function AddToHomeScreen() {
   return (
     <div className="min-h-full flex flex-col items-center px-6 pt-12 pb-8 bg-white dark:bg-black transition-colors">
       <div className="w-20 h-20 mb-6">
-        <img alt="Yuto" className="w-full h-full object-contain" src={imgYutoMascot} />
+        <YutoLogo className="w-full h-full object-contain" />
       </div>
 
       <h1 className="text-xl font-bold text-black dark:text-white text-center mb-1">

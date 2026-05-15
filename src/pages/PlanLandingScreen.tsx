@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 import UserAvatar from "../components/UserAvatar";
 import { Users, BadgeDollarSign } from "lucide-react";
 
@@ -69,7 +69,7 @@ export default function PlanLandingScreen() {
   if (error || !plan) {
     return (
       <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center px-6 text-center transition-colors">
-        <img src={imgYutoMascot} className="w-24 h-24 mb-6" alt="Yuto" />
+        <YutoLogo className="w-24 h-24 mb-6 object-contain" />
         <h1 className="text-2xl font-bold text-black dark:text-white mb-2">Oops!</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6">{error}</p>
         <button onClick={() => navigate("/auth")} className="w-full max-w-xs bg-black dark:bg-white text-white dark:text-black rounded-2xl py-4 font-bold">
@@ -88,7 +88,7 @@ export default function PlanLandingScreen() {
     <div className="min-h-screen bg-white dark:bg-black flex flex-col transition-colors">
       {/* Header illustration */}
       <div className="w-full pt-12 pb-6 flex flex-col items-center px-6">
-        <img src={imgYutoMascot} className="w-20 h-20 mb-4" alt="Yuto" />
+        <YutoLogo className="w-20 h-20 mb-4 object-contain" />
         <p className="text-sm text-gray-400 dark:text-gray-500 font-semibold mb-1">You're invited</p>
         <h1 className="text-2xl font-black text-black dark:text-white text-center mb-2">{plan.title}</h1>
         <p className="text-gray-500 dark:text-gray-400 text-center text-sm">

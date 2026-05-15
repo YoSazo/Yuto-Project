@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase, sendFriendRequest } from "../lib/supabase";
-import imgYutoMascot from "../assets/yuto-mascot.webp";
+import { YutoLogo } from "../components/YutoLogo";
 
 export default function InviteScreen() {
   const { username } = useParams<{ username: string }>();
@@ -87,7 +87,7 @@ export default function InviteScreen() {
   if (error && !profile) {
     return (
       <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center px-6 text-center transition-colors">
-        <img src={imgYutoMascot} className="w-24 h-24 mb-6" alt="Yuto" />
+        <YutoLogo className="w-24 h-24 mb-6 object-contain" />
         <h1 className="text-2xl font-bold text-black dark:text-white mb-2">Oops!</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6">{error}</p>
         <button
@@ -103,7 +103,7 @@ export default function InviteScreen() {
   return (
     <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center px-6 text-center transition-colors">
       {/* Mascot */}
-      <img src={imgYutoMascot} className="w-24 h-24 mb-6" alt="Yuto" />
+      <YutoLogo className="w-24 h-24 mb-6 object-contain" />
 
       {/* Profile */}
       <div className="w-20 h-20 rounded-full bg-black dark:bg-white text-white dark:text-black text-3xl font-black flex items-center justify-center mb-4">
