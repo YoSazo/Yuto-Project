@@ -283,6 +283,14 @@ export default function FunctionLandingScreen() {
                       ? "Event complete"
                       : "Sign up & join"}
           </button>
+          {cannotJoin && (
+            <button
+              onClick={() => navigate("/auth")}
+              className="w-full py-3.5 bg-emerald-600 text-white rounded-2xl font-bold text-sm active:scale-[0.98] transition-transform"
+            >
+              Join Yuto — discover more
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {

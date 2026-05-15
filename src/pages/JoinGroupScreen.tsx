@@ -87,10 +87,10 @@ export default function JoinGroupScreen() {
         <h1 className="text-2xl font-bold text-black dark:text-white mb-2">Oops!</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6">{error}</p>
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/auth")}
           className="w-full max-w-xs bg-black dark:bg-white text-white dark:text-black rounded-2xl py-4 font-bold"
         >
-          Go to Yuto
+          Join Yuto
         </button>
       </div>
     );
