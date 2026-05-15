@@ -62,6 +62,7 @@ import { ConfirmModal } from "../components/ConfirmModal";
 import { HostFunctionDashboard } from "../components/profile/HostFunctionDashboard";
 import { HostListingDashboard } from "../components/profile/HostListingDashboard";
 import { EarningsTab } from "../components/profile/EarningsTab";
+import { SupportTicketModal } from "../components/profile/SupportTicketModal";
 
 // ─── KILL SWITCH: set to false to hide Earnings tab during reviews ───
 const EARNINGS_ENABLED = false;
@@ -270,6 +271,7 @@ export default function ProfileScreen() {
   const [highlightReplySending, setHighlightReplySending] = useState(false);
   const [highlightStickerOpen, setHighlightStickerOpen] = useState(false);
   const [highlightStickerListingId, setHighlightStickerListingId] = useState<string | null>(null);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const highlightLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightPendingDelete, setHighlightPendingDelete] = useState<string | null>(null);
   const [myListings, setMyListings] = useState<Array<{ id: string; title: string; kind: "sell" | "service"; amount_per_person: number }>>([]);
@@ -1168,7 +1170,7 @@ export default function ProfileScreen() {
               icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
               label="Help & Support"
               sublabel="Contact us"
-              onClick={() => window.open("mailto:support@yuto.social", "_blank")}
+              onClick={() => setShowSupportModal(true)}
             />
             <MenuItem
               icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
@@ -1521,6 +1523,7 @@ export default function ProfileScreen() {
         onConfirm={() => confirmModal?.onConfirm()}
         onCancel={() => setConfirmModal(null)}
       />
+      <SupportTicketModal open={showSupportModal} onClose={() => setShowSupportModal(false)} />
       {showTopUpModal && user && (
         <YutoBalanceTopUpModal open={showTopUpModal} onClose={() => setShowTopUpModal(false)} userId={user.id} mpesaPhoneNumber={phoneNumber} />
       )}
