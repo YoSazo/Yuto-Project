@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, fetchYutoBalance, authFetch, createGroup, createGroupChat } from "../lib/supabase";
-import { Plus, ArrowDownLeft, Send, Users } from "lucide-react";
+import { supabase, fetchYutoBalance, authFetch, createGroup, createGroupChat, sendFriendRequest, getFriends } from "../lib/supabase";
+import { Plus, ArrowDownLeft, Send, Users, UserPlus, ArrowUpRight } from "lucide-react";
 import { toast } from "sonner";
 import UserAvatar from "../components/UserAvatar";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
@@ -35,6 +35,16 @@ export default function WalletScreen() {
   const [splitAmount, setSplitAmount] = useState("");
   const [splitDescription, setSplitDescription] = useState("");
   const [creatingSplit, setCreatingSplit] = useState(false);
+  // Send modal mode: send or request
+  const [sendMode, setSendMode] = useState<"send" | "request">("send");
+  // Multi-select action: split or collect
+  const [multiAction, setMultiAction] = useState<"split" | "collect">("split");
+  const [collectAmount, setCollectAmount] = useState("");
+  const [collectDescription, setCollectDescription] = useState("");
+  const [collecting, setCollecting] = useState(false);
+  // Friend IDs for distinguishing friends from strangers on radar
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [walletLocked, setWalletLocked] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [pinMode, setPinMode] = useState<"verify" | "setup">("verify");
@@ -44,6 +54,15 @@ export default function WalletScreen() {
   const refreshPending = () => {
     setPendingTransfers(getOfflineTransactions().filter(tx => !tx.synced));
   };
+
+  // Load friend IDs to distinguish friends from strangers on radar
+  useEffect(() => {
+    if (!user) return;
+    getFriends(user.id).then((data: any[]) => {
+      const ids = new Set(data.map((f: any) => f.requester_id === user.id ? f.addressee_id : f.requester_id));
+      setFriendIds(ids);
+    }).catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     refreshPending();
@@ -372,9 +391,20 @@ export default function WalletScreen() {
 
           if (discovered) {
             const isSelected = selectedNearby.has(discovered.userId);
+            const isFriend = friendIds.has(discovered.userId);
             return (
               <div key={i} className="absolute left-1/2 top-1/2" style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`, transition: "transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)", zIndex: 20 }}>
                 <button type="button" onClick={() => {
+                  if (!isFriend) {
+                    // Bump to connect — send friend request
+                    if (!sentRequests.has(discovered.userId) && user) {
+                      sendFriendRequest(user.id, discovered.userId).then(() => {
+                        setSentRequests(prev => new Set([...prev, discovered.userId]));
+                        toast.success(`Friend request sent to ${discovered.name}!`);
+                      }).catch(() => toast.error("Couldn't send request"));
+                    }
+                    return;
+                  }
                   if (multiSelectMode) {
                     setSelectedNearby(prev => {
                       const next = new Set(prev);
@@ -384,24 +414,41 @@ export default function WalletScreen() {
                     });
                   } else {
                     setSendTarget(discovered);
+                    setSendMode("send");
                   }
                 }} className="flex flex-col items-center node-snap-in bg-transparent border-none">
-                  <div className={`relative ${isSelected ? "" : "node-glow"}`}>
-                    <div className={`w-[56px] h-[56px] rounded-full border-[3px] flex items-center justify-center font-bold text-lg text-white dark:text-black shadow-xl overflow-hidden ${isSelected ? "bg-emerald-500 border-white dark:border-black shadow-emerald-500/40" : "bg-black dark:bg-white border-emerald-500 shadow-emerald-500/25"}`}>
-                      {discovered.avatarUrl ? <img src={discovered.avatarUrl} alt={discovered.name} className="w-full h-full object-cover" /> : discovered.name.charAt(0).toUpperCase()}
+                  <div className={`relative ${isSelected ? "" : isFriend ? "node-glow" : ""}`}>
+                    <div className={`w-[56px] h-[56px] rounded-full border-[3px] flex items-center justify-center font-bold text-lg shadow-xl overflow-hidden ${
+                      isSelected ? "bg-emerald-500 border-white dark:border-black text-white shadow-emerald-500/40"
+                      : isFriend ? "bg-black dark:bg-white border-emerald-500 text-white dark:text-black shadow-emerald-500/25"
+                      : "bg-gray-200 dark:bg-zinc-700 border-gray-400 dark:border-zinc-500 text-gray-500 dark:text-gray-400 shadow-none"
+                    }`}>
+                      {!isFriend ? "?" : discovered.avatarUrl ? <img src={discovered.avatarUrl} alt={discovered.name} className="w-full h-full object-cover" /> : discovered.name.charAt(0).toUpperCase()}
                     </div>
                     {isSelected && (
                       <div className="absolute -top-1 -right-1 bg-white dark:bg-black rounded-full p-0.5 shadow">
                         <svg className="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                       </div>
                     )}
-                    {!isSelected && (
+                    {!isFriend && !sentRequests.has(discovered.userId) && (
+                      <div className="absolute -bottom-0.5 -right-0.5 bg-blue-500 rounded-full p-0.5">
+                        <UserPlus size={10} className="text-white" />
+                      </div>
+                    )}
+                    {!isFriend && sentRequests.has(discovered.userId) && (
+                      <div className="absolute -bottom-0.5 -right-0.5 bg-gray-400 rounded-full p-0.5">
+                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                      </div>
+                    )}
+                    {isFriend && !isSelected && (
                       <div className="absolute -bottom-0.5 -right-0.5 bg-emerald-500 rounded-full p-0.5">
                         <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                       </div>
                     )}
                   </div>
-                  <p className="text-xs font-semibold mt-1 text-black dark:text-white">{discovered.name.split(" ")[0]}</p>
+                  <p className={`text-xs font-semibold mt-1 ${isFriend ? "text-black dark:text-white" : "text-gray-400"}`}>
+                    {isFriend ? discovered.name.split(" ")[0] : sentRequests.has(discovered.userId) ? "Sent ✓" : "Tap to add"}
+                  </p>
                 </button>
               </div>
             );
@@ -431,8 +478,8 @@ export default function WalletScreen() {
         </div>
       )}
 
-      {/* Multi-select toggle + Split CTA */}
-      {nearbyUsers.length >= 2 && (
+      {/* Multi-select toggle + Split/Collect CTA */}
+      {nearbyUsers.filter(u => friendIds.has(u.userId)).length >= 2 && (
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
@@ -443,18 +490,27 @@ export default function WalletScreen() {
             {multiSelectMode ? "Cancel" : "Select multiple"}
           </button>
           {multiSelectMode && selectedNearby.size >= 2 && (
-            <button
-              type="button"
-              onClick={() => setShowSplitModal(true)}
-              className="px-5 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold text-sm active:scale-[0.98] transition-transform border-none"
-            >
-              Split with {selectedNearby.size} →
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setMultiAction("collect"); setShowSplitModal(true); }}
+                className="px-4 py-2.5 bg-orange-500 text-white rounded-full font-bold text-xs active:scale-[0.98] transition-transform border-none"
+              >
+                Collect
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMultiAction("split"); setShowSplitModal(true); }}
+                className="px-4 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold text-xs active:scale-[0.98] transition-transform border-none"
+              >
+                Split
+              </button>
+            </div>
           )}
         </div>
       )}
 
-      {/* Bottom message */}
+      {/* Bottom message — Who's Around passive mode */}
       <div className="bg-black dark:bg-zinc-900 rounded-2xl p-4 text-center">
         {!isBleAvailable() ? (
           <>
@@ -465,12 +521,15 @@ export default function WalletScreen() {
           <>
             <p className="text-white text-sm font-semibold">
               {nearbyUsers.length > 0
-                ? `${nearbyUsers.length} friend${nearbyUsers.length === 1 ? "" : "s"} nearby — tap to send`
+                ? `${nearbyUsers.filter(u => friendIds.has(u.userId)).length} friend${nearbyUsers.filter(u => friendIds.has(u.userId)).length === 1 ? "" : "s"} nearby${nearbyUsers.filter(u => !friendIds.has(u.userId)).length > 0 ? ` · ${nearbyUsers.filter(u => !friendIds.has(u.userId)).length} new` : ""}`
                 : bleReady
-                  ? "Get your friend in range to send money"
+                  ? "Scanning for friends nearby..."
                   : "Enable Bluetooth to find friends nearby"
               }
             </p>
+            {nearbyUsers.length > 0 && (
+              <p className="text-white/50 text-xs mt-1">Tap a friend to send or request · Tap "?" to connect</p>
+            )}
             {!bleReady && (
               <button type="button" onClick={setupBle} className="mt-2 text-xs text-emerald-400 font-bold bg-transparent border-none">
                 Enable Bluetooth
@@ -480,13 +539,17 @@ export default function WalletScreen() {
         )}
       </div>
 
-      {/* Instant Split Modal — create split with nearby friends */}
+      {/* Instant Split / Collect Modal */}
       {showSplitModal && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm fade-in">
           <button type="button" className="absolute inset-0 border-none bg-transparent" onClick={() => setShowSplitModal(false)} />
           <div className="relative z-10 w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl p-6 modal-slide-up">
-            <h2 className="text-xl font-bold text-black dark:text-white mb-1">Instant Split</h2>
-            <p className="text-sm text-gray-500 mb-5">Split with {selectedNearby.size} friends nearby</p>
+            <h2 className="text-xl font-bold text-black dark:text-white mb-1">
+              {multiAction === "split" ? "Instant Split" : "Collect from Friends"}
+            </h2>
+            <p className="text-sm text-gray-500 mb-5">
+              {multiAction === "split" ? `Split with ${selectedNearby.size} friends nearby` : `Request from ${selectedNearby.size} friends nearby`}
+            </p>
 
             <div className="flex flex-wrap gap-2 mb-5">
               {nearbyUsers.filter(u => selectedNearby.has(u.userId)).map(u => (
@@ -498,7 +561,9 @@ export default function WalletScreen() {
             </div>
 
             <div className="mb-4">
-              <p className="text-sm text-gray-400 font-semibold mb-2 text-center">Total amount (KSH)</p>
+              <p className="text-sm text-gray-400 font-semibold mb-2 text-center">
+                {multiAction === "split" ? "Total amount (KSH)" : "Amount from each (KSH)"}
+              </p>
               <input
                 type="text"
                 inputMode="numeric"
@@ -510,7 +575,10 @@ export default function WalletScreen() {
               />
               {splitAmount && parseInt(splitAmount) > 0 && (
                 <p className="text-center text-sm text-gray-500 mt-1">
-                  KSH {Math.ceil(parseInt(splitAmount) / (selectedNearby.size + 1)).toLocaleString()} each
+                  {multiAction === "split"
+                    ? `KSH ${Math.ceil(parseInt(splitAmount) / (selectedNearby.size + 1)).toLocaleString()} each`
+                    : `Total: KSH ${(parseInt(splitAmount) * selectedNearby.size).toLocaleString()}`
+                  }
                 </p>
               )}
             </div>
@@ -520,7 +588,7 @@ export default function WalletScreen() {
                 type="text"
                 value={splitDescription}
                 onChange={(e) => setSplitDescription(e.target.value)}
-                placeholder="What's this for? (lunch, uber, drinks...)"
+                placeholder={multiAction === "split" ? "What's this for? (lunch, uber...)" : "What's this for? (you owe me for...)"}
                 maxLength={40}
                 className="w-full text-sm text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800 border-none outline-none rounded-full px-4 py-3 placeholder-gray-300 dark:placeholder-zinc-600"
               />
@@ -532,52 +600,85 @@ export default function WalletScreen() {
                 if (!user || !splitAmount || parseInt(splitAmount) <= 0 || creatingSplit) return;
                 setCreatingSplit(true);
                 try {
-                  const totalAmount = parseInt(splitAmount);
-                  const memberIds = [user.id, ...Array.from(selectedNearby)];
-                  const perPerson = Math.ceil(totalAmount / memberIds.length);
-                  const group = await createGroup(
-                    splitDescription.trim() || "Split",
-                    totalAmount,
-                    perPerson,
-                    user.id,
-                    memberIds,
-                    "single"
-                  );
-                  try {
-                    await createGroupChat(user.id, Array.from(selectedNearby), splitDescription.trim() || "Split", group.id);
-                  } catch { /* ignore chat creation failure */ }
-                  setShowSplitModal(false);
-                  setMultiSelectMode(false);
-                  setSelectedNearby(new Set());
-                  setSplitAmount("");
-                  setSplitDescription("");
-                  navigate(`/yuto/${group.id}`);
+                  if (multiAction === "split") {
+                    const totalAmount = parseInt(splitAmount);
+                    const memberIds = [user.id, ...Array.from(selectedNearby)];
+                    const perPerson = Math.ceil(totalAmount / memberIds.length);
+                    const group = await createGroup(
+                      splitDescription.trim() || "Split",
+                      totalAmount,
+                      perPerson,
+                      user.id,
+                      memberIds,
+                      "single"
+                    );
+                    try {
+                      await createGroupChat(user.id, Array.from(selectedNearby), splitDescription.trim() || "Split", group.id);
+                    } catch { /* ignore */ }
+                    setShowSplitModal(false);
+                    setMultiSelectMode(false);
+                    setSelectedNearby(new Set());
+                    setSplitAmount("");
+                    setSplitDescription("");
+                    navigate(`/yuto/${group.id}`);
+                  } else {
+                    // Collect: send payment request to each selected friend
+                    const amount = parseInt(splitAmount);
+                    const requests = Array.from(selectedNearby).map(targetId =>
+                      authFetch("/api/request-payment", {
+                        method: "POST",
+                        body: JSON.stringify({
+                          requester_id: user.id,
+                          target_id: targetId,
+                          amount,
+                          description: splitDescription.trim() || "Payment request",
+                        }),
+                      })
+                    );
+                    await Promise.allSettled(requests);
+                    toast.success(`Requested KSH ${amount.toLocaleString()} from ${selectedNearby.size} friends`);
+                    setShowSplitModal(false);
+                    setMultiSelectMode(false);
+                    setSelectedNearby(new Set());
+                    setSplitAmount("");
+                    setSplitDescription("");
+                  }
                 } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "Failed to create split");
+                  toast.error(err instanceof Error ? err.message : "Failed");
                 } finally {
                   setCreatingSplit(false);
                 }
               }}
               disabled={!splitAmount || parseInt(splitAmount) <= 0 || creatingSplit}
-              className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold text-base disabled:opacity-40 active:scale-[0.98] transition-transform border-none"
+              className={`w-full py-4 rounded-2xl font-bold text-base disabled:opacity-40 active:scale-[0.98] transition-transform border-none ${multiAction === "split" ? "bg-black dark:bg-white text-white dark:text-black" : "bg-orange-500 text-white"}`}
             >
-              {creatingSplit ? "Creating..." : `Split KSH ${splitAmount ? parseInt(splitAmount).toLocaleString() : "0"}`}
+              {creatingSplit ? "Creating..." : multiAction === "split" ? `Split KSH ${splitAmount ? parseInt(splitAmount).toLocaleString() : "0"}` : `Collect KSH ${splitAmount ? parseInt(splitAmount).toLocaleString() : "0"} each`}
             </button>
           </div>
         </div>
       )}
 
-      {/* Send modal — opens when you tap a nearby user */}
+      {/* Send/Request modal — opens when you tap a nearby friend */}
       {sendTarget && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm fade-in">
           <button type="button" className="absolute inset-0 border-none bg-transparent" onClick={() => setSendTarget(null)} />
           <div className="relative z-10 w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl p-6 modal-slide-up">
-            <div className="flex flex-col items-center mb-6">
+            <div className="flex flex-col items-center mb-4">
               <div className="w-16 h-16 rounded-full bg-black dark:bg-white border-[3px] border-emerald-500 flex items-center justify-center font-bold text-2xl text-white dark:text-black overflow-hidden mb-3">
                 {sendTarget.avatarUrl ? <img src={sendTarget.avatarUrl} alt={sendTarget.name} className="w-full h-full object-cover" /> : sendTarget.name.charAt(0).toUpperCase()}
               </div>
               <p className="font-bold text-lg text-black dark:text-white">{sendTarget.name}</p>
               <p className="text-xs text-gray-400">Nearby via Bluetooth</p>
+            </div>
+
+            {/* Send / Request tab switcher */}
+            <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-full p-1 mb-5">
+              <button type="button" onClick={() => setSendMode("send")} className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors border-none ${sendMode === "send" ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm" : "bg-transparent text-gray-500"}`}>
+                <span className="flex items-center justify-center gap-1.5"><Send size={14} /> Send</span>
+              </button>
+              <button type="button" onClick={() => setSendMode("request")} className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors border-none ${sendMode === "request" ? "bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm" : "bg-transparent text-gray-500"}`}>
+                <span className="flex items-center justify-center gap-1.5"><ArrowDownLeft size={14} /> Request</span>
+              </button>
             </div>
 
             <div className="mb-6 text-center">
@@ -591,16 +692,37 @@ export default function WalletScreen() {
                 className="text-[48px] font-bold text-center text-black dark:text-white bg-transparent border-none outline-none w-full"
                 autoFocus
               />
-              <p className="text-xs text-gray-400 mt-1">Balance: KSH {balance.toLocaleString()}</p>
+              {sendMode === "send" && <p className="text-xs text-gray-400 mt-1">Balance: KSH {balance.toLocaleString()}</p>}
+              {sendMode === "request" && <p className="text-xs text-gray-400 mt-1">They'll get a notification to approve</p>}
             </div>
 
             <button
               type="button"
-              onClick={handleSend}
+              onClick={sendMode === "send" ? handleSend : async () => {
+                if (!user || !sendTarget || !sendAmount || parseInt(sendAmount) <= 0) return;
+                setSending(true);
+                try {
+                  // Create a payment request notification
+                  await authFetch("/api/request-payment", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      requester_id: user.id,
+                      target_id: sendTarget.userId,
+                      amount: parseInt(sendAmount),
+                    }),
+                  });
+                  toast.success(`Requested KSH ${parseInt(sendAmount).toLocaleString()} from ${sendTarget.name}`);
+                  setSendTarget(null);
+                  setSendAmount("");
+                } catch {
+                  toast.error("Couldn't send request");
+                }
+                setSending(false);
+              }}
               disabled={!sendAmount || parseInt(sendAmount) <= 0 || sending}
-              className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-bold text-base disabled:opacity-40 active:scale-[0.98] transition-transform border-none flex items-center justify-center gap-2"
+              className={`w-full py-4 rounded-2xl font-bold text-base disabled:opacity-40 active:scale-[0.98] transition-transform border-none flex items-center justify-center gap-2 ${sendMode === "send" ? "bg-emerald-500 text-white" : "bg-orange-500 text-white"}`}
             >
-              <Send size={18} /> {sending ? "Sending..." : "Send"}
+              {sendMode === "send" ? <><Send size={18} /> {sending ? "Sending..." : "Send"}</> : <><ArrowUpRight size={18} /> {sending ? "Requesting..." : "Request"}</>}
             </button>
 
             <button type="button" onClick={() => { setSendTarget(null); setSending(false); setSendAmount(""); }} className="w-full py-3 mt-2 text-gray-400 font-semibold text-sm bg-transparent border-none">
