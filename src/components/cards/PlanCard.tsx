@@ -155,59 +155,20 @@ export function PlanCard({
             </span>
           </button>
           {pm.length > 0 && (
-            <div className="flex flex-col gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); sharePlanToWhatsApp(plan); }}
-                className="h-10 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 flex items-center justify-center gap-1.5 px-3 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                aria-label="Send on WhatsApp"
-                title="Send on WhatsApp"
-              >
-                <span className="text-xs font-bold">Send</span>
-                <WhatsAppIcon size={16} />
-              </button>
-              {(onSharePlan || onOpenPlanChat || (onOpenMemories && (isMember || isMine))) && (
-                <div className="flex items-center gap-1.5">
-                  {onSharePlan && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSharePlan(plan);
-                      }}
-                      className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                      aria-label={`Share ${plan.title} in messages`}
-                      title="Share in messages"
-                    >
-                      <Send size={16} />
-                    </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {onOpenMemories && (isMember || isMine) && (
+                <button
+                  type="button"
+                  onClick={() => onOpenMemories(plan.id)}
+                  className="relative w-10 h-10 shrink-0 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                  aria-label="Memories"
+                  title="Photos & memories"
+                >
+                  <Images size={16} />
+                  {(plan.memories_count ?? 0) > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-purple-600 text-white text-[9px] font-bold flex items-center justify-center">{plan.memories_count}</span>
                   )}
-                  {onOpenPlanChat && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenPlanChat(plan)}
-                      className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                      aria-label={`Chat about ${plan.title}`}
-                      title="Open chat"
-                    >
-                      <MessageCircle size={16} />
-                    </button>
-                  )}
-                  {onOpenMemories && (isMember || isMine) && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenMemories(plan.id)}
-                      className="relative w-10 h-10 shrink-0 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
-                      aria-label="Memories"
-                      title="Photos & memories"
-                    >
-                      <Images size={16} />
-                      {(plan.memories_count ?? 0) > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-purple-600 text-white text-[9px] font-bold flex items-center justify-center">{plan.memories_count}</span>
-                      )}
-                    </button>
-                  )}
-                </div>
+                </button>
               )}
             </div>
           )}
