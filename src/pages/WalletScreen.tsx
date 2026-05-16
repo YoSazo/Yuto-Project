@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase, fetchYutoBalance, authFetch } from "../lib/supabase";
-import { Plus, ArrowDownLeft, Send } from "lucide-react";
+import { supabase, fetchYutoBalance, authFetch, createGroup, createGroupChat } from "../lib/supabase";
+import { Plus, ArrowDownLeft, Send, Users } from "lucide-react";
 import { toast } from "sonner";
 import UserAvatar from "../components/UserAvatar";
 import { YutoBalanceTopUpModal } from "../components/wallet/YutoBalanceTopUpModal";
@@ -28,6 +28,13 @@ export default function WalletScreen() {
   const [sendAmount, setSendAmount] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingTransfers, setPendingTransfers] = useState<OfflineTransaction[]>([]);
+  // Multi-select for instant split
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedNearby, setSelectedNearby] = useState<Set<string>>(new Set());
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [splitAmount, setSplitAmount] = useState("");
+  const [splitDescription, setSplitDescription] = useState("");
+  const [creatingSplit, setCreatingSplit] = useState(false);
   const [walletLocked, setWalletLocked] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [pinMode, setPinMode] = useState<"verify" | "setup">("verify");
@@ -364,16 +371,35 @@ export default function WalletScreen() {
           const y = Math.sin(ghost.angle) * ghost.r;
 
           if (discovered) {
+            const isSelected = selectedNearby.has(discovered.userId);
             return (
               <div key={i} className="absolute left-1/2 top-1/2" style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`, transition: "transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)", zIndex: 20 }}>
-                <button type="button" onClick={() => setSendTarget(discovered)} className="flex flex-col items-center node-snap-in bg-transparent border-none">
-                  <div className="relative node-glow">
-                    <div className="w-[56px] h-[56px] rounded-full bg-black dark:bg-white border-[3px] border-emerald-500 flex items-center justify-center font-bold text-lg text-white dark:text-black shadow-xl shadow-emerald-500/25 overflow-hidden">
+                <button type="button" onClick={() => {
+                  if (multiSelectMode) {
+                    setSelectedNearby(prev => {
+                      const next = new Set(prev);
+                      if (next.has(discovered.userId)) next.delete(discovered.userId);
+                      else next.add(discovered.userId);
+                      return next;
+                    });
+                  } else {
+                    setSendTarget(discovered);
+                  }
+                }} className="flex flex-col items-center node-snap-in bg-transparent border-none">
+                  <div className={`relative ${isSelected ? "" : "node-glow"}`}>
+                    <div className={`w-[56px] h-[56px] rounded-full border-[3px] flex items-center justify-center font-bold text-lg text-white dark:text-black shadow-xl overflow-hidden ${isSelected ? "bg-emerald-500 border-white dark:border-black shadow-emerald-500/40" : "bg-black dark:bg-white border-emerald-500 shadow-emerald-500/25"}`}>
                       {discovered.avatarUrl ? <img src={discovered.avatarUrl} alt={discovered.name} className="w-full h-full object-cover" /> : discovered.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="absolute -bottom-0.5 -right-0.5 bg-emerald-500 rounded-full p-0.5">
-                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                    </div>
+                    {isSelected && (
+                      <div className="absolute -top-1 -right-1 bg-white dark:bg-black rounded-full p-0.5 shadow">
+                        <svg className="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                      </div>
+                    )}
+                    {!isSelected && (
+                      <div className="absolute -bottom-0.5 -right-0.5 bg-emerald-500 rounded-full p-0.5">
+                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                      </div>
+                    )}
                   </div>
                   <p className="text-xs font-semibold mt-1 text-black dark:text-white">{discovered.name.split(" ")[0]}</p>
                 </button>
@@ -405,6 +431,29 @@ export default function WalletScreen() {
         </div>
       )}
 
+      {/* Multi-select toggle + Split CTA */}
+      {nearbyUsers.length >= 2 && (
+        <div className="flex items-center justify-between mb-4">
+          <button
+            type="button"
+            onClick={() => { setMultiSelectMode(!multiSelectMode); setSelectedNearby(new Set()); }}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm transition-all border ${multiSelectMode ? "bg-emerald-500 text-white border-emerald-500" : "bg-white dark:bg-zinc-800 text-black dark:text-white border-gray-200 dark:border-zinc-700"}`}
+          >
+            <Users size={16} />
+            {multiSelectMode ? "Cancel" : "Select multiple"}
+          </button>
+          {multiSelectMode && selectedNearby.size >= 2 && (
+            <button
+              type="button"
+              onClick={() => setShowSplitModal(true)}
+              className="px-5 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold text-sm active:scale-[0.98] transition-transform border-none"
+            >
+              Split with {selectedNearby.size} →
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Bottom message */}
       <div className="bg-black dark:bg-zinc-900 rounded-2xl p-4 text-center">
         {!isBleAvailable() ? (
@@ -430,6 +479,93 @@ export default function WalletScreen() {
           </>
         )}
       </div>
+
+      {/* Instant Split Modal — create split with nearby friends */}
+      {showSplitModal && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm fade-in">
+          <button type="button" className="absolute inset-0 border-none bg-transparent" onClick={() => setShowSplitModal(false)} />
+          <div className="relative z-10 w-full max-w-md bg-white dark:bg-zinc-900 rounded-t-3xl md:rounded-3xl p-6 modal-slide-up">
+            <h2 className="text-xl font-bold text-black dark:text-white mb-1">Instant Split</h2>
+            <p className="text-sm text-gray-500 mb-5">Split with {selectedNearby.size} friends nearby</p>
+
+            <div className="flex flex-wrap gap-2 mb-5">
+              {nearbyUsers.filter(u => selectedNearby.has(u.userId)).map(u => (
+                <div key={u.userId} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-full">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold">{u.name.charAt(0)}</div>
+                  <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">{u.name.split(" ")[0]}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-400 font-semibold mb-2 text-center">Total amount (KSH)</p>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={splitAmount}
+                onChange={(e) => setSplitAmount(e.target.value.replace(/\D/g, ""))}
+                placeholder="0"
+                className="text-[40px] font-bold text-center text-black dark:text-white bg-transparent border-none outline-none w-full"
+                autoFocus
+              />
+              {splitAmount && parseInt(splitAmount) > 0 && (
+                <p className="text-center text-sm text-gray-500 mt-1">
+                  KSH {Math.ceil(parseInt(splitAmount) / (selectedNearby.size + 1)).toLocaleString()} each
+                </p>
+              )}
+            </div>
+
+            <div className="mb-5">
+              <input
+                type="text"
+                value={splitDescription}
+                onChange={(e) => setSplitDescription(e.target.value)}
+                placeholder="What's this for? (lunch, uber, drinks...)"
+                maxLength={40}
+                className="w-full text-sm text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800 border-none outline-none rounded-full px-4 py-3 placeholder-gray-300 dark:placeholder-zinc-600"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (!user || !splitAmount || parseInt(splitAmount) <= 0 || creatingSplit) return;
+                setCreatingSplit(true);
+                try {
+                  const totalAmount = parseInt(splitAmount);
+                  const memberIds = [user.id, ...Array.from(selectedNearby)];
+                  const perPerson = Math.ceil(totalAmount / memberIds.length);
+                  const group = await createGroup(
+                    splitDescription.trim() || "Split",
+                    totalAmount,
+                    perPerson,
+                    user.id,
+                    memberIds,
+                    "single"
+                  );
+                  try {
+                    await createGroupChat(user.id, Array.from(selectedNearby), splitDescription.trim() || "Split", group.id);
+                  } catch { /* ignore chat creation failure */ }
+                  setShowSplitModal(false);
+                  setMultiSelectMode(false);
+                  setSelectedNearby(new Set());
+                  setSplitAmount("");
+                  setSplitDescription("");
+                  navigate(`/yuto/${group.id}`);
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Failed to create split");
+                } finally {
+                  setCreatingSplit(false);
+                }
+              }}
+              disabled={!splitAmount || parseInt(splitAmount) <= 0 || creatingSplit}
+              className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold text-base disabled:opacity-40 active:scale-[0.98] transition-transform border-none"
+            >
+              {creatingSplit ? "Creating..." : `Split KSH ${splitAmount ? parseInt(splitAmount).toLocaleString() : "0"}`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Send modal — opens when you tap a nearby user */}
       {sendTarget && (
