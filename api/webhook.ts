@@ -307,28 +307,9 @@ async function processIntaSendWebhook(payload: {
 
       // Transfer Credits: rebate 1% top-up fee as transfer credits
       try {
-        const { data: feePctRow } = await supabase
-          .from("platform_config")
-          .select("value")
-          .eq("key", "topup_fee_pct")
-          .single();
-        const { data: rebateRow } = await supabase
-          .from("platform_config")
-          .select("value")
-          .eq("key", "topup_fee_rebate_as_airtime")
-          .single();
-        const feePct = Number(feePctRow?.value ?? 0.01);
-        const shouldRebate = Number(rebateRow?.value ?? 1) === 1;
-        const topupFee = Math.round(amount * feePct);
-        if (shouldRebate && topupFee > 0) {
-          await supabase.rpc("credit_airtime_reward", {
-            p_user_id: uid,
-            p_amount: topupFee,
-            p_source: "topup_rebate",
-          });
-        }
+        // Airtime rebate removed — credits scrapped
       } catch (e) {
-        console.error("[webhook] topup transfer credit error:", e);
+        console.error("[webhook] topup post-processing error:", e);
       }
 
       await sendPushNotification(

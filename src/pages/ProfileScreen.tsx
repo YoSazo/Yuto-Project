@@ -228,7 +228,6 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [walletTab, setWalletTab] = useState<"balance" | "points">("balance");
-  const [transferCredits, setTransferCredits] = useState(0);
   const [referralCount, setReferralCount] = useState(0);
   const [referralEarned, setReferralEarned] = useState(0);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -534,11 +533,7 @@ export default function ProfileScreen() {
           // Offline or timeout — keep cached value
         }
 
-        // Load transfer credits balance
-        try {
-          const { data: creditsRow } = await supabase.from("transfer_credits").select("balance_kes").eq("user_id", user.id).maybeSingle();
-          setTransferCredits(Number(creditsRow?.balance_kes ?? 0));
-        } catch { /* table may not exist yet */ }
+        // Transfer credits removed — scrapped
 
         // Referral stats (minimal): count converted referrals + total earned from bonus transactions
         const [refs, bonusTx] = await Promise.all([
