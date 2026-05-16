@@ -5,9 +5,10 @@ export type ComposeMode = "plan" | "function" | "sell" | "service";
 
 const composeTabs = [
   { id: "plan" as const, label: "Plan", icon: <ClipboardList size={18} /> },
-  { id: "function" as const, label: "Function", icon: <PartyPopper size={18} /> },
-  { id: "sell" as const, label: "Sell", icon: <Store size={18} /> },
-  { id: "service" as const, label: "Services", icon: <Briefcase size={18} /> },
+  // Functions, Sell, Services hidden for v1
+  // { id: "function" as const, label: "Function", icon: <PartyPopper size={18} /> },
+  // { id: "sell" as const, label: "Sell", icon: <Store size={18} /> },
+  // { id: "service" as const, label: "Services", icon: <Briefcase size={18} /> },
 ] as const;
 
 /** Matches the Post Something segmented control — shared with inbox “Send…” picker. */

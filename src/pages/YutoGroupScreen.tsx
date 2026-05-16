@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { YutoLogo } from "../components/YutoLogo";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Images } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import {
   supabase,
@@ -23,6 +23,7 @@ import { useAppResume } from "../hooks/useAppResume";
 import { toast } from "sonner";
 import { haptics } from "../lib/haptics";
 import { analytics } from "../lib/analytics";
+import { PlanMemoriesModal } from "../components/home/PlanMemoriesModal";
 
 interface Member {
   user_id: string;
@@ -303,6 +304,7 @@ export default function YutoGroupScreen() {
     message: string;
   } | null>(null);
   const [originPlan, setOriginPlan] = useState<{ id: string; title: string } | null>(null);
+  const [showMemories, setShowMemories] = useState(false);
   const justJoinedTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Load group
@@ -828,14 +830,28 @@ export default function YutoGroupScreen() {
           <div className={`bg-white dark:bg-zinc-900 rounded-[28px] shadow-xl border-2 w-[160px] h-[195px] relative overflow-hidden transition-all duration-500 ${allPaid ? "border-green-400 shadow-green-300/40" : "border-gray-200 dark:border-zinc-700"}`}>
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-green-500 to-green-400 transition-all duration-1000 ease-out" style={{ height: `${fillPercentage}%` }} />
             <div className="relative z-10 flex flex-col items-center justify-center h-full px-2">
-              <YutoLogo className="w-[72px] h-[72px] object-contain mb-2" />
-              {allPaid ? (
+              {allPaid && originPlan ? (
+                /* Memories unlock — tappable jar center after all paid */
+                <button
+                  type="button"
+                  onClick={() => setShowMemories(true)}
+                  className="flex flex-col items-center justify-center gap-2 bg-transparent border-none cursor-pointer group"
+                >
+                  <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform" style={{ animation: "pulse 2s ease-in-out infinite" }}>
+                    <Images size={28} className="text-white" />
+                  </div>
+                  <p className="text-sm font-bold text-white text-center leading-tight">Memories 📸</p>
+                  <p className="text-[10px] text-white/70">Tap to add photos</p>
+                </button>
+              ) : allPaid ? (
                 <>
+                  <YutoLogo className="w-[72px] h-[72px] object-contain mb-2" />
                   <p className="text-sm font-bold text-white text-center leading-tight">All paid! 🎉</p>
                   <p className="text-xs text-white/80 mt-1">KSH {totalAmount.toLocaleString()}</p>
                 </>
               ) : (
                 <>
+                  <YutoLogo className="w-[72px] h-[72px] object-contain mb-2" />
                   <p className={`text-2xl font-bold transition-colors duration-300 ${fillPercentage > 50 ? "text-white" : "text-black dark:text-white"}`}>KSH {perPersonAmount}</p>
                   <p className={`text-sm transition-colors duration-300 ${fillPercentage > 50 ? "text-white/80" : "text-gray-400 dark:text-gray-500"}`}>per person</p>
                 </>
@@ -1100,6 +1116,17 @@ export default function YutoGroupScreen() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Memories Modal — unlocked after all paid for plan-linked splits */}
+      {showMemories && originPlan && user && (
+        <PlanMemoriesModal
+          open={showMemories}
+          planId={originPlan.id}
+          planTitle={originPlan.title}
+          currentUserId={user.id}
+          onClose={() => setShowMemories(false)}
+        />
       )}
 
       {/* Split Chat Bottom Sheet */}

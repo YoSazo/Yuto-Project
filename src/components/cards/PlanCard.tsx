@@ -242,8 +242,7 @@ export function PlanCard({
                 className="flex-[2] py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
               >
                 <span className="flex items-center justify-center gap-1.5">
-                  <Rocket size={15} /> Pay up ðŸ’¸
-                </span>
+                  <Rocket size={15} /> Join Room</span>
               </button>
               {onJoinOrLeavePlan && (
                 <button
@@ -256,14 +255,14 @@ export function PlanCard({
               )}
             </>
           )}
-          {plan.yuto_group_id && isMember && isMine && onNavigateToYutoGroup && (
+          {plan.yuto_group_id && isMine && onNavigateToYutoGroup && (
             <button
               type="button"
               onClick={() => onNavigateToYutoGroup(plan.yuto_group_id!)}
-              className="flex-1 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+              className="flex-1 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
             >
               <span className="flex items-center justify-center gap-1.5">
-                <Rocket size={15} /> Join Yuto
+                <Rocket size={15} /> Join Room
               </span>
             </button>
           )}

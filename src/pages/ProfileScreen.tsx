@@ -278,7 +278,15 @@ export default function ProfileScreen() {
   const [ownListings, setOwnListings] = useState<StorefrontListingItem[]>([]);
   const [ownFunctions, setOwnHostedFunctions] = useState<HostedFunctionItem[]>([]);
   const [ownShowcaseTab, setOwnShowcaseTab] = useState<"profile" | "functions" | "sell" | "service">("profile");
-  const [profileTopTab, setProfileTopTab] = useState<"profile" | "earnings">("earnings");
+  const [profileTopTab, setProfileTopTab] = useState<"profile" | "earnings">(() => {
+    // Only default to earnings on first ever visit, then always default to profile
+    const key = "yuto_seen_earnings_tab";
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, "1");
+      return "earnings";
+    }
+    return "profile";
+  });
   const [isHeaderDropdownOpen, setIsHeaderDropdownOpen] = useState(false);
   const [ownListingOptionsOpen, setOwnListingOptionsOpen] = useState<string | null>(null);
   const [expandedFunctionId, setExpandedFunctionId] = useState<string | null>(null);

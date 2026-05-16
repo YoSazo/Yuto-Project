@@ -787,7 +787,7 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* Tab switcher (matches Post Something segmented control) */}
+      {/* Tab switcher */}
       <SegmentedTabsBar
         value={activeTab}
         onChange={setActiveTab}
@@ -867,7 +867,8 @@ export default function HomeScreen() {
         onOpenMemories={user ? (planId) => setMemoriesPlanId(planId) : undefined}
       />
 
-      {activeTab === "public" && (
+      {/* Functions/events hidden for v1 — plans only */}
+      {false && activeTab === "public" && (
           <FunctionFeedSection
             functionsFeed={functionsFeed}
             loading={loading}
