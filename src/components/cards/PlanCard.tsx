@@ -214,125 +214,66 @@ export function PlanCard({
         </div>
       )}
 
-      <div className={`flex flex-wrap gap-1.5 ${pm.length > 0 ? "" : "items-center justify-between"}`}>
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          {!isMine && !allIn && onJoinOrLeavePlan && !plan.yuto_group_id && (
+      <div className="space-y-3">
+        {/* Action icons row */}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => sharePlanToWhatsApp(plan)}
+            className="h-10 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 flex items-center justify-center gap-1.5 px-3 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+            aria-label="Send on WhatsApp"
+          >
+            <span className="text-xs font-bold">Send</span>
+            <WhatsAppIcon size={16} />
+          </button>
+          {onSharePlan && (
             <button
               type="button"
-              onClick={() => void onJoinOrLeavePlan(plan)}
-              disabled={joiningPlanId === plan.id}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${isMember ? "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400" : "bg-black dark:bg-white text-white dark:text-black"}`}
+              onClick={() => onSharePlan(plan)}
+              className="w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+              aria-label="Share in messages"
             >
-              {joiningPlanId === plan.id ? (
-                "â€¦"
-              ) : isMember ? (
-                "Leave"
-              ) : (
-                <span className="flex items-center justify-center gap-1.5">
-                  <UserCheck size={15} /> I&apos;m in
-                </span>
-              )}
+              <Send size={16} />
             </button>
           )}
-          {plan.yuto_group_id && isMember && !isMine && onNavigateToYutoGroup && (
-            <>
-              <button
-                type="button"
-                onClick={() => onNavigateToYutoGroup(plan.yuto_group_id!)}
-                className="flex-[2] py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
-              >
-                <span className="flex items-center justify-center gap-1.5">
-                  <Rocket size={15} /> Join Room</span>
-              </button>
-              {onJoinOrLeavePlan && (
-                <button
-                  type="button"
-                  onClick={() => void onJoinOrLeavePlan(plan)}
-                  className="flex-1 py-2.5 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 rounded-xl font-bold text-xs transition-colors"
-                >
-                  Leave
-                </button>
+          {onOpenMemories && (isMember || isMine) && (
+            <button
+              type="button"
+              onClick={() => onOpenMemories(plan.id)}
+              className="relative w-10 h-10 shrink-0 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+              aria-label="Memories"
+            >
+              <Images size={16} />
+              {(plan.memories_count ?? 0) > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-purple-600 text-white text-[9px] font-bold flex items-center justify-center">{plan.memories_count}</span>
               )}
-            </>
-          )}
-          {plan.yuto_group_id && isMine && onNavigateToYutoGroup && (
-            <button
-              type="button"
-              onClick={() => onNavigateToYutoGroup(plan.yuto_group_id!)}
-              className="flex-1 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
-            >
-              <span className="flex items-center justify-center gap-1.5">
-                <Rocket size={15} /> Join Room
-              </span>
-            </button>
-          )}
-          {canYutoIt && onYutoIt && (
-            <button
-              type="button"
-              onClick={() => onYutoIt(plan)}
-              className="flex-1 py-2.5 bg-green-500 text-white rounded-xl font-bold text-sm hover:bg-green-600 transition-colors"
-            >
-              <span className="flex items-center justify-center gap-1.5">
-                <Rocket size={15} /> Yuto it!
-              </span>
             </button>
           )}
         </div>
 
-        {pm.length === 0 && (
-          <div className="flex flex-col gap-1.5 shrink-0 ml-auto">
-            <button
-              type="button"
-              onClick={() => sharePlanToWhatsApp(plan)}
-              className="h-10 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 flex items-center justify-center gap-1.5 px-3 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-              aria-label="Send on WhatsApp"
-              title="Send on WhatsApp"
-            >
-              <span className="text-xs font-bold">Send</span>
-              <WhatsAppIcon size={16} />
-            </button>
-            {(onSharePlan || onOpenPlanChat || (onOpenMemories && (isMember || isMine))) && (
-              <div className="flex items-center gap-1.5">
-                {onSharePlan && (
-                  <button
-                    type="button"
-                    onClick={() => onSharePlan(plan)}
-                    className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                    aria-label={`Share ${plan.title} in messages`}
-                    title="Share in messages"
-                  >
-                    <Send size={16} />
-                  </button>
-                )}
-                {onOpenPlanChat && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenPlanChat(plan)}
-                    className="relative w-10 h-10 shrink-0 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                    aria-label={`Chat about ${plan.title}`}
-                    title="Open chat"
-                  >
-                    <MessageCircle size={16} />
-                  </button>
-                )}
-                {onOpenMemories && (isMember || isMine) && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenMemories(plan.id)}
-                    className="relative w-10 h-10 shrink-0 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
-                    aria-label="Memories"
-                    title="Photos & memories"
-                  >
-                    <Images size={16} />
-                    {(plan.memories_count ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-purple-600 text-white text-[9px] font-bold flex items-center justify-center">{plan.memories_count}</span>
-                    )}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Join Room CTA — always visible, full width */}
+        {plan.yuto_group_id && onNavigateToYutoGroup ? (
+          <button
+            type="button"
+            onClick={() => onNavigateToYutoGroup(plan.yuto_group_id!)}
+            className="w-full py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Rocket size={15} /> Join Room
+            </span>
+          </button>
+        ) : onYutoIt ? (
+          <button
+            type="button"
+            onClick={() => onYutoIt(plan)}
+            disabled={joiningPlanId === plan.id}
+            className="w-full py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors disabled:opacity-50"
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Rocket size={15} /> {joiningPlanId === plan.id ? "Creating..." : "Join Room"}
+            </span>
+          </button>
+        ) : null}
       </div>
     </div>
   );

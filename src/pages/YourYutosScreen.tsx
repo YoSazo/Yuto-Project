@@ -158,6 +158,8 @@ export default function YourYutosScreen() {
         <span className="text-2xl font-bold text-black dark:text-white">Activity</span>
       </div>
 
+      {/* Tab switcher hidden for v1 — splits only */}
+      {false && (
       <div className="mb-6">
         <div className="bg-gray-100 rounded-full p-1 flex">
           <button
@@ -180,6 +182,7 @@ export default function YourYutosScreen() {
           </button>
         </div>
       </div>
+      )}
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">

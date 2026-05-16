@@ -48,6 +48,7 @@ import { PlanMessagesModal } from "../components/home/PlanMessagesModal";
 import { HomeComposeSheet } from "../components/home/HomeComposeSheet";
 import { GuidedTour } from "../components/GuidedTour";
 import { PlanMemoriesModal } from "../components/home/PlanMemoriesModal";
+import { hasCompletedOnboarding } from "./OnboardingScreen";
 import { FunctionFeedSection } from "../components/home/FunctionFeedSection";
 import { PlansFeedSection } from "../components/home/PlansFeedSection";
 import { PostsFeedSection } from "../components/home/PostsFeedSection";
@@ -65,6 +66,16 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Redirect first-time visitors to onboarding
+  useEffect(() => {
+    hasCompletedOnboarding().then((done) => {
+      if (!done) {
+        navigate("/onboarding", { replace: true });
+      }
+    });
+  }, []);
+
   const [activeTab, setActiveTab] = useState<"public" | "friends">("public");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [functionsFeed, setFunctionsFeed] = useState<FunctionListing[]>([]);
@@ -684,7 +695,10 @@ export default function HomeScreen() {
 
   const handleYutoIt = async (plan: Plan) => {
     if (!user) return;
-    if (!plan.amount) return;
+    if (!plan.amount) {
+      toast.error("Set an amount on the plan first");
+      return;
+    }
     if (yutoingPlanId) return; // Prevent double-tap
     setYutoingPlanId(plan.id);
     const memberIds = [
@@ -1078,7 +1092,8 @@ export default function HomeScreen() {
         />
       )}
 
-      <GuidedTour onComplete={() => {}} />
+      {/* GuidedTour removed for v1 — onboarding handles first-time experience */}
+      {/* <GuidedTour onComplete={() => {}} /> */}
 
       {memoriesPlanId && user && (
         <PlanMemoriesModal

@@ -147,7 +147,7 @@ export default function OnboardingScreen() {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center px-8 text-center">
         <img src={imgLogoDark} alt="Yuto" className="w-20 h-20 object-contain mb-8" />
-        <h1 className="text-3xl font-black text-white mb-3">Hey {userName} 👋</h1>
+        <h1 className="text-3xl font-black text-white mb-3">Hey You 👋</h1>
         <p className="text-white/60 text-base mb-10 max-w-[280px]">Welcome to Yuto. Let's show you around — takes 30 seconds.</p>
         <button onClick={() => setStep(1)} className="w-full max-w-xs py-4 bg-white text-black rounded-2xl font-bold text-base active:scale-[0.98] transition-transform border-none">Let's go</button>
       </div>

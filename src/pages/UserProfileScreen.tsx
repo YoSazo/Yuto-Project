@@ -541,8 +541,8 @@ export default function UserProfileScreen() {
         </div>
       )}
 
-      {/* Functions / Sell / Service showcase */}
-      {(() => {
+      {/* Functions / Sell / Service showcase — hidden for v1 */}
+      {false && (() => {
         const sellListings = userListings.filter((l) => l.kind === "sell");
         const serviceListings = userListings.filter((l) => l.kind === "service");
         const hasFns = hostedFunctions.length > 0;

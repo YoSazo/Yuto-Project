@@ -307,7 +307,8 @@ export default function MessagesScreen() {
         tabs={[
           { id: "personal", label: "Personal", icon: <Users size={18} /> },
           { id: "money", label: "Money", icon: <Wallet size={18} /> },
-          { id: "business", label: "Business", icon: <Briefcase size={18} /> },
+          // Business tab hidden for v1 (functions/services/marketplace removed)
+          // { id: "business", label: "Business", icon: <Briefcase size={18} /> },
         ]}
         className="mb-4"
       />
@@ -322,7 +323,7 @@ export default function MessagesScreen() {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search messages, plans, functions, friends..."
+            placeholder="Search messages, plans, friends..."
             className="w-full h-11 pl-9 pr-9 bg-gray-100 dark:bg-zinc-800 rounded-xl text-sm font-medium text-black dark:text-white placeholder:text-gray-400 outline-none"
           />
           {searchQuery && (

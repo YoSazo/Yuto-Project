@@ -773,11 +773,12 @@ export default function ProfileScreen() {
   const serviceListings = ownListings.filter(l => l.kind === "service");
 
   // Always show all tabs — empty states guide users to create content
+  // Functions/sell/service hidden for v1
   const availableTabs: Array<{ id: "profile" | "functions" | "sell" | "service"; label: string }> = [
     { id: "profile", label: "Profile" },
-    { id: "functions", label: "My Functions" },
-    { id: "sell", label: "My Marketplace" },
-    { id: "service", label: "My Services" },
+    // { id: "functions", label: "My Functions" },
+    // { id: "sell", label: "My Marketplace" },
+    // { id: "service", label: "My Services" },
   ];
 
   return (
