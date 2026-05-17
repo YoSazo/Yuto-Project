@@ -88,7 +88,7 @@ export default function Layout() {
 
   if (!user) {
     // Guest mode: allow browsing key screens (read-only) with a sign-up banner
-    const guestAllowedPaths = ["/home", "/", "/split", "/activity", "/profile"];
+    const guestAllowedPaths = ["/home", "/", "/split", "/activity", "/profile", "/wallet"];
     const isGuestAllowed = guestAllowedPaths.some(p => location.pathname === p || location.pathname.startsWith("/user/"));
     if (!isGuestAllowed) return <Navigate to="/home" replace />;
   }

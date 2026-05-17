@@ -125,7 +125,10 @@ export default function YourYutosScreen() {
   const [ticketOpen, setTicketOpen] = useState<FunctionListing | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     Promise.all([getMyGroups(), getMyTicketsAndPurchases(user.id)])
       .then(([g, t]) => {
@@ -227,7 +230,7 @@ export default function YourYutosScreen() {
 
           {tab === "splits" && groups.length === 0 && (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-20">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <div className="w-20 h-20 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2">
                   <path d="M5 17h14v-5l-1.5-4.5h-11L5 12v5z" />
                   <circle cx="7" cy="17" r="2" />
@@ -235,7 +238,15 @@ export default function YourYutosScreen() {
                 </svg>
               </div>
               <p className="font-bold text-lg text-gray-400 mb-2">No splits yet</p>
-              <p className="text-sm text-gray-400">Split your first fare to see it here</p>
+              <p className="text-sm text-gray-400 mb-4">{user ? "Split your first fare to see it here" : "Sign up to start splitting with friends"}</p>
+              {!user && (
+                <button
+                  onClick={() => navigate("/auth", { state: { defaultMode: "signup" } })}
+                  className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm border-none"
+                >
+                  Sign up
+                </button>
+              )}
             </div>
           )}
 
