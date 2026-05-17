@@ -128,7 +128,7 @@ export function DmPlusModal({
         </div>
 
         <div className="mb-4">
-          <div className={`bg-gray-100 dark:bg-zinc-800 rounded-full p-1 grid gap-1 ${showChargeTab ? "grid-cols-4" : "grid-cols-3"}`}>
+          <div className="bg-gray-100 dark:bg-zinc-800 rounded-full p-1 grid gap-1 grid-cols-2">
             <button
               type="button"
               onClick={() => setTopTab("share")}
@@ -136,7 +136,7 @@ export function DmPlusModal({
             >
               Share
             </button>
-            {showChargeTab ? (
+            {false && showChargeTab ? (
               <button
                 type="button"
                 onClick={() => setTopTab("charge")}
@@ -145,6 +145,7 @@ export function DmPlusModal({
                 Charge
               </button>
             ) : null}
+            {false && (
             <button
               type="button"
               onClick={() => setTopTab("split")}
@@ -152,6 +153,7 @@ export function DmPlusModal({
             >
               Split
             </button>
+            )}
             <button
               type="button"
               onClick={() => setTopTab("send")}

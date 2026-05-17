@@ -274,8 +274,77 @@ export default function WalletScreen() {
   };
 
   if (!user) {
-    navigate("/auth");
-    return null;
+    return (
+      <div className="flex flex-col min-h-full bg-white dark:bg-black text-black dark:text-white px-5 pt-8 pb-24 transition-colors overflow-y-auto">
+        {/* Balance hero — preview */}
+        <div className="bg-black dark:bg-zinc-900 rounded-3xl p-6 relative overflow-hidden mb-6">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/5 rounded-full blur-3xl" />
+          <div className="relative z-10">
+            <p className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-1">Your Balance</p>
+            <div className="flex items-baseline gap-1 mb-4">
+              <span className="text-white/60 text-lg font-medium">KSH</span>
+              <span className="text-white text-4xl font-black tracking-tight">0.00</span>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => navigate("/auth")} className="flex-1 py-3 bg-white text-black rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform border-none">
+                <Plus size={16} strokeWidth={3} /> Top Up
+              </button>
+              <button onClick={() => navigate("/auth")} className="flex-1 py-3 bg-white/10 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform border-none">
+                <ArrowDownLeft size={16} /> Cash Out
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Proximity radar — preview */}
+        <div className="relative w-full aspect-square max-w-[320px] mx-auto mb-4">
+          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 320 320" preserveAspectRatio="xMidYMid meet" style={{ zIndex: 1 }}>
+            <circle cx="160" cy="160" r="55" fill="none" stroke="#f0f0f0" strokeWidth="1" className="dark:opacity-20" />
+            <circle cx="160" cy="160" r="100" fill="none" stroke="#f0f0f0" strokeWidth="0.5" strokeDasharray="4 6" className="dark:opacity-15" />
+            <circle cx="160" cy="160" r="140" fill="none" stroke="#f7f7f7" strokeWidth="0.5" className="dark:opacity-10" />
+            {/* Pulse animation */}
+            <circle cx="160" cy="160" r="30" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0">
+              <animate attributeName="r" from="30" to="100" dur="2.5s" repeatCount="indefinite" />
+              <animate attributeName="opacity" from="0.35" to="0" dur="2.5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="160" cy="160" r="30" fill="none" stroke="#10b981" strokeWidth="1" opacity="0">
+              <animate attributeName="r" from="30" to="100" dur="2.5s" begin="1.2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" from="0.2" to="0" dur="2.5s" begin="1.2s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+          {/* Center "You" node */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+            <div className="w-16 h-16 rounded-full bg-black dark:bg-white border-[3px] border-green-500 flex items-center justify-center shadow-lg shadow-green-500/20">
+              <span className="text-white dark:text-black font-black text-lg">?</span>
+            </div>
+          </div>
+          {/* Ghost nodes */}
+          {Array.from({ length: 5 }, (_, i) => {
+            const angle = (i * 2 * Math.PI) / 5 + Math.PI / 5;
+            const r = 100 + (i % 2) * 20;
+            const x = 160 + Math.cos(angle) * r - 20;
+            const y = 160 + Math.sin(angle) * r - 20;
+            return (
+              <div key={i} className="absolute w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 border-2 border-dashed border-gray-300 dark:border-zinc-600 flex items-center justify-center" style={{ left: x, top: y, zIndex: 2 }}>
+                <span className="text-gray-400 dark:text-gray-500 text-xs font-bold">?</span>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-center text-sm text-gray-400 dark:text-gray-500 mb-6">
+          See who's nearby · Send & receive instantly
+        </p>
+
+        {/* Sign up CTA */}
+        <button
+          onClick={() => navigate("/auth", { state: { defaultMode: "signup" } })}
+          className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold text-base border-none active:scale-[0.98] transition-transform"
+        >
+          Sign up to use Wallet
+        </button>
+      </div>
+    );
   }
 
   // Ghost positions for the radar

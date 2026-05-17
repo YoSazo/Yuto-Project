@@ -54,7 +54,10 @@ export function PlanCard({
   const isMine = plan.creator_id === currentUserId;
   const pm = plan.plan_members ?? [];
   const isMember = pm.some((m) => m.user_id === currentUserId);
-  const joinedCount = pm.length;
+  // If plan has a linked split group, show group members instead of plan_members
+  const groupMembers = (plan as any).group?.group_members ?? [];
+  const displayMembers = plan.yuto_group_id && groupMembers.length > 0 ? groupMembers : pm;
+  const joinedCount = displayMembers.length;
   // Slots includes the creator â€” so available spots = slots - 1 (creator) - joinedCount
   const slotsLeft = plan.slots ? Math.max(0, plan.slots - 1 - joinedCount) : null;
   const allIn = plan.slots ? (joinedCount + 1) >= plan.slots : false; // +1 for creator
@@ -131,7 +134,7 @@ export function PlanCard({
         )}
       </div>
 
-      {pm.length > 0 && (
+      {displayMembers.length > 0 && (
         <div className="flex items-center justify-between gap-3 mb-1">
           <button
             type="button"
@@ -140,7 +143,7 @@ export function PlanCard({
             aria-label="See who is in"
             title="See who's in"
           >
-            {pm.slice(0, 5).map((m) => (
+            {displayMembers.slice(0, 5).map((m: any) => (
               <UserAvatar
                 key={m.id}
                 name={m.profiles.display_name}
@@ -149,12 +152,12 @@ export function PlanCard({
                 className="-ml-1 first:ml-0 border-2 border-white"
               />
             ))}
-            {pm.length > 5 && <span className="text-xs text-gray-400 ml-1 shrink-0">+{pm.length - 5}</span>}
+            {displayMembers.length > 5 && <span className="text-xs text-gray-400 ml-1 shrink-0">+{displayMembers.length - 5}</span>}
             <span className="text-xs text-gray-400 ml-1 truncate">
               {joinedCount} {joinedCount === 1 ? "person" : "people"} in
             </span>
           </button>
-          {pm.length > 0 && (
+          {displayMembers.length > 0 && (
             <div className="shrink-0" />
           )}
         </div>

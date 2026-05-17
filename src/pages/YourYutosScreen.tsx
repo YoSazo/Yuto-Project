@@ -52,7 +52,7 @@ function YutoCard({ group, onClick, onDelete }: { group: GroupData; onClick: () 
         <div className="flex-1 min-w-0">
           <p className="font-bold text-base text-black dark:text-white truncate">{group.name}</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            KSH {group.per_person.toLocaleString()} each · {members.length} people
+            KSH {(members.length > 0 ? Math.ceil(group.total_amount / members.length) : group.per_person).toLocaleString()} each · {members.length} people
           </p>
         </div>
         <div className="flex items-center gap-2 ml-3 flex-shrink-0">

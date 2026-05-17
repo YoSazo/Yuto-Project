@@ -29,12 +29,15 @@ if ("serviceWorker" in navigator) {
 }
 
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 createRoot(document.getElementById("root")!).render(
-  <AuthProvider>
-    <ThemeProvider>
-      <RouterProvider router={router} />
-      <Toaster />
-    </ThemeProvider>
-  </AuthProvider>
+  <ErrorBoundary>
+    <AuthProvider>
+      <ThemeProvider>
+        <RouterProvider router={router} />
+        <Toaster />
+      </ThemeProvider>
+    </AuthProvider>
+  </ErrorBoundary>
 );

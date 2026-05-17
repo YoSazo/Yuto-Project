@@ -522,6 +522,8 @@ export function HomeComposeSheet({
                     className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                   />
                 </div>
+                {/* Slots hidden for plans in v1 — anyone can join */}
+                {composeMode !== "plan" && (
                 <div className="flex-1">
                   <p className="text-xs text-gray-400 mb-1 font-semibold">
                     {composeMode === "plan" ? "Slots" : composeMode === "sell" || composeMode === "service" ? "Stock / Available" : "Capacity"}
@@ -534,6 +536,7 @@ export function HomeComposeSheet({
                     className="w-full bg-transparent text-black dark:text-white border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-black dark:focus:border-white transition-colors"
                   />
                 </div>
+                )}
               </div>
 
               {composeMode !== "sell" && composeMode !== "service" && composeMode !== "plan" && (

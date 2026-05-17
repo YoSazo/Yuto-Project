@@ -701,17 +701,43 @@ export default function HomeScreen() {
     }
     if (yutoingPlanId) return; // Prevent double-tap
     setYutoingPlanId(plan.id);
-    const memberIds = [
-      plan.creator_id,
-      ...(plan.plan_members ?? []).map((m) => m.user_id).filter((id) => id !== plan.creator_id),
-    ];
+    // Always include plan creator + current user
+    const memberIds = [plan.creator_id];
+    if (!memberIds.includes(user.id)) {
+      memberIds.push(user.id);
+    }
+    // Also include any existing plan members
+    (plan.plan_members ?? []).forEach((m) => {
+      if (!memberIds.includes(m.user_id)) {
+        memberIds.push(m.user_id);
+      }
+    });
     try {
       analytics.yutoItClicked({
         planId: plan.id,
         memberCount: memberIds.length,
         perPerson: Math.ceil(plan.amount / memberIds.length),
       });
-      const group = await yutoItPlan(plan.id, user.id, plan.title, plan.amount, memberIds);
+      const group = await yutoItPlan(plan.id, plan.creator_id, plan.title, plan.amount, memberIds);
+      
+      // If user wasn't in the original group (joined after creation), add them
+      const { data: existingMember } = await supabase
+        .from("group_members")
+        .select("user_id")
+        .eq("group_id", group.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (!existingMember) {
+        await supabase.from("group_members").insert({
+          group_id: group.id,
+          user_id: user.id,
+          has_joined: true,
+          has_paid: false,
+        });
+      }
+      
+      await loadFeed();
       navigate(`/yuto/${group.id}`);
     } catch (err: any) {
       console.error(err);
@@ -872,7 +898,27 @@ export default function HomeScreen() {
         onDeletePlan={handleDelete}
         onYutoIt={handleYutoIt}
         onOpenPlanChat={setActivePlanChat}
-        onNavigateToYutoGroup={(groupId) => navigate(`/yuto/${groupId}`)}
+        onNavigateToYutoGroup={async (groupId) => {
+          // Ensure current user is a member before navigating
+          if (user) {
+            const { data: existing } = await supabase
+              .from("group_members")
+              .select("user_id")
+              .eq("group_id", groupId)
+              .eq("user_id", user.id)
+              .maybeSingle();
+            if (!existing) {
+              const { error } = await supabase.from("group_members").insert({
+                group_id: groupId,
+                user_id: user.id,
+                has_joined: true,
+                has_paid: false,
+              });
+              if (error) console.error("Failed to add member:", error);
+            }
+          }
+          navigate(`/yuto/${groupId}`);
+        }}
         onNavigateToCreator={(creatorId) => navigate(`/user/${creatorId}`)}
         onInviteFriends={() => navigate("/friends")}
         onSharePlan={

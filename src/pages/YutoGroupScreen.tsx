@@ -314,13 +314,15 @@ export default function YutoGroupScreen() {
       try {
         const data = await getGroup(groupId);
         setGroupName(data.name);
-        setPerPersonAmount(data.per_person);
         setTotalAmount(data.total_amount);
         setCreatedBy(data.created_by);
         setGroupType(data.group_type || "single");
         setGroupStatus(data.status || "active");
 
         const gmem = data.group_members ?? [];
+        // Calculate per_person dynamically from actual member count
+        const memberCount = gmem.length || 1;
+        setPerPersonAmount(Math.ceil(data.total_amount / memberCount));
 
         const list: Member[] = gmem.map((gm: any) => ({
           user_id: gm.user_id,
@@ -529,12 +531,14 @@ export default function YutoGroupScreen() {
     try {
       const data = await getGroup(groupId);
       setGroupName(data.name);
-      setPerPersonAmount(data.per_person);
       setTotalAmount(data.total_amount);
       setCreatedBy(data.created_by);
       setGroupType(data.group_type || "single");
       setGroupStatus(data.status || "active");
       const gmem = data.group_members ?? [];
+      // Calculate per_person dynamically from actual member count
+      const memberCount = gmem.length || 1;
+      setPerPersonAmount(Math.ceil(data.total_amount / memberCount));
       const list: Member[] = gmem.map((gm: any) => ({
         user_id: gm.user_id,
         name: gm.profiles.display_name,
@@ -562,7 +566,8 @@ export default function YutoGroupScreen() {
     try {
       const data = await reloadGroupSnapshot();
       if (!data) return;
-      const shareAmt = Number(data.per_person) || perPersonAmount;
+      const memberCount = (data.group_members ?? []).length || 1;
+      const shareAmt = Math.ceil(data.total_amount / memberCount) || perPersonAmount;
       setShowBalanceTopUpModal(false);
       setIsPayingShare(true);
       try {

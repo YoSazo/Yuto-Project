@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Eagerly loaded (critical path — first screen users see)
 import AuthScreen from "./pages/AuthScreen";
@@ -31,6 +32,7 @@ const PrivacyScreen = lazy(() => import("./pages/PrivacyScreen"));
 const AdminScreen = lazy(() => import("./pages/AdminScreen"));
 const ReferralLandingScreen = lazy(() => import("./pages/ReferralLandingScreen"));
 const WalletScreen = lazy(() => import("./pages/WalletScreen"));
+const NotFoundScreen = lazy(() => import("./pages/NotFoundScreen"));
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return (
@@ -41,7 +43,7 @@ function Lazy({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
-  { path: "/auth", element: <AuthScreen /> },
+  { path: "/auth", element: <AuthScreen />, errorElement: <ErrorBoundary><Lazy><NotFoundScreen /></Lazy></ErrorBoundary> },
   { path: "/onboarding", element: <Lazy><OnboardingScreen /></Lazy> },
   { path: "/join/:groupId", element: <Lazy><JoinGroupScreen /></Lazy> },
   { path: "/invite/:username", element: <Lazy><InviteScreen /></Lazy> },
@@ -53,6 +55,7 @@ export const router = createBrowserRouter([
   { path: "/referral/:username", element: <Lazy><ReferralLandingScreen /></Lazy> },
   {
     element: <Layout />,
+    errorElement: <ErrorBoundary><Lazy><NotFoundScreen /></Lazy></ErrorBoundary>,
     children: [
       { path: "/", element: <Navigate to="/home" replace /> },
       { path: "/split", element: <Lazy><SplitScreen /></Lazy> },
@@ -71,6 +74,8 @@ export const router = createBrowserRouter([
       { path: "/messages/group/:groupId/members", element: <Lazy><GroupChatMembersScreen /></Lazy> },
       { path: "/messages/:conversationId", element: <Lazy><DirectMessageScreen /></Lazy> },
       { path: "/add-to-home", element: <Lazy><AddToHomeScreen /></Lazy> },
+      { path: "*", element: <Lazy><NotFoundScreen /></Lazy> },
     ],
   },
+  { path: "*", element: <Lazy><NotFoundScreen /></Lazy> },
 ]);

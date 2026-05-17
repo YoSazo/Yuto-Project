@@ -1115,7 +1115,8 @@ const PLANS_SELECT = `
   *,
   creator:profiles!plans_creator_id_fkey(id, username, display_name, avatar_url),
   plan_members(id, user_id, profiles(id, username, display_name, avatar_url)),
-  media:plan_media(id, media_url, media_type, sort_index)
+  media:plan_media(id, media_url, media_type, sort_index),
+  group:groups!plans_yuto_group_id_fkey(id, group_members(id, user_id, profiles(id, username, display_name, avatar_url)))
 `;
 
 /** All plans (public tab) */
@@ -1232,28 +1233,32 @@ export async function leavePlan(planId: string, userId: string) {
 }
 
 export async function yutoItPlan(planId: string, creatorId: string, title: string, amount: number, memberIds: string[]) {
-  // Guard: check if plan was already "Yuto'd" (prevents duplicate splits)
-  const { data: planCheck } = await supabase
-    .from("plans")
-    .select("yuto_group_id, status")
-    .eq("id", planId)
-    .single();
-  
-  if (planCheck?.yuto_group_id) {
-    // Already has a group — return the existing one
-    return { id: planCheck.yuto_group_id };
-  }
-  if (planCheck?.status === "completed") {
-    throw new Error("This plan has already been locked in.");
+  // Use atomic RPC to prevent duplicate splits (race condition safe)
+  const { data, error } = await supabase.rpc("yuto_it_plan_atomic", {
+    p_plan_id: planId,
+    p_creator_id: creatorId,
+    p_title: title,
+    p_amount: amount,
+    p_member_ids: memberIds,
+  });
+
+  if (error) {
+    if (error.message?.includes("already")) {
+      // Plan was already yuto'd — fetch the existing group
+      const { data: planCheck } = await supabase
+        .from("plans")
+        .select("yuto_group_id")
+        .eq("id", planId)
+        .single();
+      if (planCheck?.yuto_group_id) return { id: planCheck.yuto_group_id };
+    }
+    throw error;
   }
 
-  // Create the group
-  const group = await createGroup(title, amount, Math.ceil(amount / memberIds.length), creatorId, memberIds);
-  // Mark plan as completed
-  await supabase.from("plans").update({ status: "completed", yuto_group_id: group.id }).eq("id", planId);
+  const groupId = data as string;
 
-  // Notify + DM members (best-effort)
-  await Promise.all(
+  // Notify + DM members (best-effort, non-blocking)
+  Promise.all(
     memberIds
       .filter((uid) => uid && uid !== creatorId)
       .map(async (uid) => {
@@ -1266,24 +1271,35 @@ export async function yutoItPlan(planId: string, creatorId: string, title: strin
               body: `"${title}" is locked in. Pay your share now.`,
             }),
           });
-        } catch {
-          // ignore
-        }
+        } catch { /* ignore */ }
+      })
+  ).catch(() => {});
 
-        try {
-          const convo = await getOrCreateDmConversation(creatorId, uid);
-          await sendDmMessage(convo.id, creatorId, `The plan "${title}" is locked in! Pay your share here.`);
-          await sendDmShareMessage(convo.id, creatorId, { kind: "group", group_id: group.id } as any);
-        } catch {
-          // ignore
-        }
-      }),
-  );
-
-  return group;
+  return { id: groupId };
 }
 
 export async function deletePlan(planId: string) {
+  // First check if the plan has an associated split group
+  const { data: plan } = await supabase
+    .from("plans")
+    .select("yuto_group_id")
+    .eq("id", planId)
+    .single();
+
+  // If there's an associated group, cancel it (handles refunds) then delete it
+  if (plan?.yuto_group_id) {
+    try {
+      // Cancel first — refunds paid members to Yuto Balance
+      await cancelSplitGroup(plan.yuto_group_id);
+    } catch (err) {
+      // If cancel fails (already cancelled/completed), continue with delete
+      console.error("Cancel split failed (may already be cancelled):", err);
+    }
+    // Now delete the group entirely (cascade removes remaining members)
+    await supabase.from("groups").delete().eq("id", plan.yuto_group_id);
+  }
+
+  // Then delete the plan
   const { error } = await supabase.from("plans").delete().eq("id", planId);
   if (error) throw error;
 }
