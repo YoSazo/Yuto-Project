@@ -91,6 +91,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  // ── Build IntaSend transaction ────────────────────
+  // Apply payout fees based on payment type
+  // Fee is absorbed by the group (deducted from collected_balance alongside the payout amount)
+  let payoutFee = 0;
+  if (payment_type === "phone") payoutFee = 25;
+  // till and paybill = 0 fee
+
+  // Check group has enough for amount + fee
+  const totalNeeded = Number(amount) + payoutFee;
+
   // ── Reserve the split pool; do not debit the host's personal wallet ──
   const collected = Number((group as { collected_balance?: number | string | null }).collected_balance ?? 0);
   if (collected < totalNeeded) {
@@ -112,16 +122,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       message: deductError.message || "Could not reserve the split payout funds",
     });
   }
-
-  // ── Build IntaSend transaction ────────────────────
-  // Apply payout fees based on payment type
-  // Fee is absorbed by the group (deducted from collected_balance alongside the payout amount)
-  let payoutFee = 0;
-  if (payment_type === "phone") payoutFee = 25;
-  // till and paybill = 0 fee
-
-  // Check group has enough for amount + fee
-  const totalNeeded = Number(amount) + payoutFee;
 
   let transaction: Record<string, unknown>;
   let provider: "MPESA-B2C" | "MPESA-B2B";
